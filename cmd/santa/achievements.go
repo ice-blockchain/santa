@@ -1,0 +1,149 @@
+// SPDX-License-Identifier: BUSL-1.1
+
+package main
+
+import (
+	"context"
+	"github.com/ICE-Blockchain/wintr/server"
+	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	"net/http"
+	"strings"
+)
+
+func (s *service) setupAchievementRoutes(router *gin.Engine) {
+	router.
+		Group("/v1").
+		GET("user-achievements/:userId", server.RootHandler(newRequestGetUserAchievements, s.GetUserAchievements)).
+		GET("user-achievements/:userId/badges", server.RootHandler(newRequestGetUserBadges, s.GetUserBadges))
+}
+
+// GetUserAchievements godoc
+// @Schemes
+// @Description  Returns the achievements for an user
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        Authorization        header    string    true   "Insert your access token"  default(Bearer <Add access token here>)
+// @Param        userId               path      string    true   "ID of the user"
+// @Param        includeCollectibles  query     []string  false  "You can include any of [`TASKS`,`BADGES`]."
+// @Success      200                  {object}  achievements.UserAchievements
+// @Failure      400                  {object}  server.ErrorResponse  "if validations fail"
+// @Failure      401                  {object}  server.ErrorResponse  "if not authorized"
+// @Failure      404                  {object}  server.ErrorResponse  "if user not found"
+// @Failure      422                  {object}  server.ErrorResponse  "if syntax fails"
+// @Failure      500                  {object}  server.ErrorResponse
+// @Failure      504                  {object}  server.ErrorResponse  "if request times out"
+// @Router       /user-achievements/{userId} [GET].
+func (s *service) GetUserAchievements(ctx context.Context, r server.ParsedRequest) server.Response {
+	req := r.(*RequestGetUserAchievements)
+
+	//TODO implement me
+	if req.AuthenticatedUser.ID == req.UserID {
+		// User is trying to get their own achievements
+	} else {
+		// User is trying to get some other user's achievements
+	}
+
+	return server.OK(req)
+}
+
+func newRequestGetUserAchievements() server.ParsedRequest {
+	return new(RequestGetUserAchievements)
+}
+
+func (req *RequestGetUserAchievements) SetAuthenticatedUser(user server.AuthenticatedUser) {
+	if req.AuthenticatedUser.ID == "" {
+		req.AuthenticatedUser = user
+	}
+}
+
+func (req *RequestGetUserAchievements) GetAuthenticatedUser() server.AuthenticatedUser {
+	return req.AuthenticatedUser
+}
+
+func (req *RequestGetUserAchievements) Validate() *server.Response {
+	for _, collectible := range req.IncludeCollectibles {
+		c := strings.ToUpper(collectible)
+		if c != "TASKS" && c != "BADGES" {
+			err := errors.Errorf("element `%v` for includeCollectibles is not allowed, only `TASKS` or `BADGES` are", collectible)
+			return &server.Response{
+				Code: http.StatusBadRequest,
+				Data: server.ErrorResponse{
+					Error: err.Error(),
+					Code:  "INVALID_PROPERTIES",
+				}.Fail(err),
+			}
+		}
+	}
+
+	return server.RequiredStrings(map[string]string{"userId": req.UserID})
+}
+
+func (req *RequestGetUserAchievements) Bindings(c *gin.Context) []func(obj interface{}) error {
+	return []func(obj interface{}) error{c.ShouldBindUri, c.ShouldBindQuery, server.ShouldBindAuthenticatedUser(c)}
+}
+
+// GetUserBadges godoc
+// @Schemes
+// @Description  Returns the badges for an user
+// @Tags         Achievements
+// @Accept       json
+// @Produce      json
+// @Param        Authorization  header    string  true  "Insert your access token"  default(Bearer <Add access token here>)
+// @Param        userId         path      string  true  "ID of the user"
+// @Param        badgeType      query     string  true  "The type of the badges you want. It can be `LEVEL`, `SOCIAL` or `ICE`"
+// @Success      200            {array}   achievements.BadgeInventory
+// @Failure      400            {object}  server.ErrorResponse  "if validations fail"
+// @Failure      401            {object}  server.ErrorResponse  "if not authorized"
+// @Failure      404            {object}  server.ErrorResponse  "if user not found"
+// @Failure      422            {object}  server.ErrorResponse  "if syntax fails"
+// @Failure      500            {object}  server.ErrorResponse
+// @Failure      504            {object}  server.ErrorResponse  "if request times out"
+// @Router       /user-achievements/{userId}/badges [GET].
+func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) server.Response {
+	req := r.(*RequestGetUserBadges)
+
+	//TODO implement me
+	if req.AuthenticatedUser.ID == req.UserID {
+		// User is trying to get their own achievements
+	} else {
+		// User is trying to get some other user's achievements
+	}
+
+	return server.OK(req)
+}
+
+func newRequestGetUserBadges() server.ParsedRequest {
+	return new(RequestGetUserBadges)
+}
+
+func (req *RequestGetUserBadges) SetAuthenticatedUser(user server.AuthenticatedUser) {
+	if req.AuthenticatedUser.ID == "" {
+		req.AuthenticatedUser = user
+	}
+}
+
+func (req *RequestGetUserBadges) GetAuthenticatedUser() server.AuthenticatedUser {
+	return req.AuthenticatedUser
+}
+
+func (req *RequestGetUserBadges) Validate() *server.Response {
+	b := strings.ToUpper(req.BadgeType)
+	if b != "LEVEL" && b != "SOCIAL" && b != "ICE" {
+		err := errors.Errorf("badgeType `%v` is not allowed, only `LEVEL`, `SOCIAL` or `ICE` are", req.BadgeType)
+		return &server.Response{
+			Code: http.StatusBadRequest,
+			Data: server.ErrorResponse{
+				Error: err.Error(),
+				Code:  "INVALID_PROPERTIES",
+			}.Fail(err),
+		}
+	}
+
+	return server.RequiredStrings(map[string]string{"userId": req.UserID})
+}
+
+func (req *RequestGetUserBadges) Bindings(c *gin.Context) []func(obj interface{}) error {
+	return []func(obj interface{}) error{c.ShouldBindUri, c.ShouldBindQuery, server.ShouldBindAuthenticatedUser(c)}
+}

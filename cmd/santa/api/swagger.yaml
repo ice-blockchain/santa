@@ -1,0 +1,221 @@
+# SPDX-License-Identifier: BUSL-1.1
+
+basePath: /v1
+definitions:
+  achievements.BadgeInventory:
+    properties:
+      achieved:
+        example: false
+        type: boolean
+      globalAchievementPercentage:
+        description: The percentage of all the users that have this badge.
+        example: 25.5
+        type: number
+      interval:
+        properties:
+          left:
+            example: 11
+            type: integer
+          right:
+            example: 22
+            type: integer
+        type: object
+      name:
+        example: ICE Breaker
+        type: string
+      type:
+        example: SOCIAL
+        type: string
+    type: object
+  achievements.BadgeOverview:
+    properties:
+      interval:
+        properties:
+          left:
+            example: 11
+            type: integer
+          right:
+            example: 22
+            type: integer
+        type: object
+      name:
+        example: ICE Breaker
+        type: string
+      position:
+        properties:
+          outOf:
+            example: 10
+            type: integer
+          x:
+            example: 3
+            type: integer
+        type: object
+      type:
+        example: SOCIAL
+        type: string
+    type: object
+  achievements.Task:
+    properties:
+      achieved:
+        example: false
+        type: boolean
+      index:
+        example: 0
+        type: integer
+      name:
+        example: CLAIM_USERNAME
+        type: string
+    type: object
+  achievements.UserAchievements:
+    properties:
+      badges:
+        items:
+          $ref: '#/definitions/achievements.BadgeOverview'
+        type: array
+      level:
+        example: 11
+        type: integer
+      role:
+        example: AMBASSADOR
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/achievements.Task'
+        type: array
+    type: object
+  server.ErrorResponse:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      error:
+        example: something is missing
+        type: string
+    type: object
+info:
+  contact:
+    name: ICE
+    url: https://ice.io
+  description: API that handles everything related to read only operations for user's
+    achievements(badges, levels, roles, task completions, etc).
+  title: User Achievements API
+  version: latest
+paths:
+  /user-achievements/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the achievements for an user
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - collectionFormat: multi
+        description: You can include any of [`TASKS`,`BADGES`].
+        in: query
+        items:
+          type: string
+        name: includeCollectibles
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/achievements.UserAchievements'
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: if user not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Achievements
+  /user-achievements/{userId}/badges:
+    get:
+      consumes:
+      - application/json
+      description: Returns the badges for an user
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: ID of the user
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: The type of the badges you want. It can be `LEVEL`, `SOCIAL`
+          or `ICE`
+        in: query
+        name: badgeType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/achievements.BadgeInventory'
+            type: array
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "404":
+          description: if user not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Achievements
+schemes:
+- https
+swagger: "2.0"
