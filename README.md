@@ -1,7 +1,7 @@
 # Santa Service
 
 ``Santa is handling everything related to prizes, achievements or collectibles that the users earn through various actions.``
-
+t
 <details>
 <summary>ACHIEVEMENTS</summary>
 
