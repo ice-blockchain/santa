@@ -19,13 +19,7 @@ type (
 		achievementsProcessor achievements.Processor
 	}
 	config struct {
-		Host          string `yaml:"host"`
-		Version       string `yaml:"version"`
-		InitialBadges []struct {
-			Name                  string `yaml:"name"`
-			Type                  string `yaml:"type"`
-			LeftProgressInterval  uint64 `yaml:"leftProgressInterval"`
-			RightProgressInterval uint64 `yaml:"rightProgressInterval"`
-		} `yaml:"initialBadges"`
+		Host    string `yaml:"host"`
+		Version string `yaml:"version"`
 	}
 )
