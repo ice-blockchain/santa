@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/ICE-Blockchain/santa/achievements"
-	"github.com/ICE-Blockchain/wintr/server"
+	"github.com/ice-blockchain/santa/achievements"
+	"github.com/ice-blockchain/wintr/server"
 )
 
 // Public API.
