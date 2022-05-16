@@ -9,6 +9,12 @@ import (
 
 // Public API.
 
+const (
+	badgeTypeSocial = "SOCIAL"
+	badgeTypeIce    = "ICE"
+	badgeTypeLevel  = "LEVEL"
+)
+
 type (
 	RequestGetUserAchievements struct {
 		AuthenticatedUser server.AuthenticatedUser `json:"authenticatedUser" swaggerignore:"true"`

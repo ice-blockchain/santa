@@ -13,7 +13,8 @@ import (
 
 type (
 	BadgeName        = string
-	UserId           = string
+	BadgeType        = string
+	UserID           = string
 	UserAchievements struct {
 		Level  uint64           `json:"level" example:"11"`
 		Role   string           `json:"role" example:"AMBASSADOR"`
@@ -35,12 +36,12 @@ type (
 	}
 	Task struct {
 		Achieved bool   `json:"achieved" example:"false"`
-		Name     string `json:"name" example:"CLAIM_USERNAME"`
+		Name     string `json:"Name" example:"CLAIM_USERNAME"`
 		Index    uint64 `json:"index" example:"0"`
 	}
 	Badge struct {
-		Name             string `json:"name" example:"ICE Breaker"`
-		Type             string `json:"type" example:"SOCIAL"`
+		Name             string    `json:"Name" example:"ICE Breaker"`
+		Type             BadgeType `json:"type" example:"SOCIAL"`
 		ProgressInterval struct {
 			Left  uint64 `json:"left" example:"11"`
 			Right uint64 `json:"right" example:"22"`
@@ -56,11 +57,13 @@ type (
 		CheckHealth(context.Context) error
 	}
 
-	// TODO split one achievements package to 3 packages for badges, tasks and achievements? Or remove Badges from name if it'll be implemented all in one
+	// TODO split one achievements package to 3 packages for badges, tasks and achievements? Or remove Badges from Name if it'll be implemented all in one
 	ReadBadgesRepository interface {
+		GetAchievedUserBadges(ctx context.Context, userId UserID, badgeType BadgeType) ([]*BadgeInventory, error)
 	}
 	WriteBadgesRepository interface {
 		AddBadge(ctx context.Context, badge *Badge) error
+		MarkBadgeAchieved(ctx context.Context, userId UserID, badge *Badge) error
 	}
 )
 
@@ -94,11 +97,35 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
-		name BadgeName
+		Name BadgeName
 		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		badgeType string
+		BadgeType string
+		// Min-max range of the certain value (based on BadgeType) to achieve the badge
+		From_inclusive uint64
+		To_inclusive   uint64
+	}
+	// achievedBadge is an internal type to store user's achieved badges in database
+	achievedBadge struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		BadgeName  string
+		AchievedAt uint64
+	}
+	// we nned this srtuct to delesialize db responce from ReadBadgesRepository.GetAchievedUserBadges because of API struct uses struct embedding
+	badgeInventory struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		// Primary key.
+		Name BadgeName
+		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
+		BadgeType string
 		// Min-max range of the certain value (based on badgeType) to achieve the badge
-		from_inclusive uint64
-		to_inclusive   uint64
+		From_inclusive uint64
+		To_inclusive   uint64
+		// if the badge was achieved by user
+		Achieved bool `json:"achieved" example:"false"`
+		// The percentage of all the users that have this badge.
+		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
 	}
 )

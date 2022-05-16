@@ -26,6 +26,14 @@ func (s *service) setupInitialBadgesData(ctx context.Context) error {
 				Right uint64 `json:"right" example:"22"`
 			}{4, 9},
 		},
+		&achievements.Badge{
+			Name: "Snowy plower",
+			Type: "SOCIAL",
+			ProgressInterval: struct {
+				Left  uint64 `json:"left" example:"11"`
+				Right uint64 `json:"right" example:"22"`
+			}{10, 24},
+		},
 		// endregion social badges
 
 	}
