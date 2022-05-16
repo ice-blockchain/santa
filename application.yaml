@@ -23,6 +23,15 @@ cmd/santa-sleigh:
     port: 1443
     certPath: cmd/santa-sleigh/.testdata/localhost.crt
     keyPath: cmd/santa-sleigh/.testdata/localhost.key
+  initialBadges:
+    - name: Ice Breaker
+      type: SOCIAL
+      leftProgressInterval: 0
+      rightProgressInterval: 3
+    - name: Trouble maker
+      type: SOCIAL
+      leftProgressInterval: 4
+      rightProgressInterval: 9
 achievements:
   db:
     spaces:
