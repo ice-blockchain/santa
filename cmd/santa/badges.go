@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ice-blockchain/santa/achievements"
 	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
 )
@@ -35,6 +36,10 @@ func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) ser
 	if req.AuthenticatedUser.ID == req.UserID {
 		achievedBadges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
 		if err != nil {
+			if errors.Is(err, achievements.ErrNotFound) {
+				return *server.NotFound(err, userNotFoundCode)
+			}
+
 			return server.Unexpected(err)
 		}
 

@@ -8,9 +8,13 @@ import (
 	"io"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 // Public API.
+var (
+	ErrNotFound = storage.ErrNotFound
+)
 
 type (
 	BadgeName        = string
