@@ -4,11 +4,12 @@ package main
 
 import (
 	"context"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
-	"net/http"
-	"strings"
 )
 
 func (s *service) setupAchievementRoutes(router *gin.Engine) {
@@ -40,9 +41,9 @@ func (s *service) GetUserAchievements(ctx context.Context, r server.ParsedReques
 
 	//nolint:nolintlint,gocritic,staticcheck // TODO implement me.
 	if req.AuthenticatedUser.ID == req.UserID {
-		// User is trying to get their own achievements
+		// User is trying to get their own achievements.
 	} else { //nolint:nolintlint,gocritic,staticcheck // TODO implement me.
-		// User is trying to get some other user's achievements
+		// User is trying to get some other user's achievements.
 	}
 
 	return server.OK(req)

@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"github.com/ice-blockchain/santa/achievements/fixture"
-
 	"github.com/ice-blockchain/wintr/log"
 )
 

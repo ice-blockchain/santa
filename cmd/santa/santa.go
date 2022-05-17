@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ice-blockchain/santa/achievements"
 	"github.com/ice-blockchain/santa/cmd/santa/api"
@@ -52,7 +53,7 @@ func (s *service) Close(ctx context.Context) error {
 func (s *service) CheckHealth(ctx context.Context, r *server.RequestCheckHealth) server.Response {
 	log.Debug("checking health...", "package", "achievements")
 
-	// TODO implement me
+	//nolint:nolintlint,godox // TODO implement me.
 
 	return server.OK(r)
 }

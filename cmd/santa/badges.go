@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package main
 
 import (
 	"context"
+	"net/http"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
-	"net/http"
-	"strings"
 )
 
 // GetUserBadges godoc
@@ -28,7 +31,7 @@ import (
 // @Router       /user-achievements/{userId}/badges [GET].
 func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserBadges)
-	// user requests its own badges
+	// User requests its own badges.
 	if req.AuthenticatedUser.ID == req.UserID {
 		achievedBadges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
 		if err != nil {
@@ -37,7 +40,7 @@ func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) ser
 
 		return server.OK(achievedBadges)
 	}
-	// TODO not sure if it is valid, need to specify it
+	//nolint:nolintlint,godox // TODO not sure if it is valid, need to specify if user can request other user's badges.
 
 	return *server.Forbidden(errors.Errorf("You can request only your own badges"))
 }

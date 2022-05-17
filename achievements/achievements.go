@@ -4,6 +4,7 @@ package achievements
 
 import (
 	"context"
+
 	appCfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
@@ -42,6 +43,6 @@ func (p *processor) Close() error {
 }
 
 func (p *processor) CheckHealth(ctx context.Context) error {
-	// TODO implement me
+	//nolint:nolintlint,godox // TODO implement me.
 	return nil
 }

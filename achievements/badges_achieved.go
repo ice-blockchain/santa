@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package achievements
 
 import (
 	"context"
+	"time"
+
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func (r *repository) GetAchievedUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "failed to get referrals because of context failed")
 	}
-
 	var queryResult []*badgeInventory
 	sql := `
 select
@@ -27,8 +29,7 @@ where
 group by BADGES.NAME`
 	params := map[string]interface{}{
 		"userId":    userID,
-		"badgeType": badgeType,
-		// TODO: limit, offset? It seems we won't have a lot of badges for the pagination.
+		"badgeType": badgeType, //nolint:nolintlint,godox // TODO Limit, offset? It seems we won't have a lot of badges for the pagination.
 	}
 	if err := r.db.PrepareExecuteTyped(sql, params, &queryResult); err != nil {
 		return nil, errors.Wrapf(err, "failed to get achieved badges for type %v and user %v", badgeType, userID)
@@ -59,6 +60,7 @@ func (r *repository) MarkBadgeAchieved(ctx context.Context, userID UserID, badge
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
 		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badge, userID)
 	}
+
 	return nil
 }
 
