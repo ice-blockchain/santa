@@ -35,7 +35,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		close: func() error {
 			return errors.Wrap(db.Close(), "failed to close db in processor")
 		},
-		WriteBadgesRepository: &repository{
+		WriteRepository: &repository{
 			db: db,
 		},
 	}

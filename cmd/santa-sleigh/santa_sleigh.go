@@ -29,10 +29,6 @@ func (s *service) RegisterRoutes(_ *gin.Engine) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.achievementsProcessor = achievements.StartProcessor(ctx, cancel)
-	err := s.setupInitialBadgesData(ctx)
-	if err != nil {
-		log.Panic(errors.Wrap(err, "failed to setup initial state of badges"))
-	}
 }
 
 func (s *service) Close(ctx context.Context) error {

@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +24,7 @@ import (
 // @Success      200            {array}   achievements.BadgeInventory
 // @Failure      400            {object}  server.ErrorResponse  "if validations fail"
 // @Failure      401            {object}  server.ErrorResponse  "if not authorized"
+// @Failure      403            {object}  server.ErrorResponse  "if user requests badges of the another user"
 // @Failure      404            {object}  server.ErrorResponse  "if user not found"
 // @Failure      422            {object}  server.ErrorResponse  "if syntax fails"
 // @Failure      500            {object}  server.ErrorResponse
@@ -32,22 +32,16 @@ import (
 // @Router       /user-achievements/{userId}/badges [GET].
 func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserBadges)
-	// User requests its own badges.
-	if req.AuthenticatedUser.ID == req.UserID {
-		achievedBadges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
-		if err != nil {
-			if errors.Is(err, achievements.ErrNotFound) {
-				return *server.NotFound(err, userNotFoundCode)
-			}
-
-			return server.Unexpected(err)
+	badges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
+	if err != nil {
+		if errors.Is(err, achievements.ErrRelationNotFound) {
+			return *server.NotFound(err, userNotFoundCode)
 		}
 
-		return server.OK(achievedBadges)
+		return server.Unexpected(err)
 	}
-	//nolint:nolintlint,godox // TODO not sure if it is valid, need to specify if user can request other user's badges.
 
-	return *server.Forbidden(errors.Errorf("You can request only your own badges"))
+	return server.OK(badges)
 }
 
 func newRequestGetUserBadges() server.ParsedRequest {
@@ -70,13 +64,11 @@ func (req *RequestGetUserBadges) Validate() *server.Response {
 		err := errors.Errorf("badgeType `%v` is not allowed, only one of %v are allowed",
 			req.BadgeType, []string{badgeTypeLevel, badgeTypeSocial, badgeTypeIce})
 
-		return &server.Response{
-			Code: http.StatusBadRequest,
-			Data: server.ErrorResponse{
-				Error: err.Error(),
-				Code:  "INVALID_PROPERTIES",
-			}.Fail(err),
-		}
+		return server.BadRequest(err, invalidRequestProperties)
+	}
+	// User can request only his own badges.
+	if req.AuthenticatedUser.ID != req.UserID {
+		return server.Forbidden(errors.Errorf("You can request only your own badges"))
 	}
 
 	return server.RequiredStrings(map[string]string{"userId": req.UserID})

@@ -16,7 +16,8 @@ const (
 	badgeTypeLevel  = "LEVEL"
 
 	// Error codes.
-	userNotFoundCode = "USER_NOT_FOUND"
+	userNotFoundCode         = "USER_NOT_FOUND"
+	invalidRequestProperties = "INVALID_PROPERTIES"
 )
 
 type (

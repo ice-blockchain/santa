@@ -13,7 +13,7 @@ import (
 
 // Public API.
 var (
-	ErrNotFound = storage.ErrNotFound
+	ErrRelationNotFound = storage.ErrRelationNotFound
 )
 
 type (
@@ -54,20 +54,19 @@ type (
 	}
 	Repository interface {
 		io.Closer
-		ReadBadgesRepository
+		ReadRepository
 	}
 	Processor interface {
 		io.Closer
-		WriteBadgesRepository
+		WriteRepository
 		CheckHealth(context.Context) error
 	}
 
-	ReadBadgesRepository interface {
+	ReadRepository interface {
 		GetAchievedUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
 	}
-	WriteBadgesRepository interface {
-		AddBadge(ctx context.Context, badge *Badge) error
-		MarkBadgeAchieved(ctx context.Context, userID UserID, badge *Badge) error
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
 	}
 )
 
@@ -90,11 +89,11 @@ type (
 
 	processor struct {
 		close func() error
-		WriteBadgesRepository
+		WriteRepository
 	}
 
 	config struct{}
-	// We need this struct to deserialize db response from ReadBadgesRepository.GetAchievedUserBadges because of API struct uses struct embedding.
+	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
 	badgeInventory struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
