@@ -93,7 +93,14 @@ type (
 		WriteRepository
 	}
 
-	config struct{}
+	config struct {
+		MessageBroker struct {
+			ConsumingTopics []string `yaml:"consumingTopics"`
+			Topics          []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+	}
 	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
 	badgeInventory struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
