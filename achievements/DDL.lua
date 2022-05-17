@@ -1,8 +1,8 @@
 -- SPDX-License-Identifier: BUSL-1.1
 
-box.execute([[CREATE TABLE IF NOT EXISTS total_users  (
+box.execute([[CREATE TABLE IF NOT EXISTS global  (
                     key STRING primary key,
-                    value UNSIGNED NOT NULL
+                    value SCALAR NOT NULL
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS badges  (
@@ -11,7 +11,34 @@ box.execute([[CREATE TABLE IF NOT EXISTS badges  (
                     from_inclusive UNSIGNED NOT NULL DEFAULT 0,
                     to_inclusive UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
-
+box.execute([[INSERT INTO badges (name, type, from_inclusive, to_inclusive)
+                          VALUES ('LEVEL1', 'LEVEL', 1, 1),
+                                 ('LEVEL2', 'LEVEL', 2, 5),
+                                 ('LEVEL3', 'LEVEL', 6, 10),
+                                 ('LEVEL4', 'LEVEL', 11, 15),
+                                 ('LEVEL5', 'LEVEL', 16, 20),
+                                 ('LEVEL6', 'LEVEL', 21, 20000),
+                                 ('ICE1', 'ICE', 0, 1000),
+                                 ('ICE2', 'ICE', 1001, 5000),
+                                 ('ICE3', 'ICE', 5001, 10000),
+                                 ('ICE4', 'ICE', 10001, 40000),
+                                 ('ICE5', 'ICE', 40001, 80000),
+                                 ('ICE6', 'ICE', 80001, 160000),
+                                 ('ICE7', 'ICE', 160001, 320000),
+                                 ('ICE8', 'ICE', 320001, 640000),
+                                 ('ICE9', 'ICE', 640001, 1280000),
+                                 ('ICE10', 'ICE', 1280001, 1280000000000),
+                                 ('SOCIAL1', 'SOCIAL', 0, 5),
+                                 ('SOCIAL2', 'SOCIAL', 6, 15),
+                                 ('SOCIAL3', 'SOCIAL', 16, 30),
+                                 ('SOCIAL4', 'SOCIAL', 31, 100),
+                                 ('SOCIAL5', 'SOCIAL', 101, 250),
+                                 ('SOCIAL6', 'SOCIAL', 251, 500),
+                                 ('SOCIAL7', 'SOCIAL', 501, 1000),
+                                 ('SOCIAL8', 'SOCIAL', 1001, 2000),
+                                 ('SOCIAL9', 'SOCIAL', 2001, 10000),
+                                 ('SOCIAL10', 'SOCIAL', 10001, 1000000000)
+          ]])
 box.execute([[CREATE TABLE IF NOT EXISTS tasks  (
                     name STRING primary key,
                     index UNSIGNED NOT NULL DEFAULT 0
