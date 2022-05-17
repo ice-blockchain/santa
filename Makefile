@@ -40,9 +40,9 @@ checkModVersion: updateGoModVersion
 	true;
 
 updateAllDependencies:
+	go get github.com/btcsuite/btcd/chaincfg/chainhash@latest
 	go get -t -u ./...
 	go mod tidy
-	go get github.com/btcsuite/btcd/chaincfg/chainhash@latest
 
 checkIfAllDependenciesAreUpToDate: updateAllDependencies
 	@if git status --porcelain | grep -q go.sum; then \

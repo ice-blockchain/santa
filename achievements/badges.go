@@ -4,7 +4,6 @@ package achievements
 
 import (
 	"context"
-	"time"
 
 	"github.com/pkg/errors"
 )
@@ -23,7 +22,7 @@ select
 from badges
     left join ACHIEVED_USER_BADGES 
 		on BADGES.NAME = ACHIEVED_USER_BADGES.BADGE_NAME and ACHIEVED_USER_BADGES.USER_ID = :userId
-    inner join USER_ACHIEVEMENTS USER_EXISTS 
+    inner join USER_PROGRESS USER_EXISTS 
 		on USER_EXISTS.USER_ID = :userId
 where
     BADGES.TYPE = :badgeType
@@ -52,7 +51,7 @@ func (b *badgeInventory) BadgeInventory() *BadgeInventory {
 		Badge: Badge{
 			Name: b.Name,
 			Type: b.BadgeType,
-			Interval: ProgressInterval{
+			Interval: BadgeProgressInterval{
 				Left:  b.FromInclusive,
 				Right: b.ToInclusive,
 			},
@@ -60,18 +59,4 @@ func (b *badgeInventory) BadgeInventory() *BadgeInventory {
 		Achieved:                    b.Achieved,
 		GlobalAchievementPercentage: b.GlobalAchievementPercentage,
 	}
-}
-
-func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "add user failed because context failed")
-	}
-	achievedBadgeByUser := &achievedBadge{
-		UserID:     userID,
-		BadgeName:  badge.Name,
-		AchievedAt: uint64(time.Now().UTC().UnixNano()),
-	}
-
-	return errors.Wrapf(r.db.InsertTyped("achieved_user_badges", achievedBadgeByUser, &[]*achievedBadge{}),
-		"failed to achieve badge %#v for user %v", badge, userID)
 }

@@ -3,7 +3,7 @@
 development: true
 logger:
   encoder: console
-  level: debug
+  level: info
 cmd/santa:
   host: localhost
   version: local
@@ -20,19 +20,94 @@ cmd/santa-sleigh:
   version: local
   defaultEndpointTimeout: 30s
   httpServer:
-    port: 1443
+    port: 2443
     certPath: cmd/santa-sleigh/.testdata/localhost.crt
     keyPath: cmd/santa-sleigh/.testdata/localhost.key
 achievements:
+  levels:
+    agendaReferrals:
+      - L16: 10
+      - L15: 5
+      - L14: 1
+    consecutiveMiningSessions:
+      - L5: 90
+      - L4: 60
+      - L3: 30
+      - L2: 10
+      - L1: 5
+    taskCompletion:
+      - TASK1: L6
+      - TASK2: L7
+      - TASK3: L8
+      - TASK4: L9
+      - TASK5: L10
+      - TASK6: L11
+      - TASK7: L12
+  tasks:
+    t1Referrals: 5
+    defaultUserPictureName: default-user-image.jpg
   db:
     spaces:
+      - GLOBAL
+      - USER_PROGRESS
       - BADGES
+      - ACHIEVED_USER_BADGES
+      - LEVELS
+      - ACHIEVED_USER_LEVELS
+      - CURRENT_USER_LEVELS
+      - TASKS
+      - ACHIEVED_USER_TASKS
+      - CURRENT_USER_ROLES
+      - AGENDA_REFERRALS
     urls:
       - localhost:3301
     user: admin
     password: pass
   messageBroker:
-    #It's not used, because we`re not consuming anything in the production code.
-    #So, its configured here just for testing or other local purposes.
+    consumerGroup: santa-local
+    createTopics: true
     urls:
-      - localhost:9094
+      - localhost:9092
+    topics:
+      - name: achievements-tasks
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-badges
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-progress
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-agenda-referrals
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-roles
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+        ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-events
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: economy-mining
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - users-events # user creation, modification and deletion events
+      - economy-mining # start mining events
+      - achievements-tasks # achieved tasks by the user
+      - achievements-badges # achieved badges by the user
+      - achievements-progress # user_progress updates
+      - achievements-agenda-referrals # count of users referred from agenda changed
+      - achievements-levels # achieved levels by the user
+      - achievements-roles # achieved roles by the user
