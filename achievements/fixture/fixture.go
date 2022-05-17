@@ -1,11 +1,12 @@
 package fixture
 
 import (
+	"sync"
+
 	messagebrokerfixture "github.com/ice-blockchain/wintr/connectors/message_broker/fixture"
 	storagefixture "github.com/ice-blockchain/wintr/connectors/storage/fixture"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/pkg/errors"
-	"sync"
 )
 
 func TestSetup() func() {

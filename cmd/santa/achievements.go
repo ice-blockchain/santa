@@ -38,10 +38,10 @@ func (s *service) setupAchievementRoutes(router *gin.Engine) {
 func (s *service) GetUserAchievements(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserAchievements)
 
-	//TODO implement me
+	//nolint:nolintlint,gocritic,staticcheck // TODO implement me.
 	if req.AuthenticatedUser.ID == req.UserID {
 		// User is trying to get their own achievements
-	} else {
+	} else { //nolint:nolintlint,gocritic,staticcheck // TODO implement me.
 		// User is trying to get some other user's achievements
 	}
 
@@ -67,6 +67,7 @@ func (req *RequestGetUserAchievements) Validate() *server.Response {
 		c := strings.ToUpper(collectible)
 		if c != "TASKS" && c != "BADGES" {
 			err := errors.Errorf("element `%v` for includeCollectibles is not allowed, only `TASKS` or `BADGES` are", collectible)
+
 			return &server.Response{
 				Code: http.StatusBadRequest,
 				Data: server.ErrorResponse{

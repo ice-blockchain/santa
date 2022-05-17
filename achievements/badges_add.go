@@ -24,6 +24,19 @@ func (r *repository) AddBadge(ctx context.Context, b *Badge) error {
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
 		return errors.Wrapf(err, "failed to add badge %#v", b)
 	}
-	return nil // TODO: send badge to message broker, will any service consume them?
+	return nil
+}
 
+func (b *badge) Badge() *Badge {
+	return &Badge{
+		Name: b.Name,
+		Type: b.BadgeType,
+		ProgressInterval: struct {
+			Left  uint64 `json:"left" example:"11"`
+			Right uint64 `json:"right" example:"22"`
+		}{
+			Left:  b.FromInclusive,
+			Right: b.ToInclusive,
+		},
+	}
 }

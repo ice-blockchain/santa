@@ -57,13 +57,12 @@ type (
 		CheckHealth(context.Context) error
 	}
 
-	// TODO split one achievements package to 3 packages for badges, tasks and achievements? Or remove Badges from Name if it'll be implemented all in one
 	ReadBadgesRepository interface {
-		GetAchievedUserBadges(ctx context.Context, userId UserID, badgeType BadgeType) ([]*BadgeInventory, error)
+		GetAchievedUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
 	}
 	WriteBadgesRepository interface {
 		AddBadge(ctx context.Context, badge *Badge) error
-		MarkBadgeAchieved(ctx context.Context, userId UserID, badge *Badge) error
+		MarkBadgeAchieved(ctx context.Context, userID UserID, badge *Badge) error
 	}
 )
 
@@ -80,7 +79,6 @@ var (
 )
 
 type (
-	// TODO split for 3 packages like badges, tasks and achievements?
 	repository struct {
 		db tarantool.Connector
 	}
@@ -92,7 +90,7 @@ type (
 
 	config struct {
 	}
-	// badge is an internal type to store badges in database
+	// `badge` is an internal type to store badges in database.
 	badge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -100,11 +98,11 @@ type (
 		Name BadgeName
 		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
 		BadgeType string
-		// Min-max range of the certain value (based on BadgeType) to achieve the badge
-		From_inclusive uint64
-		To_inclusive   uint64
+		// Min-max range of the certain value (based on BadgeType) to achieve the badge.
+		FromInclusive uint64
+		ToInclusive   uint64
 	}
-	// achievedBadge is an internal type to store user's achieved badges in database
+	// `achievedBadge` is an internal type to store user's achieved badges in database.
 	achievedBadge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack   struct{} `msgpack:",asArray"`
@@ -112,7 +110,7 @@ type (
 		BadgeName  string
 		AchievedAt uint64
 	}
-	// we nned this srtuct to delesialize db responce from ReadBadgesRepository.GetAchievedUserBadges because of API struct uses struct embedding
+	// We need this struct to deserialize db response from ReadBadgesRepository.GetAchievedUserBadges because of API struct uses struct embedding.
 	badgeInventory struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -120,9 +118,9 @@ type (
 		Name BadgeName
 		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
 		BadgeType string
-		// Min-max range of the certain value (based on badgeType) to achieve the badge
-		From_inclusive uint64
-		To_inclusive   uint64
+		// Min-max range of the certain value (based on badgeType) to achieve the badge.
+		FromInclusive uint64
+		ToInclusive   uint64
 		// if the badge was achieved by user
 		Achieved bool `json:"achieved" example:"false"`
 		// The percentage of all the users that have this badge.

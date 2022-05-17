@@ -3,10 +3,11 @@
 package main
 
 import (
-	"github.com/ice-blockchain/santa/achievements/fixture"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/ice-blockchain/santa/achievements/fixture"
 
 	"github.com/ice-blockchain/wintr/log"
 )

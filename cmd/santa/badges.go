@@ -28,18 +28,18 @@ import (
 // @Router       /user-achievements/{userId}/badges [GET].
 func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserBadges)
-
+	// user requests its own badges
 	if req.AuthenticatedUser.ID == req.UserID {
 		achievedBadges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
 		if err != nil {
 			return server.Unexpected(err)
 		}
-		return server.OK(achievedBadges)
-	} else {
-		//TODO not sure if it is valid, need to specify it
-		return *server.Forbidden(errors.Errorf("You can request only your own badges"))
-	}
 
+		return server.OK(achievedBadges)
+	}
+	// TODO not sure if it is valid, need to specify it
+
+	return *server.Forbidden(errors.Errorf("You can request only your own badges"))
 }
 
 func newRequestGetUserBadges() server.ParsedRequest {
@@ -61,6 +61,7 @@ func (req *RequestGetUserBadges) Validate() *server.Response {
 	if b != badgeTypeLevel && b != badgeTypeSocial && b != badgeTypeIce {
 		err := errors.Errorf("badgeType `%v` is not allowed, only one of %v are allowed",
 			req.BadgeType, []string{badgeTypeLevel, badgeTypeSocial, badgeTypeIce})
+
 		return &server.Response{
 			Code: http.StatusBadRequest,
 			Data: server.ErrorResponse{
