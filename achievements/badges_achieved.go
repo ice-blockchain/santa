@@ -6,7 +6,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 )
 
@@ -43,27 +42,6 @@ group by BADGES.NAME`
 	return result, nil
 }
 
-func (r *repository) MarkBadgeAchieved(ctx context.Context, userID UserID, badge *Badge) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "add user failed because context failed")
-	}
-
-	sql := `INSERT INTO achieved_user_badges (USER_ID,  BADGE_NAME,  ACHIEVED_AT)
-                                      VALUES (:user_id, :badge_name, :achieved_at)`
-
-	params := map[string]interface{}{
-		"user_id":     userID,
-		"badge_name":  badge.Name,
-		"achieved_at": time.Now().UTC().UnixNano(),
-	}
-	query, err := r.db.PrepareExecute(sql, params)
-	if err = storage.CheckSQLDMLErr(query, err); err != nil {
-		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badge, userID)
-	}
-
-	return nil
-}
-
 func (b *badgeInventory) BadgeInventory() *BadgeInventory {
 	return &BadgeInventory{
 		Badge: Badge{
@@ -80,4 +58,23 @@ func (b *badgeInventory) BadgeInventory() *BadgeInventory {
 		Achieved:                    b.Achieved,
 		GlobalAchievementPercentage: b.GlobalAchievementPercentage,
 	}
+}
+
+func (r *repository) MarkBadgeAchieved(ctx context.Context, userID UserID, badge *Badge) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "add user failed because context failed")
+	}
+	now := uint64(time.Now().UTC().UnixNano())
+	achievedBadgeByUser := &achievedBadge{
+		UserID:     userID,
+		BadgeName:  badge.Name,
+		AchievedAt: now,
+	}
+
+	return errors.Wrapf(r.db.InsertTyped(r.achievedBadgesSpace(), achievedBadgeByUser, &[]*achievedBadge{}),
+		"failed to achieve badge %#v for user %v", badge, userID)
+}
+
+func (r *repository) achievedBadgesSpace() string {
+	return "achieved_user_badges"
 }

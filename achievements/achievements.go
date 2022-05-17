@@ -7,6 +7,7 @@ import (
 
 	appCfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +22,9 @@ func New(ctx context.Context, cancel context.CancelFunc) Repository {
 }
 
 func (r *repository) Close() error {
-	return errors.Wrap(r.db.Close(), "closing achievements repository failed")
+	log.Info("closing achievements repository...")
+
+	return errors.Wrap(r.db.Close(), "failed to close achievements repository")
 }
 
 func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
@@ -39,7 +42,9 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 }
 
 func (p *processor) Close() error {
-	return errors.Wrap(p.close(), "error closing achievemn")
+	log.Info("closing achievements processor...")
+
+	return errors.Wrap(p.close(), "error closing achievemnts processor")
 }
 
 func (p *processor) CheckHealth(ctx context.Context) error {

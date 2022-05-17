@@ -106,4 +106,13 @@ type (
 		// The percentage of all the users that have this badge.
 		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
 	}
+
+	// `achievedBadge` is an internal type to store user's achieved badges in database.
+	achievedBadge struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		BadgeName  string
+		AchievedAt uint64
+	}
 )
