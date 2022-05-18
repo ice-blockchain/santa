@@ -19,7 +19,7 @@ func (r *repository) GetAchievedUserBadges(ctx context.Context, userID UserID, b
 select
     BADGES.*,
     ACHIEVED_USER_BADGES.ACHIEVED_AT > 0 as achieved,
-    ((SELECT VALUE from GLOBAL where key = BADGES.NAME)*100.0/(SELECT VALUE from GLOBAL where key = 'TOTAL_USERS')) as achieved_percentage
+    ((SELECT VALUE from GLOBAL where key = 'TOTAL_BADGES_'||BADGES.NAME)*100.0/(SELECT VALUE from GLOBAL where key = 'TOTAL_USERS')) as achieved_percentage
 from badges
     left join ACHIEVED_USER_BADGES 
 		on BADGES.NAME = ACHIEVED_USER_BADGES.BADGE_NAME and ACHIEVED_USER_BADGES.USER_ID = :userId
@@ -52,10 +52,7 @@ func (b *badgeInventory) BadgeInventory() *BadgeInventory {
 		Badge: Badge{
 			Name: b.Name,
 			Type: b.BadgeType,
-			ProgressInterval: struct {
-				Left  uint64 `json:"left" example:"11"`
-				Right uint64 `json:"right" example:"22"`
-			}{
+			Interval: ProgressInterval{
 				Left:  b.FromInclusive,
 				Right: b.ToInclusive,
 			},

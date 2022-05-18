@@ -45,12 +45,13 @@ type (
 		Achieved bool   `json:"achieved" example:"false"`
 	}
 	Badge struct {
-		Name             string    `json:"name" example:"ICE Breaker"`
-		Type             BadgeType `json:"type" example:"SOCIAL"`
-		ProgressInterval struct {
-			Left  uint64 `json:"left" example:"11"`
-			Right uint64 `json:"right" example:"22"`
-		} `json:"interval"`
+		Name     string           `json:"name" example:"ICE Breaker"`
+		Type     BadgeType        `json:"type" example:"SOCIAL"`
+		Interval ProgressInterval `json:"interval"`
+	}
+	ProgressInterval struct {
+		Left  uint64 `json:"left" example:"11"`
+		Right uint64 `json:"right" example:"22"`
 	}
 	Repository interface {
 		io.Closer
@@ -97,6 +98,16 @@ type (
 	badgeInventory struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
+		badge
+		// If the badge was achieved by user.
+		Achieved bool `json:"achieved" example:"false"`
+		// The percentage of all the users that have this badge.
+		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
+	}
+
+	badge struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
 		Name BadgeName
 		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
@@ -104,10 +115,6 @@ type (
 		// Min-max range of the certain value (based on badgeType) to achieve the badge.
 		FromInclusive uint64
 		ToInclusive   uint64
-		// If the badge was achieved by user.
-		Achieved bool `json:"achieved" example:"false"`
-		// The percentage of all the users that have this badge.
-		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
 	}
 
 	// `achievedBadge` is an internal type to store user's achieved badges in database.
