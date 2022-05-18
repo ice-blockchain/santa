@@ -10,7 +10,7 @@ import (
 )
 
 //nolint:funlen // because on long inline sql
-func (r *repository) GetAchievedUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error) {
+func (r *repository) GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "failed to get referrals because of context failed")
 	}

@@ -64,7 +64,7 @@ type (
 	}
 
 	ReadRepository interface {
-		GetAchievedUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
+		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
 	}
 	WriteRepository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error

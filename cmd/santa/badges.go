@@ -32,7 +32,7 @@ import (
 // @Router       /user-achievements/{userId}/badges [GET].
 func (s *service) GetUserBadges(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserBadges)
-	badges, err := s.achievementsRepository.GetAchievedUserBadges(ctx, req.UserID, req.BadgeType)
+	badges, err := s.achievementsRepository.GetUserBadges(ctx, req.UserID, req.BadgeType)
 	if err != nil {
 		if errors.Is(err, achievements.ErrRelationNotFound) {
 			return *server.NotFound(err, userNotFoundCode)
