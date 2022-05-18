@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/ICE-Blockchain/santa/achievements"
+	"github.com/ice-blockchain/santa/achievements"
 )
 
 // Private API.

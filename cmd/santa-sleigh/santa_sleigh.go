@@ -5,11 +5,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ICE-Blockchain/santa/achievements"
-	appCfg "github.com/ICE-Blockchain/wintr/config"
-	"github.com/ICE-Blockchain/wintr/log"
-	"github.com/ICE-Blockchain/wintr/server"
+
 	"github.com/gin-gonic/gin"
+	"github.com/ice-blockchain/santa/achievements"
+	appCfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
 )
 

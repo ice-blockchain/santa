@@ -12,14 +12,7 @@ definitions:
         example: 25.5
         type: number
       interval:
-        properties:
-          left:
-            example: 11
-            type: integer
-          right:
-            example: 22
-            type: integer
-        type: object
+        $ref: '#/definitions/achievements.ProgressInterval'
       name:
         example: ICE Breaker
         type: string
@@ -30,14 +23,7 @@ definitions:
   achievements.BadgeOverview:
     properties:
       interval:
-        properties:
-          left:
-            example: 11
-            type: integer
-          right:
-            example: 22
-            type: integer
-        type: object
+        $ref: '#/definitions/achievements.ProgressInterval'
       name:
         example: ICE Breaker
         type: string
@@ -53,6 +39,15 @@ definitions:
       type:
         example: SOCIAL
         type: string
+    type: object
+  achievements.ProgressInterval:
+    properties:
+      left:
+        example: 11
+        type: integer
+      right:
+        example: 22
+        type: integer
     type: object
   achievements.Task:
     properties:
@@ -196,6 +191,10 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
         "401":
           description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if user requests badges of the another user
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "404":

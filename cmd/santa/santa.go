@@ -4,12 +4,13 @@ package main
 
 import (
 	"context"
-	"github.com/ICE-Blockchain/santa/achievements"
-	"github.com/ICE-Blockchain/santa/cmd/santa/api"
-	appCfg "github.com/ICE-Blockchain/wintr/config"
-	"github.com/ICE-Blockchain/wintr/log"
-	"github.com/ICE-Blockchain/wintr/server"
+
 	"github.com/gin-gonic/gin"
+	"github.com/ice-blockchain/santa/achievements"
+	"github.com/ice-blockchain/santa/cmd/santa/api"
+	appCfg "github.com/ice-blockchain/wintr/config"
+	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +53,7 @@ func (s *service) Close(ctx context.Context) error {
 func (s *service) CheckHealth(ctx context.Context, r *server.RequestCheckHealth) server.Response {
 	log.Debug("checking health...", "package", "achievements")
 
-	// TODO implement me
+	//nolint:nolintlint,godox // TODO implement me.
 
 	return server.OK(r)
 }
