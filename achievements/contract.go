@@ -5,11 +5,10 @@ package achievements
 import (
 	"context"
 	_ "embed"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"io"
 
 	"github.com/framey-io/go-tarantool"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
@@ -20,7 +19,6 @@ var (
 
 type (
 	BadgeName        = string
-	TaskName         = string
 	BadgeType        = string
 	UserID           = string
 	UserAchievements struct {
@@ -47,21 +45,31 @@ type (
 		Index    uint64 `json:"index" example:"0"`
 		Achieved bool   `json:"achieved" example:"false"`
 	}
-	Badge = badges.Badge
-
-	ProgressInterval = badges.ProgressInterval
-
+	Badge struct {
+		Name     string           `json:"name" example:"ICE Breaker"`
+		Type     BadgeType        `json:"type" example:"SOCIAL"`
+		Interval ProgressInterval `json:"interval"`
+	}
+	ProgressInterval struct {
+		Left  uint64 `json:"left" example:"11"`
+		Right uint64 `json:"right" example:"22"`
+	}
 	Repository interface {
 		io.Closer
 		ReadRepository
 	}
 	Processor interface {
 		io.Closer
+		WriteRepository
 		CheckHealth(context.Context) error
 	}
 
 	ReadRepository interface {
 		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
+	}
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
+		AchieveTask(ctx context.Context, userID UserID, task *Task) error
 	}
 )
 
@@ -85,6 +93,7 @@ type (
 
 	processor struct {
 		close func() error
+		WriteRepository
 	}
 
 	config struct {
@@ -96,6 +105,16 @@ type (
 		} `yaml:"messageBroker"`
 	}
 	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
+	badgeInventory struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		badge
+		// If the badge was achieved by user.
+		Achieved bool `json:"achieved" example:"false"`
+		// The percentage of all the users that have this badge.
+		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
+	}
+
 	badge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -108,14 +127,20 @@ type (
 		ToInclusive   uint64
 	}
 
-	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
-	badgeInventory struct {
+	// `achievedBadge` is an internal type to store user's achieved badges in database.
+	achievedBadge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		badge
-		// If the badge was achieved by user.
-		Achieved bool `json:"achieved" example:"false"`
-		// The percentage of all the users that have this badge.
-		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		BadgeName  string
+		AchievedAt uint64
+	}
+	// `achievedTask` is an internal type to store user's achieved tasks in database.
+	achievedTask struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		TaskName   string
+		AchievedAt uint64
 	}
 )

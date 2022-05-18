@@ -4,9 +4,9 @@ package achievements
 
 import (
 	"context"
+	"github.com/hashicorp/go-multierror"
 
 	"github.com/framey-io/go-tarantool"
-	"github.com/hashicorp/go-multierror"
 	economy_processor "github.com/ice-blockchain/santa/achievements/internal/economy-processor"
 	user_processor "github.com/ice-blockchain/santa/achievements/internal/user-processor"
 	appCfg "github.com/ice-blockchain/wintr/config"
@@ -36,23 +36,28 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(db))
-
+	mbProducer := messagebroker.MustConnect(context.Background(), applicationYamlKey)
 	return &processor{
 		close: func() error {
-			errDB := db.Close()
-			errMB := mbConsumer.Close()
-			if errDB != nil && errMB == nil {
-				return errors.Wrap(errDB, "failed to close processor")
-			} else if errDB == nil && errMB != nil {
-				return errors.Wrap(errMB, "failed to close processor")
-			} else if errDB != nil && errMB != nil {
-				return errors.Wrap(multierror.Append(nil, errMB, errDB), "failed to close processor")
+			result := make([]error, 0, 3)
+			if err := db.Close(); err != nil {
+				result = append(result, err)
+			}
+			if err := mbConsumer.Close(); err != nil {
+				result = append(result, err)
+			}
+			if err := mbProducer.Close(); err != nil {
+				result = append(result, err)
+			}
+			if len(result) == 1 {
+				return result[0]
 			} else {
-				return nil
+				return multierror.Append(nil, result...)
 			}
 		},
 		WriteRepository: &repository{
 			db: db,
+			mb: mbProducer,
 		},
 	}
 }
