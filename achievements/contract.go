@@ -5,6 +5,7 @@ package achievements
 import (
 	"context"
 	_ "embed"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"io"
 
 	"github.com/framey-io/go-tarantool"
@@ -68,6 +69,7 @@ type (
 	}
 	WriteRepository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
+		AchieveTask(ctx context.Context, userID UserID, task *Task) error
 	}
 )
 
@@ -86,6 +88,7 @@ var (
 type (
 	repository struct {
 		db tarantool.Connector
+		mb messagebroker.Client
 	}
 
 	processor struct {
@@ -130,6 +133,14 @@ type (
 		_msgpack   struct{} `msgpack:",asArray"`
 		UserID     UserID
 		BadgeName  string
+		AchievedAt uint64
+	}
+	// `achievedTask` is an internal type to store user's achieved tasks in database.
+	achievedTask struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		TaskName   string
 		AchievedAt uint64
 	}
 )

@@ -13,7 +13,7 @@ func New(db tarantool.Connector) messagebroker.Processor {
 }
 
 func (u *badgeSourceProcessor) Process(ctx context.Context, message *messagebroker.Message) error {
-	// We'll need to pass newly created badges to the mb producer, get them here and update
+	// We'll need to pass newly achieved badges to the mb producer, get them here and update
 	// GLOBAL.TOTAL_BADGES_<BADGE_NAME> with counter (like total users).
 	return errors.Errorf("Implement me")
 }

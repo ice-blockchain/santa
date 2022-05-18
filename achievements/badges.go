@@ -4,6 +4,9 @@ package achievements
 
 import (
 	"context"
+	"encoding/json"
+	achievementprocessor "github.com/ice-blockchain/santa/achievements/internal/achievement-processor"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"time"
 
 	"github.com/pkg/errors"
@@ -66,12 +69,41 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badge *Bad
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "add user failed because context failed")
 	}
+	now := uint64(time.Now().UTC().UnixNano())
 	achievedBadgeByUser := &achievedBadge{
 		UserID:     userID,
 		BadgeName:  badge.Name,
-		AchievedAt: uint64(time.Now().UTC().UnixNano()),
+		AchievedAt: now,
+	}
+	if err := r.db.InsertTyped("achieved_user_badges", achievedBadgeByUser, &[]*achievedBadge{}); err != nil {
+		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badge, userID)
+	}
+	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badge, now), "failed to send achieved badge %#v to message broker", badge)
+}
+
+func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge *Badge, achievedTime uint64) error {
+	// Send achieved badges to message broker because of we need to calculate total count of achieved badges (in achievementprocessor.badgeSourceProcessor)
+	m := achievementprocessor.AchievedBadgeMessage{
+		Name:          badge.Name,
+		BadgeType:     badge.Type,
+		FromInclusive: badge.Interval.Right,
+		ToInclusive:   badge.Interval.Left,
+		UserID:        userID,
+		AchievedAt:    achievedTime,
 	}
 
-	return errors.Wrapf(r.db.InsertTyped("achieved_user_badges", achievedBadgeByUser, &[]*achievedBadge{}),
-		"failed to achieve badge %#v for user %v", badge, userID)
+	b, err := json.Marshal(m)
+	if err != nil {
+		return errors.Wrapf(err, "[achieve-badge] failed to marshal %#v", m)
+	}
+
+	responder := make(chan error, 1)
+	r.mb.SendMessage(ctx, &messagebroker.Message{
+		Headers: map[string]string{"producer": "santa"},
+		Key:     userID,
+		Topic:   cfg.MessageBroker.Topics[1].Name,
+		Value:   b,
+	}, responder)
+
+	return errors.Wrapf(<-responder, "[achieve-badge] failed to send message to broker")
 }
