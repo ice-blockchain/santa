@@ -1,4 +1,4 @@
-package economy_processor
+package economyprocessor
 
 import "github.com/framey-io/go-tarantool"
 

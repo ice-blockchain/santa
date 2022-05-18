@@ -4,13 +4,13 @@ package achievements
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/hashicorp/go-multierror"
 	economy_processor "github.com/ice-blockchain/santa/achievements/internal/economy-processor"
 	user_processor "github.com/ice-blockchain/santa/achievements/internal/user-processor"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-
 	appCfg "github.com/ice-blockchain/wintr/config"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/pkg/errors"
@@ -36,6 +36,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(db))
+
 	return &processor{
 		close: func() error {
 			errDB := db.Close()
@@ -58,8 +59,8 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 
 func processors(db tarantool.Connector) map[messagebroker.Topic]messagebroker.Processor {
 	return map[messagebroker.Topic]messagebroker.Processor{
-		// may be it is better to iternate and look for topics name?
-		// because of current impementation requires topic to be in specific order in configuration
+		// May be it is better to iternate and look for topics name?
+		// Because of current impementation requires topic to be in specific order in configuration.
 		cfg.MessageBroker.ConsumingTopics[0]: user_processor.New(db),
 		cfg.MessageBroker.ConsumingTopics[1]: economy_processor.New(db),
 	}

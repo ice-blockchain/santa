@@ -1,4 +1,4 @@
-package achievement_processor
+package achievementprocessor
 
 import "github.com/framey-io/go-tarantool"
 
