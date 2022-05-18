@@ -212,17 +212,7 @@ const docTemplate = `{
                     "example": 25.5
                 },
                 "interval": {
-                    "type": "object",
-                    "properties": {
-                        "left": {
-                            "type": "integer",
-                            "example": 11
-                        },
-                        "right": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
+                    "$ref": "#/definitions/achievements.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
@@ -238,17 +228,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "interval": {
-                    "type": "object",
-                    "properties": {
-                        "left": {
-                            "type": "integer",
-                            "example": 11
-                        },
-                        "right": {
-                            "type": "integer",
-                            "example": 22
-                        }
-                    }
+                    "$ref": "#/definitions/achievements.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
@@ -270,6 +250,19 @@ const docTemplate = `{
                 "type": {
                     "type": "string",
                     "example": "SOCIAL"
+                }
+            }
+        },
+        "achievements.ProgressInterval": {
+            "type": "object",
+            "properties": {
+                "left": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "right": {
+                    "type": "integer",
+                    "example": 22
                 }
             }
         },
