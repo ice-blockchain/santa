@@ -43,7 +43,11 @@ func (u *userSourceProcessor) Process(ctx context.Context, message *messagebroke
 			return errors.Wrap(err, "failed to handle user creation/modification event")
 		}
 	}
-	// Then we need to check if user's phone number provided, profile picture updated and other tasks-related stuff.
+	if !u.isAllTasksCompleted(user.User) {
+		// here we need to check if user's phone number provided, profile picture updated and other tasks-related stuff.
+		// And not forget that confirmed phone number -> += 1 level
+	}
+
 	return nil
 }
 
@@ -141,4 +145,8 @@ func (u *userSourceProcessor) updateT1ReferralsCount(userID users.UserID, diff i
 
 	return errors.Wrapf(u.db.UpdateTyped(userAchievementsSpace, "pk_unnamed_USER_ACHIEVEMENTS_1", key, incrementOps, &[]*userAchievements{}),
 		"failed to update %v record with the new count of T1 referals for userID:%v", userAchievementsSpace, userID)
+}
+
+func (u *userSourceProcessor) isAllTasksCompleted(user *users.User) bool {
+	return false
 }

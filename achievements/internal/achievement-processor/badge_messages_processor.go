@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func New(db tarantool.Connector) messagebroker.Processor {
+func NewBadgeProcessor(db tarantool.Connector) messagebroker.Processor {
 	return &badgeSourceProcessor{db: db}
 }
 

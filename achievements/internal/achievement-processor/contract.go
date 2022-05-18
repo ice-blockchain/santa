@@ -8,6 +8,9 @@ type (
 	badgeSourceProcessor struct {
 		db tarantool.Connector
 	}
+	taskSourceProcessor struct {
+		db tarantool.Connector
+	}
 	AchievedTaskMessage struct {
 		UserID     UserID
 		TaskName   string

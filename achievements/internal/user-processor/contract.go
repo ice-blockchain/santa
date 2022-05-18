@@ -18,7 +18,6 @@ type (
 	}
 
 	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space)
-	// TODO maybe it'll be better to move it into achievement package's contract, but it must be public in that case.
 	userAchievements struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -30,5 +29,13 @@ type (
 		Level   uint32
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64
+	}
+
+	CheckTaskConditions func(input interface{}) bool
+
+	// to store in the code conditions how to achieve tasks
+	TaskCompletionStep struct {
+		Condition        CheckTaskConditions
+		AchievedTaskName string
 	}
 )
