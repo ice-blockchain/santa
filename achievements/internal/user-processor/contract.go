@@ -2,12 +2,14 @@ package userprocessor
 
 import (
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements"
 )
 
 type (
 	UserID = string
 
 	userSourceProcessor struct {
+		r  achievements.WriteRepository
 		db tarantool.Connector
 	}
 	global struct {
@@ -29,13 +31,5 @@ type (
 		Level   uint32
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64
-	}
-
-	CheckTaskConditions func(input interface{}) bool
-
-	// to store in the code conditions how to achieve tasks
-	TaskCompletionStep struct {
-		Condition        CheckTaskConditions
-		AchievedTaskName string
 	}
 )
