@@ -13,10 +13,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	userAchievementsSpace = "user_achievements"
-)
-
 func New(db tarantool.Connector, repository achievements.WriteRepository) messagebroker.Processor {
 	return &userSourceProcessor{
 		db: db,

@@ -7,6 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.7.7
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/eskimo v1.3.0
+	github.com/ice-blockchain/freezer v1.3.0
 	github.com/ice-blockchain/wintr v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/swag v1.8.2
@@ -44,7 +45,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/imroc/req/v3 v3.11.2 // indirect
+	github.com/imroc/req/v3 v3.11.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.4 // indirect
@@ -77,9 +78,9 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/swaggo/gin-swagger v1.4.3 // indirect
 	github.com/testcontainers/testcontainers-go v0.13.0 // indirect
-	github.com/twilio/twilio-go v0.25.0 // indirect
+	github.com/twilio/twilio-go v0.26.0 // indirect
 	github.com/twmb/franz-go v1.5.2 // indirect
-	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220509001821-f57c05003903 // indirect
+	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220516022626-27880b497e94 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.0.0 // indirect
 	github.com/twmb/go-rbtree v1.0.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
@@ -92,7 +93,7 @@ require (
 	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect
-	google.golang.org/genproto v0.0.0-20220505152158-f39f71e6c8f3 // indirect
+	google.golang.org/genproto v0.0.0-20220518221133-4f43b3371335 // indirect
 	google.golang.org/grpc v1.46.2 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect

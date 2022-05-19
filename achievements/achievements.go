@@ -68,7 +68,7 @@ func processors(repo WriteRepository, db tarantool.Connector) map[messagebroker.
 		// May be it is better to iternate and look for topics name?
 		// Because of current impementation requires topic to be in specific order in configuration.
 		cfg.MessageBroker.ConsumingTopics[0]: user_processor.New(db, repo),
-		cfg.MessageBroker.ConsumingTopics[1]: economy_processor.New(db),
+		cfg.MessageBroker.ConsumingTopics[1]: economy_processor.NewMiningEventProcessor(db, repo),
 	}
 }
 

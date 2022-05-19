@@ -33,3 +33,7 @@ type (
 		T1Referrals uint64
 	}
 )
+
+const (
+	userAchievementsSpace = "user_achievements"
+)
