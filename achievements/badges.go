@@ -5,6 +5,7 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"time"
 
@@ -87,7 +88,7 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badgeName 
 
 func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge *Badge, achievedTime uint64) error {
 	// Send achieved badges to message broker because of we need to calculate total count of achieved badges (in achievementprocessor.badgeSourceProcessor)
-	m := AchievedBadgeMessage{
+	m := messages.AchievedBadgeMessage{
 		Name:          badge.Name,
 		BadgeType:     badge.Type,
 		FromInclusive: badge.Interval.Right,

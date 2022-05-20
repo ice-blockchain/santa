@@ -1,17 +1,24 @@
 package economyprocessor
 
 import (
+	"context"
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements"
 	"time"
 )
 
 type (
-	UserID = string
+	UserID          = string
+	BadgeName       = string
+	TaskName        = string
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+		IncrementUserLevel(ctx context.Context, userID UserID) error
+	}
 
 	miningEventSourceProcessor struct {
 		db tarantool.Connector
-		r  achievements.WriteRepository
+		r  WriteRepository
 	}
 
 	// TODO: economy updates (balance at user_achievements) when they'll be implemented in freezer

@@ -3,7 +3,6 @@ package userprocessor
 import (
 	"context"
 	"encoding/json"
-	"github.com/ice-blockchain/santa/achievements"
 	"math"
 
 	"github.com/framey-io/go-tarantool"
@@ -13,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func New(db tarantool.Connector, repository achievements.WriteRepository) messagebroker.Processor {
+func New(db tarantool.Connector, repository WriteRepository) messagebroker.Processor {
 	return &userSourceProcessor{
 		db: db,
 		r:  repository,

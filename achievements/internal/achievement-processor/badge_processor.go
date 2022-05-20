@@ -3,7 +3,7 @@ package achievementprocessor
 import (
 	"context"
 	"encoding/json"
-	"github.com/ice-blockchain/santa/achievements"
+	"github.com/ice-blockchain/santa/achievements/messages"
 	"math"
 
 	"github.com/framey-io/go-tarantool"
@@ -19,7 +19,7 @@ func (b *badgeSourceProcessor) Process(ctx context.Context, message *messagebrok
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	badge := new(achievements.AchievedBadgeMessage)
+	badge := new(messages.AchievedBadgeMessage)
 	if err := json.Unmarshal(message.Value, badge); err != nil {
 		return errors.Wrapf(err, "badgeSourceProcessor: cannot unmarshal %v into %#v", string(message.Value), badge)
 	}

@@ -1,15 +1,22 @@
 package userprocessor
 
 import (
+	"context"
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements"
 )
 
 type (
-	UserID = string
+	UserID          = string
+	BadgeName       = string
+	TaskName        = string
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+		IncrementUserLevel(ctx context.Context, userID UserID) error
+	}
 
 	userSourceProcessor struct {
-		r  achievements.WriteRepository
+		r  WriteRepository
 		db tarantool.Connector
 	}
 	global struct {

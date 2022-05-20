@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
-	"github.com/ice-blockchain/santa/achievements"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 	"time"
 )
 
-func NewMiningEventProcessor(db tarantool.Connector, repository achievements.WriteRepository) messagebroker.Processor {
+func NewMiningEventProcessor(db tarantool.Connector, repository WriteRepository) messagebroker.Processor {
 	return &miningEventSourceProcessor{
 		db: db,
 		r:  repository,

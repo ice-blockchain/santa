@@ -1,14 +1,19 @@
 package achievementprocessor
 
 import (
+	"context"
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements"
 )
 
 type (
-	UserID    = string
-	BadgeName = string
-
+	UserID          = string
+	BadgeName       = string
+	TaskName        = string
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+		IncrementUserLevel(ctx context.Context, userID UserID) error
+	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -21,6 +26,6 @@ type (
 	}
 	taskSourceProcessor struct {
 		db tarantool.Connector
-		r  achievements.WriteRepository
+		r  WriteRepository
 	}
 )
