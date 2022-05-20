@@ -37,10 +37,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
 	mbProducer := messagebroker.MustConnect(context.Background(), applicationYamlKey)
-	repo := &repository{
-		db: db,
-		mb: mbProducer,
-	}
+	repo := &repository{db: db, mb: mbProducer}
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(repo, db))
 	return &processor{
 		close: func() error {
@@ -56,8 +53,10 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 			}
 			if len(result) == 1 {
 				return result[0]
-			} else {
+			} else if len(result) > 1 {
 				return multierror.Append(nil, result...)
+			} else {
+				return nil
 			}
 		},
 		WriteRepository: repo,
@@ -78,7 +77,7 @@ func processors(repo WriteRepository, db tarantool.Connector) map[messagebroker.
 func (p *processor) Close() error {
 	log.Info("closing achievements processor...")
 
-	return errors.Wrap(p.close(), "error closing achievemnts processor")
+	return errors.Wrap(p.close(), "error closing achievements processor")
 }
 
 func (p *processor) CheckHealth(ctx context.Context) error {

@@ -68,8 +68,7 @@ func (u *userSourceProcessor) handleUserDeletion(user *users.UserSnapshot) error
 
 func (u *userSourceProcessor) handleUserCreation(user *users.UserSnapshot) error {
 	_, err := u.getUserAchievements(user.ID)
-	tErr := new(tarantool.Error)
-	if errors.As(err, tErr) && tErr.Code == tarantool.ER_TUPLE_NOT_FOUND {
+	if errors.Is(err, storage.ErrNotFound) {
 		// User's achievements record does not exists, so it is a new user - increment counter.
 		if err = u.updateTotalUsersCount(1); err != nil {
 			return errors.Wrapf(err, "failed to update total_users counter")
@@ -99,7 +98,6 @@ func (u *userSourceProcessor) deleteUserAchievements(userID users.UserID) error 
 }
 
 func (u *userSourceProcessor) updateTotalUsersCount(diff int64) error {
-	key := tarantool.StringKey{S: "TOTAL_USERS"}
 	op := "+"
 	if math.Signbit(float64(diff)) {
 		op = "-"
@@ -108,16 +106,18 @@ func (u *userSourceProcessor) updateTotalUsersCount(diff int64) error {
 		{Op: op, Field: 1, Arg: diff},
 	}
 
-	return errors.Wrap(u.db.UpdateTyped("GLOBAL", "pk_unnamed_GLOBAL_1", key, incrementOps, &[]*global{}),
+	return errors.Wrap(u.db.UpsertAsync("GLOBAL", &global{Key: "TOTAL_USERS", Value: 1}, incrementOps).GetTyped(&[]*global{}),
 		"failed to update global record the KEY = 'TOTAL_USERS'")
 }
 
 func (u *userSourceProcessor) getUserAchievements(userID users.UserID) (*userAchievements, error) {
-	var res *userAchievements
-	if err := u.db.GetTyped(userAchievementsSpace, "pk_unnamed_USER_ACHIEVEMENTS_1", userID, &res); err != nil {
+	res := new(userAchievements)
+	if err := u.db.GetTyped(userAchievementsSpace, "pk_unnamed_USER_ACHIEVEMENTS_1", tarantool.StringKey{S: userID}, res); err != nil {
 		return nil, errors.Wrapf(err, "unable to get user_achievements record for userID:%v", userID)
 	}
-
+	if res.UserID == "" {
+		return nil, errors.Wrapf(storage.ErrNotFound, "no user achievements record for userID:%v", userID)
+	}
 	return res, nil
 }
 
@@ -167,10 +167,11 @@ func (u *userSourceProcessor) achieveTaskAndLevels(ctx context.Context, user *us
 		achievedTask = "TASK6"
 	}
 	// TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc
-
-	err = u.r.AchieveTask(ctx, user.ID, achievedTask)
-	if err != nil {
-		return errors.Wrapf(err, "failed to achieve task %#v for userID:%v")
+	if achievedTask != "" {
+		err = u.r.AchieveTask(ctx, user.ID, achievedTask)
+		if err != nil {
+			return errors.Wrapf(err, "failed to achieve task %#v for userID:%v", achievedTask, user.ID)
+		}
 	}
 	// New level for user - 8. Confirm phone number
 	// it seems eskimo can send unconfirmed number at initial user creation for now

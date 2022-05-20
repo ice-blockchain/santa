@@ -80,9 +80,9 @@ type (
 // Private API.
 const (
 	applicationYamlKey    = "achievements"
-	userAchievementsSpace = "user_achievements"
-	badgesSpace           = "badges"
-	tasksSpace            = "tasks"
+	userAchievementsSpace = "USER_ACHIEVEMENTS"
+	badgesSpace           = "BADGES"
+	tasksSpace            = "TASKS"
 )
 
 var (

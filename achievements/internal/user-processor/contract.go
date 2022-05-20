@@ -42,5 +42,5 @@ type (
 )
 
 const (
-	userAchievementsSpace = "user_achievements"
+	userAchievementsSpace = "USER_ACHIEVEMENTS"
 )

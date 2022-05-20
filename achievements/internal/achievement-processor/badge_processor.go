@@ -36,6 +36,6 @@ func (u *badgeSourceProcessor) updateTotalBadgesCount(badgeName BadgeName, diff 
 		{Op: op, Field: 1, Arg: diff},
 	}
 
-	return errors.Wrapf(u.db.UpdateTyped("GLOBAL", "pk_unnamed_GLOBAL_1", tarantool.StringKey{S: key}, incrementOps, &[]*global{}),
+	return errors.Wrapf(u.db.UpsertAsync("GLOBAL", &global{Key: key, Value: 1}, incrementOps).GetTyped(&[]*global{}),
 		"failed to update global record the KEY = '%v'", key)
 }

@@ -5,8 +5,10 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 	"time"
 
 	"github.com/pkg/errors"
@@ -80,7 +82,7 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badgeName 
 		BadgeName:  badgeObject.Name,
 		AchievedAt: now,
 	}
-	if err := r.db.InsertTyped("achieved_user_badges", achievedBadgeByUser, &[]*achievedBadge{}); err != nil {
+	if err := r.db.InsertTyped("ACHIEVED_USER_BADGES", achievedBadgeByUser, &[]*achievedBadge{}); err != nil {
 		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badgeObject, userID)
 	}
 	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badgeObject, now), "failed to send achieved badge %#v to message broker", badgeObject)
@@ -117,11 +119,13 @@ func (r *repository) GetBadge(ctx context.Context, badgeName BadgeName) (*Badge,
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "get badge failed because context failed")
 	}
-	var res *badge
-	if err := r.db.GetTyped(badgesSpace, "pk_unnamed_BADGES_1", badgeName, &res); err != nil {
+	var res badge
+	if err := r.db.GetTyped(badgesSpace, "pk_unnamed_BADGES_1", tarantool.StringKey{S: badgeName}, &res); err != nil {
 		return nil, errors.Wrapf(err, "unable to get badges record for badgeName:%v", badgeName)
 	}
-
+	if res.Name == "" {
+		return nil, errors.Wrapf(storage.ErrNotFound, "no badge record for name:%v", badgeName)
+	}
 	return res.Badge(), nil
 }
 

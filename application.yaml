@@ -27,6 +27,13 @@ achievements:
   db:
     spaces:
       - BADGES
+      - GLOBAL
+      - USER_ACHIEVEMENTS
+      - ACHIEVED_USER_BADGES
+      - CONSECUTIVE_USER_MINING_SESSIONS
+      - USER_REFERRAL_PINGS
+      - TASKS
+      - ACHIEVED_USER_TASKS
     urls:
       - localhost:3301
     user: admin

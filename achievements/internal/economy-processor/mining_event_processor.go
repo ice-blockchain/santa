@@ -6,6 +6,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 	"time"
 )
@@ -67,19 +68,21 @@ func (m *miningEventSourceProcessor) insertConsecutiveMiningSessions(userID User
 }
 
 func (m *miningEventSourceProcessor) getConsecutiveMiningSessions(userID UserID) (*consecutiveUserMiningSessions, error) {
-	var res *consecutiveUserMiningSessions
-	if err := m.db.GetTyped(consecutiveUserMiningSessionsSpace, "pk_unnamed_CONSECUTIVE_USER_MINING_SESSIONS_1", userID, &res); err != nil {
+	var res consecutiveUserMiningSessions
+	if err := m.db.GetTyped(consecutiveUserMiningSessionsSpace, "pk_unnamed_CONSECUTIVE_USER_MINING_SESSIONS_1", tarantool.StringKey{S: userID}, &res); err != nil {
 		return nil, errors.Wrapf(err, "unable to get consecutive user mining sessions record for userID:%v", userID)
 	}
+	if res.UserID == "" {
+		return nil, errors.Wrapf(storage.ErrNotFound, "no consecutive user mining sessions record for userID:%v", userID)
+	}
 
-	return res, nil
+	return &res, nil
 }
 
 func (m *miningEventSourceProcessor) handleMiningSessionStart(userID UserID, lastStartedTS time.Time) (*consecutiveUserMiningSessions, error) {
 	userMiningSessions, err := m.getConsecutiveMiningSessions(userID)
 	timeStartedNano := uint64(lastStartedTS.UTC().UnixNano())
-	tErr := new(tarantool.Error)
-	if errors.As(err, tErr) && tErr.Code == tarantool.ER_TUPLE_NOT_FOUND {
+	if errors.Is(err, storage.ErrNotFound) {
 		// User's mining sessions not found - so it is his first session
 		if err = m.insertConsecutiveMiningSessions(userID, timeStartedNano); err != nil {
 			return nil, errors.Wrapf(err, "failed to insert user achievements record")

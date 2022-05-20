@@ -3,8 +3,10 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 	"time"
 )
@@ -27,7 +29,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 		AchievedAt: now,
 	}
 
-	if err := r.db.InsertTyped("achieved_user_tasks", achievedTaskByUser, &[]*achievedTask{}); err != nil {
+	if err := r.db.InsertTyped("ACHIEVED_USER_TASKS", achievedTaskByUser, &[]*achievedTask{}); err != nil {
 		return errors.Wrapf(err,
 			"failed to achieve task %v for user %v", taskName, userID)
 	}
@@ -62,11 +64,13 @@ func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*Task, err
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "get task failed because context failed")
 	}
-	var res *task
-	if err := r.db.GetTyped(tasksSpace, "pk_unnamed_TASKS_1", taskName, &res); err != nil {
+	var res task
+	if err := r.db.GetTyped(tasksSpace, "pk_unnamed_TASKS_1", tarantool.StringKey{S: taskName}, &res); err != nil {
 		return nil, errors.Wrapf(err, "unable to get tasks record for taskName:%v", taskName)
 	}
-
+	if res.Name == "" {
+		return nil, errors.Wrapf(storage.ErrNotFound, "no task record for name:%v", taskName)
+	}
 	return res.Task(), nil
 }
 
