@@ -85,6 +85,7 @@ func (m *miningEventSourceProcessor) handleMiningSessionStart(userID UserID, las
 		if err = m.insertConsecutiveMiningSessions(userID, timeStartedNano); err != nil {
 			return nil, errors.Wrapf(err, "failed to insert user achievements record")
 		}
+
 		return &consecutiveUserMiningSessions{
 			UserID:              userID,
 			LastMiningStartedAt: timeStartedNano,
@@ -120,5 +121,19 @@ func (m *miningEventSourceProcessor) handleMiningSessionStart(userID UserID, las
 }
 
 func (m *miningEventSourceProcessor) achieveTaskAndLevels(ctx context.Context, sessions *consecutiveUserMiningSessions) error {
+	// FIXME: handle decrement in case when user spends >10h and continie mining, counter resets to 0, and we'll be here again with the same value
+	switch sessions.MaxCount {
+	case 90, 60, 30, 10, 5: // consecutive mining sessions increments level (Levels -> #2-6)
+		if err := m.r.IncrementUserLevel(ctx, sessions.UserID); err != nil {
+			return errors.Wrapf(err, "failed to increment user's level due to ")
+		}
+	case 1: // first mining - increment user's level (Levels -> #1) and achieve task (Tasks #2)
+		if err := m.r.IncrementUserLevel(ctx, sessions.UserID); err != nil {
+			return errors.Wrapf(err, "failed to increment user's level due to first mining session for userID:%v", sessions.UserID)
+		}
+		if err := m.r.AchieveTask(ctx, sessions.UserID, "TASK2"); err != nil {
+			return errors.Wrapf(err, "failed to achieve task due to first mining session for userID:%v", sessions.UserID)
+		}
+	}
 	return nil
 }
