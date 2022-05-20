@@ -5,6 +5,7 @@ package achievements
 import (
 	"context"
 	"github.com/hashicorp/go-multierror"
+	achievementprocessor "github.com/ice-blockchain/santa/achievements/internal/achievement-processor"
 
 	"github.com/framey-io/go-tarantool"
 	economy_processor "github.com/ice-blockchain/santa/achievements/internal/economy-processor"
@@ -69,6 +70,8 @@ func processors(repo WriteRepository, db tarantool.Connector) map[messagebroker.
 		// Because of current impementation requires topic to be in specific order in configuration.
 		cfg.MessageBroker.ConsumingTopics[0]: user_processor.New(db, repo),
 		cfg.MessageBroker.ConsumingTopics[1]: economy_processor.NewMiningEventProcessor(db, repo),
+		cfg.MessageBroker.ConsumingTopics[2]: achievementprocessor.NewTaskProcessor(db, repo),
+		cfg.MessageBroker.ConsumingTopics[3]: achievementprocessor.NewBadgeProcessor(db),
 	}
 }
 

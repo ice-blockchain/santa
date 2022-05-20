@@ -1,33 +1,26 @@
 package achievementprocessor
 
-import "github.com/framey-io/go-tarantool"
+import (
+	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements"
+)
 
 type (
-	UserID = string
+	UserID    = string
+	BadgeName = string
+
+	global struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		Key      string
+		Value    uint64 // FIXME: Type?? Scalar may be one of boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary, but I cant find golang mapping in docs.
+	}
 
 	badgeSourceProcessor struct {
 		db tarantool.Connector
 	}
 	taskSourceProcessor struct {
 		db tarantool.Connector
-	}
-	AchievedTaskMessage struct {
-		UserID     UserID
-		TaskName   string
-		TaskIndex  uint64
-		AchievedAt uint64
-	}
-	AchievedBadgeMessage struct {
-		// Primary key.
-		Name string
-		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		BadgeType string
-		// Min-max range of the certain value (based on badgeType) to achieve the badge.
-		FromInclusive uint64
-		ToInclusive   uint64
-		// User
-		UserID UserID
-		// Time when badge was achieved
-		AchievedAt uint64
+		r  achievements.WriteRepository
 	}
 )

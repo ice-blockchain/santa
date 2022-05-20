@@ -27,7 +27,7 @@ func (u *userSourceProcessor) Process(ctx context.Context, message *messagebroke
 	// Process user messages here (from eskimo).
 	user := new(users.UserSnapshot)
 	if err := json.Unmarshal(message.Value, user); err != nil {
-		return errors.Wrapf(err, "userSourceProcessor: cannot unmarshal %v into %#v", string(message.Value), u)
+		return errors.Wrapf(err, "userSourceProcessor: cannot unmarshal %v into %#v", string(message.Value), user)
 	}
 	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_ACHIEVEMENTS
 	// and decrement t1 referrals count for its parent if user was referred by another user

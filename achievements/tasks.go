@@ -3,7 +3,6 @@ package achievements
 import (
 	"context"
 	"encoding/json"
-	achievementprocessor "github.com/ice-blockchain/santa/achievements/internal/achievement-processor"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 	"time"
@@ -35,7 +34,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 }
 
 func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, task *Task, achievedTime uint64) error {
-	m := achievementprocessor.AchievedTaskMessage{
+	m := AchievedTaskMessage{
 		UserID:     userID,
 		TaskName:   task.Name,
 		TaskIndex:  task.Index,

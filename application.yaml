@@ -45,6 +45,17 @@ achievements:
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+        ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-events
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: economy-mining
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
     consumingTopics:
       - users-events # user creation, modification and deletion events
       - economy-mining # start/stop mining events
+      - achievements-tasks # achieved tasks by the user
+      - achievements-badges # achieved badges by the user
