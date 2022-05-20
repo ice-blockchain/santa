@@ -1,13 +1,22 @@
 package userprocessor
 
 import (
+	"context"
 	"github.com/framey-io/go-tarantool"
 )
 
 type (
-	UserID = string
+	UserID          = string
+	BadgeName       = string
+	TaskName        = string
+	WriteRepository interface {
+		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+		IncrementUserLevel(ctx context.Context, userID UserID) error
+	}
 
 	userSourceProcessor struct {
+		r  WriteRepository
 		db tarantool.Connector
 	}
 	global struct {
@@ -18,7 +27,6 @@ type (
 	}
 
 	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space)
-	// TODO maybe it'll be better to move it into achievement package's contract, but it must be public in that case.
 	userAchievements struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -31,4 +39,8 @@ type (
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64
 	}
+)
+
+const (
+	userAchievementsSpace = "USER_ACHIEVEMENTS"
 )
