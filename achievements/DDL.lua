@@ -5,12 +5,24 @@ box.execute([[CREATE TABLE IF NOT EXISTS global  (
                     value SCALAR NOT NULL
                     ) WITH ENGINE = 'vinyl';]])
 
+box.execute([[CREATE TABLE IF NOT EXISTS user_progress  (
+                    user_id STRING primary key,
+                    balance UNSIGNED NOT NULL DEFAULT 0,
+                    t1_referrals UNSIGNED NOT NULL DEFAULT 0,
+                    agenda_referrals UNSIGNED NOT NULL DEFAULT 0,
+                    last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
+                    max_consecutive_user_mining_sessions UNSIGNED NOT NULL DEFAULT 0,
+                    total_user_referral_pings UNSIGNED NOT NULL DEFAULT 0
+                    ) WITH ENGINE = 'vinyl';]])
+
+-- BADGES
 box.execute([[CREATE TABLE IF NOT EXISTS badges  (
                     name STRING primary key,
                     type STRING NOT NULL,
                     from_inclusive UNSIGNED NOT NULL DEFAULT 0,
                     to_inclusive UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
+
 box.execute([[INSERT INTO badges (name, type, from_inclusive, to_inclusive)
                           VALUES ('LEVEL1', 'LEVEL', 1, 1),
                                  ('LEVEL2', 'LEVEL', 2, 5),
@@ -39,42 +51,82 @@ box.execute([[INSERT INTO badges (name, type, from_inclusive, to_inclusive)
                                  ('SOCIAL9', 'SOCIAL', 2001, 10000),
                                  ('SOCIAL10', 'SOCIAL', 10001, 1000000000)
           ]])
+
+box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_badges  (
+                    user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
+                    badge_name STRING NOT NULL REFERENCES badges(name) ON DELETE CASCADE,
+                    achieved_at UNSIGNED NOT NULL
+                    ) WITH ENGINE = 'vinyl';]])
+
+-- LEVELS
+box.execute([[CREATE TABLE IF NOT EXISTS levels (name STRING primary key, description STRING NOT NULL) WITH ENGINE = 'vinyl';]])
+
+box.execute([[INSERT INTO levels (name, description)
+                           VALUES ('L1', '5 consecutive mining sessions ( no more than 10 hours pause between the mining sessions )'),
+                                  ('L2', '10 consecutive mining sessions ( no more than 10 hours pause between the mining sessions )'),
+                                  ('L3', '30 consecutive mining sessions ( no more than 10 hours pause between the mining sessions )'),
+                                  ('L4', '60 consecutive mining sessions ( no more than 10 hours pause between the mining sessions )'),
+                                  ('L5', '90 consecutive mining sessions ( no more than 10 hours pause between the mining sessions )'),
+                                  ('L6', 'TASK1: Completed tasks from home screen'),
+                                  ('L7', 'TASK2: Completed tasks from home screen'),
+                                  ('L8', 'TASK3: Completed tasks from home screen'),
+                                  ('L9', 'TASK4: Completed tasks from home screen'),
+                                  ('L10', 'TASK5: Completed tasks from home screen'),
+                                  ('L11', 'TASK6: Completed tasks from home screen'),
+                                  ('L12', 'TASK7: Completed tasks from home screen'),
+                                  ('L13', 'Confirm phone number'),
+                                  ('L14', '1 Friend from agenda joined ICE'),
+                                  ('L15', '5 Friends from agenda joined ICE'),
+                                  ('L16', '10 Friends from agenda joined ICE'),
+                                  ('L17', 'Opened the app 5 times'),
+                                  ('L18', 'Opened the app 10 times'),
+                                  ('L19', 'Opened the app more than 30 times in the last 30 days'),
+                                  ('L20', 'First ping to referral'),
+                                  ('L21', '10 pings to referrals')
+           ]])
+
+box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_levels  (
+                    user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
+                    level_name STRING NOT NULL REFERENCES levels(name) ON DELETE CASCADE,
+                    achieved_at UNSIGNED NOT NULL
+                    ) WITH ENGINE = 'vinyl';]])
+
+box.execute([[CREATE TABLE IF NOT EXISTS current_user_levels  (
+                    user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
+                    level UNSIGNED NOT NULL DEFAULT 1,
+                    updated_at UNSIGNED NOT NULL
+                    ) WITH ENGINE = 'vinyl';]])
+
+-- TASKS
+
 box.execute([[CREATE TABLE IF NOT EXISTS tasks  (
                     name STRING primary key,
                     index UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
 
-box.execute([[CREATE TABLE IF NOT EXISTS user_achievements  (
-                    user_id STRING primary key,
-                    balance UNSIGNED NOT NULL DEFAULT 0,
-                    level UNSIGNED NOT NULL DEFAULT 1,
-                    role STRING NOT NULL DEFAULT 'PIONEER',
-                    t1_referrals UNSIGNED NOT NULL DEFAULT 0
-                    ) WITH ENGINE = 'vinyl';]])
-
-box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_badges  (
-                    user_id STRING primary key REFERENCES user_achievements(user_id) ON DELETE CASCADE,
-                    badge_name STRING NOT NULL REFERENCES badges(name) ON DELETE CASCADE,
-                    achieved_at UNSIGNED NOT NULL
-                    ) WITH ENGINE = 'vinyl';]])
+box.execute([[INSERT INTO tasks (name, task_index)
+                           VALUES ('TASK1', 1),
+                                  ('TASK2', 2),
+                                  ('TASK3', 3),
+                                  ('TASK4', 4),
+                                  ('TASK5', 5),
+                                  ('TASK6', 6),
+                                  ('TASK7', 7),
+                                  ('PRIZE', 8)
+           ]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_tasks  (
-                    user_id STRING primary key REFERENCES user_achievements(user_id) ON DELETE CASCADE,
+                    user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
                     task_name STRING NOT NULL REFERENCES tasks(name) ON DELETE CASCADE,
                     achieved_at UNSIGNED NOT NULL
                     ) WITH ENGINE = 'vinyl';]])
 
-box.execute([[CREATE TABLE IF NOT EXISTS consecutive_user_mining_sessions  (
-                    user_id STRING primary key REFERENCES user_achievements(user_id) ON DELETE CASCADE,
-                    last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
-                    max_count UNSIGNED NOT NULL DEFAULT 0
-                    ) WITH ENGINE = 'vinyl';]])
+-- ROLES
 
-box.execute([[CREATE TABLE IF NOT EXISTS user_referral_pings  (
-                    user_id STRING primary key REFERENCES user_achievements(user_id) ON DELETE CASCADE,
-                    max_count UNSIGNED NOT NULL DEFAULT 0
+box.execute([[CREATE TABLE IF NOT EXISTS current_user_roles  (
+                    user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
+                    role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR'),
+                    updated_at UNSIGNED NOT NULL
                     ) WITH ENGINE = 'vinyl';]])
-
--- TODO: still need to find out how to do Achievement Dictionary>Levels>9-14 (from README.md)
 
 -- TODO will add indexes later on
