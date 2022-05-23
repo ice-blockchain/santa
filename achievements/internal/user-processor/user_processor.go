@@ -29,21 +29,19 @@ func (u *userSourceProcessor) Process(ctx context.Context, message *messagebroke
 		return errors.Wrapf(err, "userSourceProcessor: cannot unmarshal %v into %#v", string(message.Value), user)
 	}
 	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_ACHIEVEMENTS
-	// and decrement t1 referrals count for its parent if user was referred by another user
+	// and decrement t1 referrals count for its parent if user was referred by another user.
 	if user.User == nil && user.Before != nil {
 		if err := u.handleUserDeletion(user); err != nil {
 			return errors.Wrapf(err, "failed to handle user deletion event")
 		}
 
-		return nil // We're complete here with deletion
+		return nil // We're complete here with deletion.
 	}
-	if user.User != nil {
-		if err := u.handleUserCreation(user); err != nil {
-			return errors.Wrap(err, "failed to handle user creation/modification event")
-		}
-		if err := u.achieveTaskAndLevels(ctx, user); err != nil {
-			return errors.Wrapf(err, "failed to achieve task && levels on user message %#v", user)
-		}
+	if err := u.handleUserCreation(user); err != nil {
+		return errors.Wrap(err, "failed to handle user creation/modification event")
+	}
+	if err := u.achieveTaskAndLevels(ctx, user); err != nil {
+		return errors.Wrapf(err, "failed to achieve task && levels on user message %#v", user)
 	}
 
 	return nil
@@ -118,6 +116,7 @@ func (u *userSourceProcessor) getUserAchievements(userID users.UserID) (*userAch
 	if res.UserID == "" {
 		return nil, errors.Wrapf(storage.ErrNotFound, "no user achievements record for userID:%v", userID)
 	}
+
 	return res, nil
 }
 
@@ -138,49 +137,40 @@ func (u *userSourceProcessor) updateT1ReferralsCount(userID users.UserID, diff i
 		op = "-"
 	}
 	incrementOps := []tarantool.Op{
-		{Op: op, Field: 4 /* TODO: Const? Field could move if DDL'll be changed, we need to sync it with DDL */, Arg: diff},
+		{Op: op, Field: fieldT1Referrals, Arg: diff},
 	}
 
 	return errors.Wrapf(u.db.UpdateTyped(userAchievementsSpace, "pk_unnamed_USER_ACHIEVEMENTS_1", key, incrementOps, &[]*userAchievements{}),
 		"failed to update %v record with the new count of T1 referals for userID:%v", userAchievementsSpace, userID)
 }
 
-// TODO: combine them all (from all source processors) into one file/package? To have logic of task/level achieving in one place
 func (u *userSourceProcessor) achieveTaskAndLevels(ctx context.Context, user *users.UserSnapshot) error {
-	// pass existing userAchievement state from handleUserCreation somehow (dont forget +=1 to T1Referral count)
-	// but not sure how to pass it in case of deletion (T1 referrals can be changed there too) to avoid second DB call
 	userAchievementState, err := u.getUserAchievements(user.ID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get user state to achieve tasks")
 	}
-	achievedTask := ""
-	// 1. Claim your nickname.
-	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {
-		achievedTask = "TASK1"
-	}
-	// 3. Upload profile picture.
-	if user.ProfilePictureURL != "" && (user.Before == nil || user.Before.ProfilePictureURL == "") {
-		achievedTask = "TASK3"
-	}
-	// 6. Invite 5 friends.
-	if userAchievementState.T1Referrals >= 5 { // FIXME: handle referral deletion, it can downgrade and become 5 again but the task is already achieved
-		achievedTask = "TASK6"
-	}
-	// TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc
+	achievedTask := u.getCompletedTask(user, userAchievementState)
+	//nolint:godox,nolintlint // TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc.
 	if achievedTask != "" {
 		err = u.r.AchieveTask(ctx, user.ID, achievedTask)
 		if err != nil {
 			return errors.Wrapf(err, "failed to achieve task %#v for userID:%v", achievedTask, user.ID)
 		}
 	}
+
+	return errors.Wrapf(u.achieveLevels(ctx, user), "failed to achieve user's level")
+}
+
+func (u *userSourceProcessor) achieveLevels(ctx context.Context, user *users.UserSnapshot) error {
 	// New level for user - 8. Confirm phone number
 	// it seems eskimo can send unconfirmed number at initial user creation for now
-	// but in case of user modification (before != nil) it sends confirmed number, catch it here
+	// but in case of user modification (before != nil) it sends confirmed number, catch it here.
 	if user.PhoneNumber != "" && user.Before != nil && user.Before.PhoneNumber == "" {
-		err = u.r.IncrementUserLevel(ctx, user.ID)
+		err := u.r.IncrementUserLevel(ctx, user.ID)
 		if err != nil {
 			return errors.Wrapf(err, "failed to increment user's level for the phone number confirmation userID:%v", user.ID)
 		}
 	}
+
 	return nil
 }

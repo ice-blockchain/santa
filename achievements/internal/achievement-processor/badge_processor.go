@@ -3,10 +3,10 @@ package achievementprocessor
 import (
 	"context"
 	"encoding/json"
-	"github.com/ice-blockchain/santa/achievements/messages"
 	"math"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
@@ -23,10 +23,11 @@ func (b *badgeSourceProcessor) Process(ctx context.Context, message *messagebrok
 	if err := json.Unmarshal(message.Value, badge); err != nil {
 		return errors.Wrapf(err, "badgeSourceProcessor: cannot unmarshal %v into %#v", string(message.Value), badge)
 	}
+
 	return errors.Wrapf(b.updateTotalBadgesCount(badge.Name, 1), "badgeSourceProcessor: failed to update total badge count for badge:%#v", badge)
 }
 
-func (u *badgeSourceProcessor) updateTotalBadgesCount(badgeName BadgeName, diff int64) error {
+func (b *badgeSourceProcessor) updateTotalBadgesCount(badgeName BadgeName, diff int64) error {
 	key := "TOTAL_BADGES_" + badgeName
 	op := "+"
 	if math.Signbit(float64(diff)) {
@@ -36,6 +37,6 @@ func (u *badgeSourceProcessor) updateTotalBadgesCount(badgeName BadgeName, diff 
 		{Op: op, Field: 1, Arg: diff},
 	}
 
-	return errors.Wrapf(u.db.UpsertAsync("GLOBAL", &global{Key: key, Value: 1}, incrementOps).GetTyped(&[]*global{}),
+	return errors.Wrapf(b.db.UpsertAsync("GLOBAL", &global{Key: key, Value: 1}, incrementOps).GetTyped(&[]*global{}),
 		"failed to update global record the KEY = '%v'", key)
 }

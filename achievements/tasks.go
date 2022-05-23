@@ -3,12 +3,13 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error {
@@ -16,7 +17,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 		return errors.Wrap(ctx.Err(), "add user failed because context failed")
 	}
 
-	// check if such task exists before achieve it
+	// Check if such task exists before achieve it.
 	taskObject, err := r.GetTask(ctx, taskName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read task for taskName:%v", taskName)
@@ -33,6 +34,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 		return errors.Wrapf(err,
 			"failed to achieve task %v for user %v", taskName, userID)
 	}
+
 	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskObject, now), "failed to send achieved task to message broker: %#v", taskObject)
 }
 
@@ -71,6 +73,7 @@ func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*Task, err
 	if res.Name == "" {
 		return nil, errors.Wrapf(storage.ErrNotFound, "no task record for name:%v", taskName)
 	}
+
 	return res.Task(), nil
 }
 

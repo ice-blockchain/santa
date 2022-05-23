@@ -5,10 +5,10 @@ package achievements
 import (
 	"context"
 	_ "embed"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"io"
 
 	"github.com/framey-io/go-tarantool"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
@@ -83,6 +83,7 @@ const (
 	userAchievementsSpace = "USER_ACHIEVEMENTS"
 	badgesSpace           = "BADGES"
 	tasksSpace            = "TASKS"
+	userLevelField        = 3
 )
 
 var (
@@ -139,7 +140,7 @@ type (
 		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
 		Name TaskName
-		// index of the task ( they should be done in specific order)
+		// Index of the task ( they should be done in specific order).
 		Index uint64
 	}
 
@@ -160,7 +161,7 @@ type (
 		AchievedAt uint64
 	}
 
-	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space)
+	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
 	userAchievements struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -168,7 +169,7 @@ type (
 		// User's role, one of PIONEER, ABMASSADOR, ...3rd...
 		Role string
 		// User's balance (ICE).
-		Balance uint64 // FIXME: it is float64/DOUBLE in freezer for now, how to convert them? Or refactor freezer to uint64.
+		Balance uint64 //nolint:godox,nolintlint // TODO: it is float64/DOUBLE in freezer for now, how to convert them? Or refactor freezer to uint64.
 		Level   uint32
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64

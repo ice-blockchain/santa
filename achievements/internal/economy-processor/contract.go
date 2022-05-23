@@ -2,8 +2,9 @@ package economyprocessor
 
 import (
 	"context"
-	"github.com/framey-io/go-tarantool"
 	"time"
+
+	"github.com/framey-io/go-tarantool"
 )
 
 type (
@@ -21,17 +22,17 @@ type (
 		r  WriteRepository
 	}
 
-	// TODO: economy updates (balance at user_achievements) when they'll be implemented in freezer
+	//nolint:deadcode,unused // TODO: economy updates (balance at user_achievements) when they'll be implemented in freezer.
 	balanceUpdateSourceProcessor struct {
 		db tarantool.Connector
 	}
 
-	// | consecutiveUserMiningSessions is an internal type to store count of user mining sessions in database
+	// | consecutiveUserMiningSessions is an internal type to store count of user mining sessions in database.
 	consecutiveUserMiningSessions struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		UserID   UserID
-		// Timestamp
+		// Timestamp.
 		LastMiningStartedAt uint64
 		// Consecutive count (no more than 10 hours pause between the mining sessions).
 		MaxCount uint32
@@ -40,6 +41,9 @@ type (
 
 const (
 	consecutiveUserMiningSessionsSpace = "consecutive_user_mining_sessions"
-	// 24 hour is session duration, and up to 10 hours between sessions
+	//nolint:gomnd,nolintlint // 24 hour is session duration, and up to 10 hours between sessions
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
+	// Database fields for tarantol oprations, we   keep them in sync with DDL.
+	lastMinintStartedAtField = 1
+	maxCountField            = 2
 )

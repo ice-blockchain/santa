@@ -2,6 +2,7 @@ package achievements
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/pkg/errors"
 )
@@ -12,7 +13,7 @@ func (r *repository) IncrementUserLevel(ctx context.Context, userID UserID) erro
 	}
 	key := tarantool.StringKey{S: userID}
 	incrementOps := []tarantool.Op{
-		{Op: "+", Field: 3 /* TODO: Const? Field could move if DDL'll be changed, we need to sync it with DDL */, Arg: 1},
+		{Op: "+", Field: userLevelField, Arg: 1},
 	}
 
 	return errors.Wrapf(r.db.UpdateTyped(userAchievementsSpace, "pk_unnamed_USER_ACHIEVEMENTS_1", key, incrementOps, &[]*userAchievements{}),

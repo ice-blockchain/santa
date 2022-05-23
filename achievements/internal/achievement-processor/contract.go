@@ -2,6 +2,7 @@ package achievementprocessor
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 )
 
@@ -18,7 +19,10 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		Key      string
-		Value    uint64 // FIXME: Type?? Scalar may be one of boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary, but I cant find golang mapping in docs.
+		// For now we're saving only integer, but scalar may be one of
+		// boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary,
+		// but I cant find golang mapping in docs (interface{}?).
+		Value uint64
 	}
 
 	badgeSourceProcessor struct {

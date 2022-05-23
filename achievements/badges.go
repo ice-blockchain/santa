@@ -5,12 +5,12 @@ package achievements
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/messages"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
-	"time"
-
 	"github.com/pkg/errors"
 )
 
@@ -71,7 +71,7 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badgeName 
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "achieve badge failed because context failed")
 	}
-	// check if such badge exists before achieve it
+	// Check if such badge exists before achieve it.
 	badgeObject, err := r.GetBadge(ctx, badgeName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read badge for badgeName:%v", badgeName)
@@ -85,11 +85,12 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badgeName 
 	if err := r.db.InsertTyped("ACHIEVED_USER_BADGES", achievedBadgeByUser, &[]*achievedBadge{}); err != nil {
 		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badgeObject, userID)
 	}
+
 	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badgeObject, now), "failed to send achieved badge %#v to message broker", badgeObject)
 }
 
 func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge *Badge, achievedTime uint64) error {
-	// Send achieved badges to message broker because of we need to calculate total count of achieved badges (in achievementprocessor.badgeSourceProcessor)
+	// Send achieved badges to message broker because of we need to calculate total count of achieved badges (in achievementprocessor.badgeSourceProcessor).
 	m := messages.AchievedBadgeMessage{
 		Name:          badge.Name,
 		BadgeType:     badge.Type,
@@ -126,6 +127,7 @@ func (r *repository) GetBadge(ctx context.Context, badgeName BadgeName) (*Badge,
 	if res.Name == "" {
 		return nil, errors.Wrapf(storage.ErrNotFound, "no badge record for name:%v", badgeName)
 	}
+
 	return res.Badge(), nil
 }
 

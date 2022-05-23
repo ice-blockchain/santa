@@ -4,10 +4,10 @@ package achievements
 
 import (
 	"context"
-	"github.com/hashicorp/go-multierror"
-	achievementprocessor "github.com/ice-blockchain/santa/achievements/internal/achievement-processor"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/hashicorp/go-multierror"
+	achievementprocessor "github.com/ice-blockchain/santa/achievements/internal/achievement-processor"
 	economy_processor "github.com/ice-blockchain/santa/achievements/internal/economy-processor"
 	user_processor "github.com/ice-blockchain/santa/achievements/internal/user-processor"
 	appCfg "github.com/ice-blockchain/wintr/config"
@@ -39,9 +39,10 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	mbProducer := messagebroker.MustConnect(context.Background(), applicationYamlKey)
 	repo := &repository{db: db, mb: mbProducer}
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(repo, db))
+
 	return &processor{
 		close: func() error {
-			result := make([]error, 0, 3)
+			result := make([]error, 0, 1+1+1)
 			if err := db.Close(); err != nil {
 				result = append(result, err)
 			}
@@ -51,12 +52,13 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 			if err := mbProducer.Close(); err != nil {
 				result = append(result, err)
 			}
-			if len(result) == 1 {
+			switch len(result) {
+			case 1:
 				return result[0]
-			} else if len(result) > 1 {
-				return multierror.Append(nil, result...)
-			} else {
+			case 0:
 				return nil
+			default:
+				return multierror.Append(nil, result...)
 			}
 		},
 		WriteRepository: repo,
