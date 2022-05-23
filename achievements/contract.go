@@ -34,10 +34,11 @@ type (
 	}
 	BadgeOverview struct {
 		Badge
-		Position struct {
-			X     uint64 `json:"x" example:"3"`
-			OutOf uint64 `json:"outOf" example:"10"`
-		} `json:"position"`
+		Position Position `json:"position"`
+	}
+	Position struct {
+		X     uint64 `json:"x" example:"3"`
+		OutOf uint64 `json:"outOf" example:"10"`
 	}
 	Task struct {
 		Name     string `json:"name" example:"CLAIM_USERNAME"`
@@ -65,6 +66,7 @@ type (
 
 	ReadRepository interface {
 		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
+		GetUserAchievements(ctx context.Context, userID UserID, collectibles []string) (*UserAchievements, error)
 	}
 	WriteRepository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
@@ -109,12 +111,12 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
-		Name BadgeName
-		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		BadgeType string
+		Name BadgeName `db:"name"`
+		// BadgeType of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
+		BadgeType string `db:"type"`
 		// Min-max range of the certain value (based on badgeType) to achieve the badge.
-		FromInclusive uint64
-		ToInclusive   uint64
+		FromInclusive uint64 `db:"from_inclusive"`
+		ToInclusive   uint64 `db:"to_inclusive"`
 	}
 
 	// `achievedBadge` is an internal type to store user's achieved badges in database.
@@ -124,5 +126,29 @@ type (
 		UserID     UserID
 		BadgeName  string
 		AchievedAt uint64
+	}
+
+	userAchievement struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack    struct{} `msgpack:",asArray"`
+		UserID      UserID
+		Role        string
+		Balance     uint64
+		Level       uint64
+		T1Referrals uint64
+	}
+
+	badgeOverview struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		badge
+		Achieved bool `db:"achieved"`
+	}
+
+	badgeTypes struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		Type     string   `db:"type"`
+		Size     uint64   `db:"size"`
 	}
 )

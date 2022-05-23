@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/ice-blockchain/santa/achievements"
 	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
 )
@@ -39,14 +40,16 @@ func (s *service) setupAchievementRoutes(router *gin.Engine) {
 func (s *service) GetUserAchievements(ctx context.Context, r server.ParsedRequest) server.Response {
 	req := r.(*RequestGetUserAchievements)
 
-	//nolint:nolintlint,gocritic,staticcheck // TODO implement me.
-	if req.AuthenticatedUser.ID == req.UserID {
-		// User is trying to get their own achievements.
-	} else { //nolint:nolintlint,gocritic,staticcheck // TODO implement me.
-		// User is trying to get some other user's achievements.
+	result, err := s.achievementsRepository.GetUserAchievements(ctx, req.UserID, req.IncludeCollectibles)
+	if err != nil {
+		if errors.Is(err, achievements.ErrRelationNotFound) {
+			return *server.NotFound(err, userNotFoundCode)
+		}
+
+		return server.Unexpected(err)
 	}
 
-	return server.OK(req)
+	return server.OK(result)
 }
 
 func newRequestGetUserAchievements() server.ParsedRequest {
