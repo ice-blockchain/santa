@@ -228,21 +228,24 @@
                     "example": "ICE Breaker"
                 },
                 "position": {
-                    "type": "object",
-                    "properties": {
-                        "outOf": {
-                            "type": "integer",
-                            "example": 10
-                        },
-                        "x": {
-                            "type": "integer",
-                            "example": 3
-                        }
-                    }
+                    "$ref": "#/definitions/achievements.Position"
                 },
                 "type": {
                     "type": "string",
                     "example": "SOCIAL"
+                }
+            }
+        },
+        "achievements.Position": {
+            "type": "object",
+            "properties": {
+                "outOf": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "x": {
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },
