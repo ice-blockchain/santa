@@ -41,9 +41,9 @@ checkModVersion: updateGoModVersion
 
 updateAllDependencies:
 	go get github.com/btcsuite/btcd/chaincfg/chainhash@latest
-	go get github.com/twilio/twilio-go@v0.25.0
 	go get -t -u ./...
 	go mod tidy
+	go get github.com/twilio/twilio-go@v0.25.0
 
 checkIfAllDependenciesAreUpToDate: updateAllDependencies
 	@if git status --porcelain | grep -q go.sum; then \
