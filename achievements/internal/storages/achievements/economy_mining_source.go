@@ -2,21 +2,31 @@ package achievements
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
-	"github.com/ice-blockchain/santa/achievements/internal"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 	"time"
 )
 
-func NewEcomonyMiningSource(db tarantool.Connector) internal.EconomyMiningSource {
+func NewEcomonyMiningSource(db tarantool.Connector) messagebroker.Processor {
 	return &economyMiningSource{
 		r: &repository{db: db},
 	}
 }
 
-func (e *economyMiningSource) ProcessMiningStart(ctx context.Context, userID UserID, miningEvent *economy.MiningStarted) error {
+func (e *economyMiningSource) Process(ctx context.Context, message *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "context failed")
+	}
+	userID := message.Key
+	miningEvent := new(economy.MiningStarted)
+	if err := json.Unmarshal(message.Value, miningEvent); err != nil {
+		return errors.Wrapf(err, "achievements/economyMiningSource: cannot unmarshall %v into %#v", string(message.Value), miningEvent)
+	}
+
 	_, err := e.handleMiningSessionStart(userID, miningEvent.TS)
 	if err != nil {
 		return errors.Wrapf(err, "miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)

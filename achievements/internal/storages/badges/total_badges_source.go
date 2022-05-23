@@ -4,23 +4,27 @@ package badges
 
 import (
 	"context"
-	"github.com/ice-blockchain/santa/achievements/internal"
+	"encoding/json"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"math"
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/pkg/errors"
 )
 
-func NewBadgeProcessor(db tarantool.Connector) internal.AchievedBadgesSource {
+func NewBadgeProcessor(db tarantool.Connector) messagebroker.Processor {
 	return &totalBadgesSource{db: db}
 }
 
-func (b *totalBadgesSource) ProcessAchievedBadge(ctx context.Context, userId UserID, achievedBadge *AchievedBadgeMessage) error {
+func (b *totalBadgesSource) Process(ctx context.Context, message *messagebroker.Message) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-
-	return errors.Wrapf(b.updateTotalBadgesCount(achievedBadge.Name, 1), "totalBadgesSource: failed to update total badge count for badge:%#v", achievedBadge.Name)
+	achievedBadge := new(AchievedBadgeMessage)
+	if err := json.Unmarshal(message.Value, achievedBadge); err != nil {
+		return errors.Wrapf(err, "totalBadgesSource: cannot unmarshall %v into %#v", string(message.Value), achievedBadge)
+	}
+	return errors.Wrapf(b.updateTotalBadgesCount(achievedBadge.Name, 1), "totalBadgesSource: failed to update total badge count for badge:%v", achievedBadge.Name)
 }
 
 func (b *totalBadgesSource) updateTotalBadgesCount(badgeName BadgeName, diff int64) error {

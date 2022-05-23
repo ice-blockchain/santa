@@ -4,20 +4,29 @@ package achievements
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/santa/achievements/internal"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 )
 
-func New(db tarantool.Connector) internal.UserSource {
+func New(db tarantool.Connector) messagebroker.Processor {
 	return &userSource{
 		r: &repository{db: db},
 	}
 }
 
-func (u *userSource) ProcessUser(ctx context.Context, user *users.UserSnapshot) error {
+func (u *userSource) Process(ctx context.Context, message *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "context failed")
+	}
+	user := new(users.UserSnapshot)
+	if err := json.Unmarshal(message.Value, user); err != nil {
+		return errors.Wrapf(err, "achievements/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
+	}
+
 	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_ACHIEVEMENTS
 	// and decrement t1 referrals count for its parent if user was referred by another user.
 	if user.User == nil && user.Before != nil {
@@ -30,11 +39,6 @@ func (u *userSource) ProcessUser(ctx context.Context, user *users.UserSnapshot) 
 	if err := u.handleUserCreation(user); err != nil {
 		return errors.Wrap(err, "failed to handle user creation/modification event")
 	}
-
-	// MOVE to tasks and levels packages
-	//if err := u.achieveTaskAndLevels(ctx, user); err != nil {
-	//	return errors.Wrapf(err, "failed to achieve task && levels on user message %#v", user)
-	//}
 
 	return nil
 }

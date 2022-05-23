@@ -2,24 +2,35 @@ package levels
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
-	"github.com/ice-blockchain/santa/achievements/internal"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/achievements"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
 
-func NewEcomonyMiningSource(db tarantool.Connector) internal.EconomyMiningSource {
+func NewEconomyMiningSource(db tarantool.Connector) messagebroker.Processor {
 	return &economyMiningSource{
 		r: &repository{db: db},
 	}
 }
 
-func (m *economyMiningSource) ProcessMiningStart(ctx context.Context, userID UserID, miningEvent *economy.MiningStarted) error {
+func (m *economyMiningSource) Process(ctx context.Context, message *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "context failed")
+	}
+	userID := message.Key
+	miningEvent := new(economy.MiningStarted)
+	if err := json.Unmarshal(message.Value, miningEvent); err != nil {
+		return errors.Wrapf(err, "levels/economyMiningSource: cannot unmarshall %v into %#v", string(message.Value), miningEvent)
+	}
+
 	var updatedSessions *achievements.ConsecutiveMiningSessions
 	updatedSessions = nil // TODO pass value
+
 	if err := m.achieveLevelsForConsecutiveMiningSessions(ctx, updatedSessions); err != nil {
-		return errors.Wrapf(err, "miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)
+		return errors.Wrapf(err, "levels/miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)
 	}
 
 	return nil

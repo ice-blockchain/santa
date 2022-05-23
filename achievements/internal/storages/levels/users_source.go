@@ -2,20 +2,29 @@ package levels
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/santa/achievements/internal"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
 
-func NewUserSource(db tarantool.Connector) internal.UserSource {
+func NewUserSource(db tarantool.Connector) messagebroker.Processor {
 	return &userSource{
 		r: &repository{db: db},
 	}
 }
 
-func (u *userSource) ProcessUser(ctx context.Context, user *users.UserSnapshot) error {
-	return errors.Wrapf(u.achieveLevels(ctx, user), "Failed to increment user's level for the phone number confirmation")
+func (u *userSource) Process(ctx context.Context, message *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "context failed")
+	}
+	user := new(users.UserSnapshot)
+	if err := json.Unmarshal(message.Value, user); err != nil {
+		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
+	}
+
+	return errors.Wrapf(u.achieveLevels(ctx, user), "levels/userSource: failed to increment user's level for the phone number confirmation")
 }
 
 func (u *userSource) achieveLevels(ctx context.Context, user *users.UserSnapshot) error {

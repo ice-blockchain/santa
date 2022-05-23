@@ -2,22 +2,29 @@ package tasks
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/santa/achievements/internal"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/achievements"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 	"strings"
 )
 
-func NewUserSource(db tarantool.Connector, mb messagebroker.Client) internal.UserSource {
+func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &usersSource{
 		r: New(db, mb),
 	}
 }
 
-func (u *usersSource) ProcessUser(ctx context.Context, user *users.UserSnapshot) error {
+func (u *usersSource) Process(ctx context.Context, message *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "context failed")
+	}
+	user := new(users.UserSnapshot)
+	if err := json.Unmarshal(message.Value, user); err != nil {
+		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
+	}
 	var userAchievementState *achievements.UserAchievements
 	userAchievementState = nil // TODO pass value
 	achievedTask := u.getCompletedTask(user, userAchievementState)
