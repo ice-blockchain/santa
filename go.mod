@@ -6,7 +6,7 @@ require (
 	github.com/framey-io/go-tarantool v0.0.0-20220317175443-747a509561d8
 	github.com/gin-gonic/gin v1.7.7
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/eskimo v1.3.0
+	github.com/ice-blockchain/eskimo v1.4.0
 	github.com/ice-blockchain/freezer v1.3.0
 	github.com/ice-blockchain/wintr v1.6.0
 	github.com/pkg/errors v0.9.1
@@ -78,7 +78,7 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/swaggo/gin-swagger v1.4.3 // indirect
 	github.com/testcontainers/testcontainers-go v0.13.0 // indirect
-	github.com/twilio/twilio-go v0.25.0 // indirect
+	github.com/twilio/twilio-go v0.26.0 // indirect
 	github.com/twmb/franz-go v1.5.3 // indirect
 	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220523041415-0bca3b86595e // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.1.0 // indirect

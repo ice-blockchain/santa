@@ -619,8 +619,8 @@ github.com/huin/goupnp v1.0.3-0.20220313090229-ca81a64b4204/go.mod h1:ZxNlw5WqJj
 github.com/huin/goutil v0.0.0-20170803182201-1ca381bf3150/go.mod h1:PpLOETDnJ0o3iZrZfqZzyLl6l7F3c6L1oWn7OICBi6o=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
-github.com/ice-blockchain/eskimo v1.3.0 h1:yfxzGuP6nv9yAA76esqfmRrn4VOCwmzkYFnKt1wUUr8=
-github.com/ice-blockchain/eskimo v1.3.0/go.mod h1:BjqtYpw1OCHvX4dzKlmyqZBB1FvUVwhSVpsLEfhDo3Y=
+github.com/ice-blockchain/eskimo v1.4.0 h1:nBzHKW3+rHxsgprDv8xAwlhQHoOvUjRulVTMzYC+JXM=
+github.com/ice-blockchain/eskimo v1.4.0/go.mod h1:xC1sMnDMIKTDQaZ/1PuLgMZL261aO0XX6BKvy/SjFPc=
 github.com/ice-blockchain/freezer v1.3.0 h1:T6eeqhgME+QgskecMPOYdLxmO9Ms+6rEyH2Yxu4Pbpc=
 github.com/ice-blockchain/freezer v1.3.0/go.mod h1:VdswUmIWklckKvC0jRIAkSrPTU4t2Tuw39j8XEwi950=
 github.com/ice-blockchain/wintr v1.6.0 h1:2rxyVx8fKzsneUTAkRakDMMYmsMArdQG+q2rhxJCVr0=
@@ -1025,8 +1025,6 @@ github.com/tklauser/go-sysconf v0.3.5/go.mod h1:MkWzOF4RMCshBAMXuhXJs64Rte09mITn
 github.com/tklauser/numcpus v0.2.2/go.mod h1:x3qojaO3uyYt0i56EW/VUYs7uBvdl2fkfZFu0T9wgjM=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
-github.com/twilio/twilio-go v0.25.0 h1:Vk3OjsIcm//WTpywp3y+HD+Goiyf1SIiLQR+sxw+/gM=
-github.com/twilio/twilio-go v0.25.0/go.mod h1:lz62Hopu4vicpQ056H5TJ0JE4AP0rS3sQ35/ejmgOwE=
 github.com/twilio/twilio-go v0.26.0 h1:wFW4oTe3/LKt6bvByP7eio8JsjtaLHjMQKOUEzQry7U=
 github.com/twilio/twilio-go v0.26.0/go.mod h1:lz62Hopu4vicpQ056H5TJ0JE4AP0rS3sQ35/ejmgOwE=
 github.com/twmb/franz-go v1.2.3-0.20211104052441-7952375c09c0/go.mod h1:e5ZOdNswX/wv+jebWNX49yc9U7zgR18Xovj9ckk6mx8=
