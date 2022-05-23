@@ -5,6 +5,7 @@ package achievements
 import (
 	"context"
 	_ "embed"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
 	"io"
 
 	"github.com/framey-io/go-tarantool"
@@ -46,44 +47,27 @@ type (
 		Index    uint64 `json:"index" example:"0"`
 		Achieved bool   `json:"achieved" example:"false"`
 	}
-	Badge struct {
-		Name     string           `json:"name" example:"ICE Breaker"`
-		Type     BadgeType        `json:"type" example:"SOCIAL"`
-		Interval ProgressInterval `json:"interval"`
-	}
-	ProgressInterval struct {
-		Left  uint64 `json:"left" example:"11"`
-		Right uint64 `json:"right" example:"22"`
-	}
+	Badge = badges.Badge
+
+	ProgressInterval = badges.ProgressInterval
+
 	Repository interface {
 		io.Closer
 		ReadRepository
 	}
 	Processor interface {
 		io.Closer
-		WriteRepository
 		CheckHealth(context.Context) error
 	}
 
 	ReadRepository interface {
 		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
-		GetBadge(ctx context.Context, badgeName BadgeName) (*Badge, error)
-		GetTask(ctx context.Context, taskName TaskName) (*Task, error)
-	}
-	WriteRepository interface {
-		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
-		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
-		IncrementUserLevel(ctx context.Context, userID UserID) error
 	}
 )
 
 // Private API.
 const (
-	applicationYamlKey    = "achievements"
-	userAchievementsSpace = "USER_ACHIEVEMENTS"
-	badgesSpace           = "BADGES"
-	tasksSpace            = "TASKS"
-	userLevelField        = 3
+	applicationYamlKey = "achievements"
 )
 
 var (
@@ -101,7 +85,6 @@ type (
 
 	processor struct {
 		close func() error
-		WriteRepository
 	}
 
 	config struct {
@@ -113,16 +96,6 @@ type (
 		} `yaml:"messageBroker"`
 	}
 	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
-	badgeInventory struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		badge
-		// If the badge was achieved by user.
-		Achieved bool `json:"achieved" example:"false"`
-		// The percentage of all the users that have this badge.
-		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
-	}
-
 	badge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -135,43 +108,14 @@ type (
 		ToInclusive   uint64
 	}
 
-	task struct {
+	// We need this struct to deserialize db response from ReadRepository.GetAchievedUserBadges because of API struct uses struct embedding.
+	badgeInventory struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
-		// Primary key.
-		Name TaskName
-		// Index of the task ( they should be done in specific order).
-		Index uint64
-	}
-
-	// `achievedBadge` is an internal type to store user's achieved badges in database.
-	achievedBadge struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack   struct{} `msgpack:",asArray"`
-		UserID     UserID
-		BadgeName  string
-		AchievedAt uint64
-	}
-	// `achievedTask` is an internal type to store user's achieved tasks in database.
-	achievedTask struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack   struct{} `msgpack:",asArray"`
-		UserID     UserID
-		TaskName   string
-		AchievedAt uint64
-	}
-
-	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
-	userAchievements struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		UserID   UserID
-		// User's role, one of PIONEER, ABMASSADOR, ...3rd...
-		Role string
-		// User's balance (ICE).
-		Balance uint64 //nolint:godox,nolintlint // TODO: it is float64/DOUBLE in freezer for now, how to convert them? Or refactor freezer to uint64.
-		Level   uint32
-		// Count of user's referrals on Tier 1.
-		T1Referrals uint64
+		badge
+		// If the badge was achieved by user.
+		Achieved bool `json:"achieved" example:"false"`
+		// The percentage of all the users that have this badge.
+		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
 	}
 )

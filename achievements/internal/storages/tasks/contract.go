@@ -1,0 +1,74 @@
+package tasks
+
+import (
+	"context"
+	"github.com/framey-io/go-tarantool"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+)
+
+// Public API.
+type (
+	TaskName = string
+	UserID   = string
+
+	Repository interface {
+		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+	}
+
+	Task struct {
+		// Primary key.
+		Name TaskName
+		// Index of the task ( they should be done in specific order).
+		Index uint64
+	}
+
+	// | AchievedTaskMessage is a message broker notification event when user achieves a new task.
+	AchievedTaskMessage struct {
+		UserID     UserID
+		TaskName   string
+		TaskIndex  uint64
+		AchievedAt uint64
+	}
+)
+
+// Private API.
+type (
+	repository struct {
+		db                        tarantool.Connector
+		mb                        messagebroker.Client
+		publishAchievedTasksTopic string
+	}
+
+	// | userSource is source processor to achieve tasks based on user messages from message broker
+	// Tasks -> #1,#3,#5
+	usersSource struct {
+		r Repository
+	}
+	// | economyMiningSource is source processor to achieve tasks based on first user's mining session (Tasks -> #2)
+	economyMiningSource struct {
+		r Repository
+	}
+
+	task struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		// Primary key.
+		Name TaskName
+		// Index of the task ( they should be done in specific order).
+		Index uint64
+	}
+	// `achievedTask` is an internal type to store user's achieved tasks in database.
+	achievedTask struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		TaskName   string
+		AchievedAt uint64
+	}
+)
+
+const (
+	tasksSpace                = "TASKS"
+	t1ReferralsToAchieveTask6 = 5
+	defaultUserPictureName    = "default-user-image.jpg"
+)

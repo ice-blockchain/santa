@@ -1,19 +1,31 @@
-// SPDX-License-Identifier: BUSL-1.1
-
-package achievements
+package tasks
 
 import (
 	"context"
 	"encoding/json"
-	"time"
-
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/messages"
+	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
+	"time"
 )
 
+func New(db tarantool.Connector, mb messagebroker.Client) Repository {
+	var config struct {
+		MessageBroker struct {
+			Topics []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+	}
+	appCfg.MustLoadFromKey("achievements", &config)
+	return &repository{
+		db:                        db,
+		mb:                        mb,
+		publishAchievedTasksTopic: config.MessageBroker.Topics[0].Name,
+	}
+}
 func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "add user failed because context failed")
@@ -40,8 +52,8 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskObject, now), "failed to send achieved task to message broker: %#v", taskObject)
 }
 
-func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, task *Task, achievedTime uint64) error {
-	m := messages.AchievedTaskMessage{
+func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, task *task, achievedTime uint64) error {
+	m := AchievedTaskMessage{
 		UserID:     userID,
 		TaskName:   task.Name,
 		TaskIndex:  task.Index,
@@ -57,14 +69,14 @@ func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, task *
 	r.mb.SendMessage(ctx, &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
 		Key:     userID,
-		Topic:   cfg.MessageBroker.Topics[0].Name,
+		Topic:   r.publishAchievedTasksTopic,
 		Value:   b,
 	}, responder)
 
 	return errors.Wrapf(<-responder, "[achieve-task] failed to send message to broker")
 }
 
-func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*Task, error) {
+func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*task, error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "get task failed because context failed")
 	}
@@ -76,13 +88,12 @@ func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*Task, err
 		return nil, errors.Wrapf(storage.ErrNotFound, "no task record for name:%v", taskName)
 	}
 
-	return res.Task(), nil
+	return &res, nil
 }
 
 func (t *task) Task() *Task {
 	return &Task{
-		Name:     t.Name,
-		Index:    t.Index,
-		Achieved: false,
+		Name:  t.Name,
+		Index: t.Index,
 	}
 }

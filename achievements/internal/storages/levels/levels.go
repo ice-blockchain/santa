@@ -1,10 +1,7 @@
-// SPDX-License-Identifier: BUSL-1.1
-
-package achievements
+package levels
 
 import (
 	"context"
-
 	"github.com/framey-io/go-tarantool"
 	"github.com/pkg/errors"
 )
