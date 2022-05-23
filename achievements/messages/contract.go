@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package messages
 
 // Dedicated package to avoid import cycle.
