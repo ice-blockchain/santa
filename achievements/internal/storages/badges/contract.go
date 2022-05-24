@@ -51,19 +51,6 @@ type (
 		publishAchievedBadgesTopic string
 	}
 
-	global struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		Key      string
-		// For now we're saving only integer, but scalar may be one of
-		// boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary,
-		// but I cant find golang mapping in docs (interface{}?).
-		Value uint64
-	}
-
-	totalBadgesSource struct {
-		db tarantool.Connector
-	}
 	badge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`

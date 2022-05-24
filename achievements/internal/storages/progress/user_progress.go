@@ -62,19 +62,6 @@ func (r *repository) UpdateT1ReferralsCount(userID users.UserID, diff int64) err
 		"failed to update %v record with the new count of T1 referals for userID:%v", userProgressSpace, userID)
 }
 
-func (r *repository) UpdateTotalUsersCount(diff int64) error {
-	op := "+"
-	if math.Signbit(float64(diff)) {
-		op = "-"
-	}
-	incrementOps := []tarantool.Op{
-		{Op: op, Field: 1, Arg: diff},
-	}
-
-	return errors.Wrap(r.db.UpsertAsync("GLOBAL", &global{Key: "TOTAL_USERS", Value: 1}, incrementOps).GetTyped(&[]*global{}),
-		"failed to update global record the KEY = 'TOTAL_USERS'")
-}
-
 func (r *repository) UpdateConsecutiveMiningSessionsCount(userID UserID, lastStartedTS uint64) error {
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
