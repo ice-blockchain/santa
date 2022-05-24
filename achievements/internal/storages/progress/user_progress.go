@@ -8,6 +8,9 @@ import (
 	"math"
 )
 
+func NewRepository(db tarantool.Connector) Repository {
+	return &repository{db: db}
+}
 func (r *repository) DeleteUserProgress(userID users.UserID) error {
 	sql := `DELETE FROM user_achievements WHERE user_id = :userID`
 	params := map[string]interface{}{

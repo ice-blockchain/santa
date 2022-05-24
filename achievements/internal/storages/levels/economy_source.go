@@ -13,6 +13,7 @@ import (
 func NewEconomyMiningSource(db tarantool.Connector) messagebroker.Processor {
 	return &economyMiningSource{
 		r: &repository{db: db},
+		p: progress.NewRepository(db),
 	}
 }
 

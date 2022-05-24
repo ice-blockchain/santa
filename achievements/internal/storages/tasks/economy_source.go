@@ -18,6 +18,9 @@ func (m *economyMiningSource) Process(ctx context.Context, message *messagebroke
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	userID := message.Key
-	// TODO check if task is not achieved yet
-	return errors.Wrapf(m.r.AchieveTask(ctx, userID, "TASK2"), "tasks/economyMiningSource: Failed to achieve task for the first mining session for userID:%v", userID)
+	err := m.r.AchieveTask(ctx, userID, taskFirstMiningSession)
+	if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
+		return errors.Wrapf(err, "tasks/economyMiningSource: Failed to achieve task for the first mining session for userID:%v", userID)
+	}
+	return nil
 }

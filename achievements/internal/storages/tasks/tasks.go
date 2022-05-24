@@ -30,33 +30,25 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "add user failed because context failed")
 	}
-
-	// Check if such task exists before achieve it.
-	taskObject, err := r.GetTask(ctx, taskName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read task for taskName:%v", taskName)
-	}
-
 	now := uint64(time.Now().UTC().UnixNano())
-	achievedTaskByUser := &achievedTask{
-		UserID:     userID,
-		TaskName:   taskObject.Name,
-		AchievedAt: now,
+	sql := `INSERT INTO achieved_user_tasks(USER_ID, task_name,   ACHIEVED_AT)
+                                                   VALUES(:userID,  :taskName,  :achievedAt);`
+	params := map[string]interface{}{
+		"userID":     userID,
+		"taskName":   taskName,
+		"achievedAt": now,
 	}
-
-	if err := r.db.InsertTyped("ACHIEVED_USER_TASKS", achievedTaskByUser, &[]*achievedTask{}); err != nil {
-		return errors.Wrapf(err,
-			"failed to achieve task %v for user %v", taskName, userID)
+	query, err := r.db.PrepareExecute(sql, params)
+	if err = storage.CheckSQLDMLErr(query, err); err != nil {
+		return errors.Wrapf(err, "failed to achieve user's level for userID:%v", userID)
 	}
-
-	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskObject, now), "failed to send achieved task to message broker: %#v", taskObject)
+	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskName, now), "failed to send achieved task to message broker: %v for userID:%v", taskName, userID)
 }
 
-func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, task *task, achievedTime uint64) error {
+func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, taskName TaskName, achievedTime uint64) error {
 	m := AchievedTaskMessage{
 		UserID:     userID,
-		TaskName:   task.Name,
-		TaskIndex:  task.Index,
+		TaskName:   taskName,
 		AchievedAt: achievedTime,
 	}
 

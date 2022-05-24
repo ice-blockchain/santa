@@ -4,9 +4,15 @@ import (
 	"context"
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 // Public API.
+
+var (
+	ErrAlreadyAchieved = storage.ErrDuplicate
+)
+
 type (
 	UserID    = string
 	BadgeName = string
@@ -30,13 +36,8 @@ type (
 	AchievedBadgeMessage struct {
 		// Primary key.
 		Name string
-		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		BadgeType string
 		// User.
 		UserID UserID
-		// Min-max range of the certain value (based on badgeType) to achieve the badge.
-		FromInclusive uint64
-		ToInclusive   uint64
 		// Time when badge was achieved.
 		AchievedAt uint64
 	}

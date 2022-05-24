@@ -35,6 +35,9 @@ func (e *economyMiningSource) Process(ctx context.Context, message *messagebroke
 
 func (m *economyMiningSource) handleMiningSessionStart(userID UserID, lastStartedTS time.Time) error {
 	userProgress, err := m.r.GetUserProgress(userID)
+	if err != nil {
+		return errors.Wrapf(err, "progress/economyMiningSource: cannot get user progress for userID:%v", userID)
+	}
 	timeStartedNano := uint64(lastStartedTS.UTC().UnixNano())
 	if err != nil {
 		return errors.Wrapf(err, "miningEventSourceProcessor: failed handle MiningStarted message")

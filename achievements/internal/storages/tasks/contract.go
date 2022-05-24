@@ -3,10 +3,16 @@ package tasks
 import (
 	"context"
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 // Public API.
+var (
+	ErrAlreadyAchieved = storage.ErrDuplicate
+)
+
 type (
 	TaskName = string
 	UserID   = string
@@ -26,7 +32,6 @@ type (
 	AchievedTaskMessage struct {
 		UserID     UserID
 		TaskName   string
-		TaskIndex  uint64
 		AchievedAt uint64
 	}
 )
@@ -43,6 +48,7 @@ type (
 	// Tasks -> #1,#3,#5
 	usersSource struct {
 		r Repository
+		p progress.Repository
 	}
 	// | economyMiningSource is source processor to achieve tasks based on first user's mining session (Tasks -> #2)
 	economyMiningSource struct {
@@ -71,4 +77,8 @@ const (
 	tasksSpace                = "TASKS"
 	t1ReferralsToAchieveTask6 = 5
 	defaultUserPictureName    = "default-user-image.jpg"
+	taskClaimUsername         = "TASK1"
+	taskFirstMiningSession    = "TASK2"
+	taskUploadProfilePicture  = "TASK3"
+	taskGetFiveReferrals      = "TASK6"
 )

@@ -31,34 +31,27 @@ func (r *repository) AchieveBadge(ctx context.Context, userID UserID, badgeName 
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "achieve badge failed because context failed")
 	}
-	// Check if such badge exists before achieve it.
-	badgeObject, err := r.GetBadge(ctx, badgeName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to read badge for badgeName:%v", badgeName)
-	}
 	now := uint64(time.Now().UTC().UnixNano())
-	achievedBadgeByUser := &achievedBadge{
-		UserID:     userID,
-		BadgeName:  badgeObject.Name,
-		AchievedAt: now,
+	sql := `INSERT INTO achieved_user_badges(USER_ID, badge_name,   ACHIEVED_AT)
+                                                   VALUES(:userID,  :badgeName,  :achievedAt);`
+	params := map[string]interface{}{
+		"userID":     userID,
+		"badgeName":  badgeName,
+		"achievedAt": now,
 	}
-	if err := r.db.InsertTyped("ACHIEVED_USER_BADGES", achievedBadgeByUser, &[]*achievedBadge{}); err != nil {
-		return errors.Wrapf(err, "failed to achieve badge %#v for user %v", badgeObject, userID)
+	query, err := r.db.PrepareExecute(sql, params)
+	if err = storage.CheckSQLDMLErr(query, err); err != nil {
+		return errors.Wrapf(err, "failed to achieve user's level for userID:%v", userID)
 	}
 
-	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badgeObject, now), "failed to send achieved badge %#v to message broker", badgeObject)
+	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badgeName, now), "failed to send achieved badge %v to message broker for userId:%v", badgeName, userID)
 }
 
-// TODO: move to internal -> badges
-func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge *Badge, achievedTime uint64) error {
-	// Send achieved badges to message broker because of we need to calculate total count of achieved badges (in achievementprocessor.totalBadgesSource).
+func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badgeName BadgeName, achievedTime uint64) error {
 	m := AchievedBadgeMessage{
-		Name:          badge.Name,
-		BadgeType:     badge.Type,
-		FromInclusive: badge.Interval.Right,
-		ToInclusive:   badge.Interval.Left,
-		UserID:        userID,
-		AchievedAt:    achievedTime,
+		Name:       badgeName,
+		UserID:     userID,
+		AchievedAt: achievedTime,
 	}
 
 	b, err := json.Marshal(m)
@@ -77,7 +70,6 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 	return errors.Wrapf(<-responder, "[achieve-badge] failed to send message to broker")
 }
 
-// TODO: move to internal -> badges
 func (r *repository) GetBadge(ctx context.Context, badgeName BadgeName) (*Badge, error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "get badge failed because context failed")
