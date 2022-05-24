@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func New(db tarantool.Connector, mb messagebroker.Client) Repository {
+func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 	var config struct {
 		MessageBroker struct {
 			Topics []struct {
@@ -70,25 +71,36 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 	return errors.Wrapf(<-responder, "[achieve-badge] failed to send message to broker")
 }
 
-func (r *repository) GetBadge(ctx context.Context, badgeName BadgeName) (*Badge, error) {
-	if ctx.Err() != nil {
-		return nil, errors.Wrap(ctx.Err(), "get badge failed because context failed")
-	}
-	var res badge
-	if err := r.db.GetTyped(badgesSpace, "pk_unnamed_BADGES_1", tarantool.StringKey{S: badgeName}, &res); err != nil {
-		return nil, errors.Wrapf(err, "unable to get badges record for badgeName:%v", badgeName)
-	}
-	if res.Name == "" {
-		return nil, errors.Wrapf(storage.ErrNotFound, "no badge record for name:%v", badgeName)
-	}
+func (r *repository) GetBadgesWithCompletedRequirements(progress *progress.UserProgress) ([]BadgeName, error) {
+	sql := `
+SELECT badge_names.* FROM (SELECT SOCIAL_BADGES.NAME from BADGES SOCIAL_BADGES
+    WHERE SOCIAL_BADGES.TYPE = 'SOCIAL'
+    and :t1Referrals >= SOCIAL_BADGES.FROM_INCLUSIVE
+    and :t1Referrals <= SOCIAL_BADGES.TO_INCLUSIVE
+UNION ALL SELECT ICE_BADGES.NAME from BADGES ICE_BADGES
+    WHERE ICE_BADGES.TYPE = 'ICE'
+    and :balance >= ICE_BADGES.FROM_INCLUSIVE
+    and :balance <= ICE_BADGES.TO_INCLUSIVE
+UNION SELECT LEVEL_BADGES.NAME from  BADGES LEVEL_BADGES
+    WHERE LEVEL_BADGES.TYPE = 'LEVEL'
+    and (SELECT count(*) from achieved_user_levels where USER_ID = :userID) >= LEVEL_BADGES.FROM_INCLUSIVE
+    and (SELECT count(*) from achieved_user_levels where USER_ID = :userID) <= LEVEL_BADGES.TO_INCLUSIVE) badge_names
+left join ACHIEVED_USER_BADGES on USER_ID = :userID and BADGE_NAME = badge_names.NAME
+where ACHIEVED_USER_BADGES.BADGE_NAME IS NULL;
 
-	return res.Badge(), nil
-}
-
-func (b *badge) Badge() *Badge {
-	return &Badge{
-		Name:     b.Name,
-		Type:     b.BadgeType,
-		Interval: ProgressInterval{b.FromInclusive, b.ToInclusive},
+`
+	params := map[string]interface{}{
+		"t1Referrals": progress.T1Referrals,
+		"balance":     progress.Balance,
+		"userID":      progress.UserID,
 	}
+	type WithBadgeName struct {
+		_msgpack  struct{} `msgpack:",asArray"`
+		BadgeName BadgeName
+	}
+	queryResult := []BadgeName{}
+	if err := r.db.PrepareExecuteTyped(sql, params, &queryResult); err != nil {
+		return nil, errors.Wrapf(err, "failed to get badges for progress state: %#v", progress)
+	}
+	return queryResult, nil
 }

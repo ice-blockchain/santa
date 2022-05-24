@@ -14,6 +14,7 @@ import (
 )
 
 // Public API.
+
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
 )

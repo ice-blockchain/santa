@@ -3,6 +3,7 @@ package badges
 import (
 	"context"
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
@@ -20,6 +21,7 @@ type (
 
 	Repository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		GetBadgesWithCompletedRequirements(progress *progress.UserProgress) ([]BadgeName, error)
 	}
 
 	Badge struct {
@@ -64,28 +66,8 @@ type (
 	totalBadgesSource struct {
 		db tarantool.Connector
 	}
-	badge struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		// Primary key.
-		Name BadgeName
-		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		BadgeType string
-		// Min-max range of the certain value (based on badgeType) to achieve the badge.
-		FromInclusive uint64
-		ToInclusive   uint64
-	}
 
-	// `achievedBadge` is an internal type to store user's achieved badges in database.
-	achievedBadge struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack   struct{} `msgpack:",asArray"`
-		UserID     UserID
-		BadgeName  string
-		AchievedAt uint64
+	progressSource struct {
+		r Repository
 	}
-)
-
-const (
-	badgesSpace = "BADGES"
 )
