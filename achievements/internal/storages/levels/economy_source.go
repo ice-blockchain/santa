@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/achievements"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
@@ -26,10 +26,12 @@ func (m *economyMiningSource) Process(ctx context.Context, message *messagebroke
 		return errors.Wrapf(err, "levels/economyMiningSource: cannot unmarshall %v into %#v", string(message.Value), miningEvent)
 	}
 
-	var updatedSessions *achievements.ConsecutiveMiningSessions
-	updatedSessions = nil // TODO pass value
+	userProgress, err := m.p.GetUserProgress(userID)
+	if err != nil {
+		return errors.Wrapf(err, "levels/miningEventSourceProcessor: cannot get user progress for userID:%v", userID)
+	}
 
-	if err := m.achieveLevelsForConsecutiveMiningSessions(ctx, updatedSessions); err != nil {
+	if err := m.achieveLevelsForConsecutiveMiningSessions(ctx, userProgress); err != nil {
 		return errors.Wrapf(err, "levels/miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)
 	}
 
@@ -37,13 +39,13 @@ func (m *economyMiningSource) Process(ctx context.Context, message *messagebroke
 }
 
 // TODO think about parameter (pass the inserted one from achievements package?)
-func (m *economyMiningSource) achieveLevelsForConsecutiveMiningSessions(ctx context.Context, sessions *achievements.ConsecutiveMiningSessions) error {
+func (m *economyMiningSource) achieveLevelsForConsecutiveMiningSessions(ctx context.Context, sessions *progress.UserProgress) error {
 	//nolint:godot,nolintlint // FIXME: handle decrement in case when user spends >10h and continie mining,
 	// counter resets to 0, and we'll be here again with the same value.
-	switch sessions.MaxCount {
+	switch sessions.MaxConsecutiveMiningSessionsCount {
 	case 90, 60, 30, 10, 5: //nolint:gomnd,nolintlint // Consecutive mining sessions increments level (Levels -> #2-6).
 		if err := m.r.IncrementUserLevel(ctx, sessions.UserID); err != nil {
-			return errors.Wrapf(err, "failed to increment user's level due to %v consecutive mining sessions", sessions.MaxCount)
+			return errors.Wrapf(err, "failed to increment user's level due to %v consecutive mining sessions for userID:%v", sessions.MaxConsecutiveMiningSessionsCount, sessions.UserID)
 		}
 	case 1: //nolint:gomnd,nolintlint // First mining - increment user's level (Levels -> #1) and achieve task (Tasks #2).
 		if err := m.r.IncrementUserLevel(ctx, sessions.UserID); err != nil {

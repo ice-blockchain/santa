@@ -106,7 +106,7 @@ box.execute([[CREATE TABLE IF NOT EXISTS current_user_levels  (
 
 box.execute([[CREATE TABLE IF NOT EXISTS tasks  (
                     name STRING primary key,
-                    index UNSIGNED NOT NULL DEFAULT 0
+                    task_index UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[INSERT INTO tasks (name, task_index)

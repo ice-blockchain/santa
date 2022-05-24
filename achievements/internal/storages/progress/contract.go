@@ -1,4 +1,4 @@
-package achievements
+package progress
 
 import (
 	"github.com/framey-io/go-tarantool"
@@ -8,38 +8,30 @@ import (
 
 // Public API.
 type (
-	UserID                     = string
-	UserAchievementsRepository interface {
+	UserID     = string
+	Repository interface {
 		UpdateT1ReferralsCount(userID users.UserID, diff int64) error
-		InsertUserAchievements(userID users.UserID) error
-		GetUserAchievements(userID users.UserID) (*UserAchievements, error)
-		DeleteUserAchievements(userID users.UserID) error
+		InsertUserProgress(userID users.UserID) error
+		GetUserProgress(userID users.UserID) (*UserProgress, error)
+		DeleteUserProgress(userID users.UserID) error
 		UpdateTotalUsersCount(diff int64) error
-	}
-	ConsecutiveMiningSessionRepository interface {
-		GetConsecutiveMiningSessions(userID UserID) (*ConsecutiveMiningSessions, error)
-		InsertConsecutiveMiningSessions(userID UserID, lastStartedTS uint64) error
+
 		ResetConsecutiveMiningSessionsCount(userID UserID, lastStartedTS uint64) error
 		UpdateConsecutiveMiningSessionsCount(userID UserID, lastStartedTS uint64) error
 	}
 
-	ConsecutiveMiningSessions struct {
+	UserProgress struct {
 		UserID UserID
+		// User's balance (ICE).
+		Balance uint64
+		// Count of user's referrals on Tier 1.
+		T1Referrals     uint64
+		AgendaReferrals uint64
 		// Timestamp.
 		LastMiningStartedAt uint64
 		// Consecutive count (no more than 10 hours pause between the mining sessions).
-		MaxCount uint32
-	}
-
-	UserAchievements struct {
-		UserID UserID
-		// User's role, one of PIONEER, ABMASSADOR, ...3rd...
-		Role string
-		// User's balance (ICE).
-		Balance uint64
-		Level   uint32
-		// Count of user's referrals on Tier 1.
-		T1Referrals uint64
+		MaxConsecutiveMiningSessionsCount uint32
+		TotalUserReferalPings             uint32
 	}
 )
 
@@ -50,11 +42,11 @@ type (
 	}
 	// | userSource is a source processor to insert/update user's state at USER_ACHIEVEMENTS space and to count total users
 	userSource struct {
-		r UserAchievementsRepository
+		r Repository
 	}
 	// | economyMiningSource is a source processor to count user's consecutive mining sessions.
 	economyMiningSource struct {
-		r ConsecutiveMiningSessionRepository
+		r Repository
 	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
@@ -66,40 +58,31 @@ type (
 		Value uint64
 	}
 
-	// `userAchievements` is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
-	userAchievements struct {
+	// | userProgress  is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
+	userProgress struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		UserID   UserID
-		// User's role, one of PIONEER, ABMASSADOR, ...3rd...
-		Role string
 		// User's balance (ICE).
 		Balance uint64
-		Level   uint32
 		// Count of user's referrals on Tier 1.
-		T1Referrals uint64
-	}
-
-	// | consecutiveUserMiningSessions is an internal type to store count of user mining sessions in database.
-	consecutiveUserMiningSessions struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		UserID   UserID
+		T1Referrals     uint64
+		AgendaReferrals uint64
 		// Timestamp.
 		LastMiningStartedAt uint64
 		// Consecutive count (no more than 10 hours pause between the mining sessions).
-		MaxCount uint32
+		MaxConsecutiveMiningSessionsCount uint32
+		TotalUserReferalPings             uint32
 	}
 )
 
 const (
-	userAchievementsSpace = "USER_ACHIEVEMENTS"
-	fieldT1Referrals      = 4
+	userProgressSpace = "USER_PROGRESS"
+	fieldT1Referrals  = 2
 
-	consecutiveUserMiningSessionsSpace = "CONSECUTIVE_USER_MINING_SESSIONS"
 	//nolint:gomnd,nolintlint // 24 hour is session duration, and up to 10 hours between sessions
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
 	// Database fields for tarantol oprations, we   keep them in sync with DDL.
-	lastMinintStartedAtField = 1
-	maxCountField            = 2
+	lastMinintStartedAtField               = 4
+	maxConsecutiveMiningSessionsCountField = 5
 )

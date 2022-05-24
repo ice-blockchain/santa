@@ -28,7 +28,7 @@ select
 from badges
     left join ACHIEVED_USER_BADGES 
 		on BADGES.NAME = ACHIEVED_USER_BADGES.BADGE_NAME and ACHIEVED_USER_BADGES.USER_ID = :userId
-    inner join USER_ACHIEVEMENTS USER_EXISTS 
+    inner join USER_PROGRESS USER_EXISTS 
 		on USER_EXISTS.USER_ID = :userId
 where
     BADGES.TYPE = :badgeType

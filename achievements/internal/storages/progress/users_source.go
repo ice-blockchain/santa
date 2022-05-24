@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-package achievements
+package progress
 
 import (
 	"context"
@@ -44,7 +44,7 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 }
 
 func (u *userSource) handleUserDeletion(user *users.UserSnapshot) error {
-	if err := u.r.DeleteUserAchievements(user.Before.ID); err != nil {
+	if err := u.r.DeleteUserProgress(user.Before.ID); err != nil {
 		return errors.Wrapf(err, "failed to deleteUserAchievements")
 	}
 	if err := u.r.UpdateTotalUsersCount(-1); err != nil {
@@ -61,13 +61,13 @@ func (u *userSource) handleUserDeletion(user *users.UserSnapshot) error {
 }
 
 func (u *userSource) handleUserCreation(user *users.UserSnapshot) error {
-	_, err := u.r.GetUserAchievements(user.ID)
+	_, err := u.r.GetUserProgress(user.ID)
 	if errors.Is(err, storage.ErrNotFound) {
 		// User's achievements record does not exists, so it is a new user - increment counter.
 		if err = u.r.UpdateTotalUsersCount(1); err != nil {
 			return errors.Wrapf(err, "failed to update total_users counter")
 		}
-		if err = u.r.InsertUserAchievements(user.ID); err != nil {
+		if err = u.r.InsertUserProgress(user.ID); err != nil {
 			return errors.Wrapf(err, "failed to insert user achievements record")
 		}
 	}

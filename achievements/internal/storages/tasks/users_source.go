@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/achievements"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 	"strings"
@@ -25,7 +25,7 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 	if err := json.Unmarshal(message.Value, user); err != nil {
 		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
-	var userAchievementState *achievements.UserAchievements
+	var userAchievementState *progress.UserProgress
 	userAchievementState = nil // TODO pass value
 	achievedTask := u.getCompletedTask(user, userAchievementState)
 	//nolint:godox,nolintlint // TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc.
@@ -37,7 +37,7 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 	return nil
 }
 
-func (u *usersSource) getCompletedTask(user *users.UserSnapshot, userAchievementState *achievements.UserAchievements) string {
+func (u *usersSource) getCompletedTask(user *users.UserSnapshot, userAchievementState *progress.UserProgress) string {
 	achievedTask := ""
 	// 1. Claim your nickname.
 	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {

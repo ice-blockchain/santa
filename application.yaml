@@ -26,14 +26,15 @@ cmd/santa-sleigh:
 achievements:
   db:
     spaces:
-      - BADGES
       - GLOBAL
-      - USER_ACHIEVEMENTS
+      - USER_PROGRESS
+      - BADGES
       - ACHIEVED_USER_BADGES
-      - CONSECUTIVE_USER_MINING_SESSIONS
-      - USER_REFERRAL_PINGS
+      - LEVELS
+      - ACHIEVED_USER_LEVELS
       - TASKS
       - ACHIEVED_USER_TASKS
+      - CURRENT_USER_ROLES
     urls:
       - localhost:3301
     user: admin
