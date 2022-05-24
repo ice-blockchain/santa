@@ -14,6 +14,7 @@ type (
 		InsertUserProgress(userID users.UserID) error
 		GetUserProgress(userID users.UserID) (*UserProgress, error)
 		DeleteUserProgress(userID users.UserID) error
+		UpdateTotalUsersCount(diff int64) error
 
 		ResetConsecutiveMiningSessionsCount(userID UserID, lastStartedTS uint64) error
 		UpdateConsecutiveMiningSessionsCount(userID UserID, lastStartedTS uint64) error
@@ -46,6 +47,15 @@ type (
 	// | economyMiningSource is a source processor to count user's consecutive mining sessions.
 	economyMiningSource struct {
 		r Repository
+	}
+	global struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		Key      string
+		// For now we're saving only integer, but scalar may be one of
+		// boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary,
+		// but I cant find golang mapping in docs (interface{}?).
+		Value uint64
 	}
 
 	// | userProgress  is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
