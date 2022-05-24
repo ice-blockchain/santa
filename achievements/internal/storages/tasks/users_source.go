@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 	"strings"
@@ -13,8 +12,7 @@ import (
 
 func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &usersSource{
-		r: New(db, mb),
-		p: progress.NewRepository(db),
+		r: newRepository(db, mb),
 	}
 }
 
@@ -27,11 +25,7 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 		return errors.Wrapf(err, "tasks/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 	if user.User != nil {
-		userProgress, err := u.p.GetUserProgress(user.ID)
-		if err != nil {
-			return errors.Wrapf(err, "tasks/userSource: failed to get userProgress")
-		}
-		achievedTask := u.getCompletedTask(user, userProgress)
+		achievedTask := u.getCompletedTask(user)
 		//nolint:godox,nolintlint // TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc.
 		if achievedTask != "" {
 			err := u.r.AchieveTask(ctx, user.ID, achievedTask)
@@ -43,7 +37,7 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 	return nil
 }
 
-func (u *usersSource) getCompletedTask(user *users.UserSnapshot, userAchievementState *progress.UserProgress) string {
+func (u *usersSource) getCompletedTask(user *users.UserSnapshot) string {
 	achievedTask := ""
 	// 1. Claim your nickname.
 	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {
@@ -53,12 +47,6 @@ func (u *usersSource) getCompletedTask(user *users.UserSnapshot, userAchievement
 	hadDefaultPictureBefore := strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)
 	if !strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName) && (user.Before == nil || hadDefaultPictureBefore) {
 		achievedTask = taskUploadProfilePicture
-	}
-	// 6. Invite 5 friends.
-	//nolint:godot,nolintlint // FIXME: handle referral deletion, it can downgrade and become 5 again but the task is already achieved
-	// Or is the max count of referrals stored in the table, not the current one?
-	if userAchievementState.T1Referrals == t1ReferralsToAchieveTask6 {
-		achievedTask = taskGetFiveReferrals
 	}
 
 	return achievedTask

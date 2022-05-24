@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-func NewEcomonyMiningSource(db tarantool.Connector) messagebroker.Processor {
+func NewEcomonyMiningSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &economyMiningSource{
-		r: &repository{db: db},
+		r: newRepository(db, mb),
 	}
 }
 
@@ -26,41 +26,32 @@ func (e *economyMiningSource) Process(ctx context.Context, message *messagebroke
 		return errors.Wrapf(err, "achievements/economyMiningSource: cannot unmarshall %v into %#v", string(message.Value), miningEvent)
 	}
 
-	err := e.handleMiningSessionStart(userID, miningEvent.TS)
+	err := e.handleConsecutiveSessionsUpdate(ctx, userID, uint64(miningEvent.TS.UTC().UnixNano()))
 	if err != nil {
 		return errors.Wrapf(err, "miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)
 	}
 	return nil
 }
 
-func (m *economyMiningSource) handleMiningSessionStart(userID UserID, lastStartedTS time.Time) error {
+func (m *economyMiningSource) handleConsecutiveSessionsUpdate(
+	ctx context.Context,
+	userID UserID,
+	timeStartedNano uint64,
+) error {
 	userProgress, err := m.r.GetUserProgress(userID)
 	if err != nil {
 		return errors.Wrapf(err, "progress/economyMiningSource: cannot get user progress for userID:%v", userID)
 	}
-	timeStartedNano := uint64(lastStartedTS.UTC().UnixNano())
-	if err != nil {
-		return errors.Wrapf(err, "miningEventSourceProcessor: failed handle MiningStarted message")
-	}
-	// Session count found - update it.
-	return m.handleConsecutiveSessionsUpdate(userProgress, userID, timeStartedNano)
-}
-
-func (m *economyMiningSource) handleConsecutiveSessionsUpdate(
-	userProgress *UserProgress,
-	userID UserID,
-	timeStartedNano uint64,
-) error {
 	// First we need to check if 10 hours passed from the previous session, if passed - reset counter to 0.
 	if time.Since(time.Unix(0, int64(userProgress.LastMiningStartedAt))) >= maxTimeBetweenConsecutiveMiningSessions {
-		if err := m.r.ResetConsecutiveMiningSessionsCount(userID, timeStartedNano); err != nil {
+		if err := m.r.ResetConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
 			return errors.Wrapf(err, "failed to reset consecutive mining sessions for userID:%v", userID)
 		}
 
 		return nil
 	}
 	// And if not - increment counter of consecutive sessions.
-	if err := m.r.UpdateConsecutiveMiningSessionsCount(userID, timeStartedNano); err != nil {
+	if err := m.r.UpdateConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
 		return errors.Wrapf(err, "failed to update consecutive mining sessions for userID:%v", userID)
 	}
 

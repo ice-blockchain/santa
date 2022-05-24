@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func New(db tarantool.Connector, mb messagebroker.Client) Repository {
+func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 	var config struct {
 		MessageBroker struct {
 			Topics []struct {

@@ -3,7 +3,6 @@ package tasks
 import (
 	"context"
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
@@ -45,13 +44,18 @@ type (
 	}
 
 	// | userSource is source processor to achieve tasks based on user messages from message broker
-	// Tasks -> #1,#3,#5
+	// Tasks -> #1,#3
 	usersSource struct {
 		r Repository
-		p progress.Repository
 	}
 	// | economyMiningSource is source processor to achieve tasks based on first user's mining session (Tasks -> #2)
 	economyMiningSource struct {
+		r Repository
+	}
+
+	// | userSource is source processor to achieve tasks based on user messages from message broker
+	// Tasks -> #6
+	progressSource struct {
 		r Repository
 	}
 

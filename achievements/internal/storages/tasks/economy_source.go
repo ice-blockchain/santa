@@ -9,7 +9,7 @@ import (
 
 func NewEcomonyMiningSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &economyMiningSource{
-		r: New(db, mb),
+		r: newRepository(db, mb),
 	}
 }
 
