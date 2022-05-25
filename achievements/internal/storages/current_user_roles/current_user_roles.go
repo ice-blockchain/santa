@@ -35,3 +35,17 @@ func (r *repository) DeleteCurrentUserRole(userID users.UserID, roleName RoleNam
 	return errors.Wrapf(storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)),
 		"failed to delete current user role for user.ID:%v", userID)
 }
+
+func (r *repository) GetCurrentUserRolesCount(userID users.UserID) (uint64, error) {
+	var count uint64
+
+	sql := `SELECT COUNT(*) FROM current_user_roles WHERE user_id = :user_id`
+
+	params := map[string]interface{}{"userID": userID}
+
+	if err := r.db.PrepareExecuteTyped(sql, params, &count); err != nil {
+		return 0, errors.Wrapf(err, "failed to get current user roles count for user.ID:%v", userID)
+	}
+
+	return count, nil
+}
