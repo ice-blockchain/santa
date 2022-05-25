@@ -12,8 +12,9 @@ type (
 	RoleName = string
 
 	Repository interface {
-		InsertCurrentUserRole(userID users.UserID, roleName RoleName) error
-		DeleteCurrentUserRole(userID users.UserID, roleName RoleName) error
+		InsertCurrentUserRole(users.UserID, RoleName) error
+		DeleteCurrentUserRole(users.UserID, RoleName) error
+		GetCurrentUserRolesCount(users.UserID) (uint64, error)
 	}
 
 	CurrentUserRole struct {
