@@ -54,6 +54,14 @@ achievements:
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: achievements-progress
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achievements-agenda-referrals
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
         ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
       - name: users-events
         partitions: 10
@@ -65,6 +73,6 @@ achievements:
         retention: 1000h
     consumingTopics:
       - users-events # user creation, modification and deletion events
-      - economy-mining # start/stop mining events
+      - economy-mining # start mining events
       - achievements-tasks # achieved tasks by the user
       - achievements-badges # achieved badges by the user

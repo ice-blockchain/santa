@@ -3,11 +3,12 @@ package progress
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/freezer/economy"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func NewEcomonyMiningSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -30,28 +31,29 @@ func (e *economyMiningSource) Process(ctx context.Context, message *messagebroke
 	if err != nil {
 		return errors.Wrapf(err, "miningEventSourceProcessor: cannot handle user mining session for userID:%v", userID)
 	}
+
 	return nil
 }
 
-func (m *economyMiningSource) handleConsecutiveSessionsUpdate(
+func (e *economyMiningSource) handleConsecutiveSessionsUpdate(
 	ctx context.Context,
 	userID UserID,
 	timeStartedNano uint64,
 ) error {
-	userProgress, err := m.r.GetUserProgress(userID)
+	userProgress, err := e.r.GetUserProgress(userID)
 	if err != nil {
 		return errors.Wrapf(err, "progress/economyMiningSource: cannot get user progress for userID:%v", userID)
 	}
 	// First we need to check if 10 hours passed from the previous session, if passed - reset counter to 0.
 	if time.Since(time.Unix(0, int64(userProgress.LastMiningStartedAt))) >= maxTimeBetweenConsecutiveMiningSessions {
-		if err := m.r.ResetConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
+		if err := e.r.ResetConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
 			return errors.Wrapf(err, "failed to reset consecutive mining sessions for userID:%v", userID)
 		}
 
 		return nil
 	}
 	// And if not - increment counter of consecutive sessions.
-	if err := m.r.UpdateConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
+	if err := e.r.UpdateConsecutiveMiningSessionsCount(ctx, userID, timeStartedNano); err != nil {
 		return errors.Wrapf(err, "failed to update consecutive mining sessions for userID:%v", userID)
 	}
 

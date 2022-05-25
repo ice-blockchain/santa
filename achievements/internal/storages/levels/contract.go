@@ -2,6 +2,7 @@ package levels
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 )
 
@@ -33,17 +34,8 @@ type (
 		r Repository
 	}
 
-	// | achievedUserLevels stores achieved user's level in database (achieved_user_levels space).
-	achievedUserLevels struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack  struct{} `msgpack:",asArray"`
-		UserID    UserID
-		LevelName string
-		// Timestamp.
-		AchievedAt uint64
+	// | agendaReferralsSource is source processor to increment user's levels on referred users from agenda (Levels -> 9-11)
+	agendaReferralsSource struct {
+		r Repository
 	}
-)
-
-const (
-	achievedUserLevelsSpace = "ACHIEVED_USER_LEVELS"
 )

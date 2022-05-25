@@ -14,6 +14,7 @@ import (
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) ReadRepository {
+	// Maybe it is better to pass global cfg from achievements here?
 	var config struct {
 		MessageBroker struct {
 			Topics []struct {
@@ -24,9 +25,10 @@ func newRepository(db tarantool.Connector, mb messagebroker.Client) ReadReposito
 	appCfg.MustLoadFromKey("achievements", &config)
 
 	return &repository{
-		db:                          db,
-		mb:                          mb,
-		publishUpdatedProgressTopic: config.MessageBroker.Topics[2].Name,
+		db:                               db,
+		mb:                               mb,
+		publishUpdatedProgressTopic:      config.MessageBroker.Topics[2].Name,
+		publishAgendaReferralsCountTopic: config.MessageBroker.Topics[3].Name,
 	}
 }
 
@@ -101,34 +103,6 @@ func (r *repository) UpdateTotalUsersCount(diff int64) error {
 		"failed to update global record the KEY = 'TOTAL_USERS'")
 }
 
-func (r *repository) UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID UserID, agendaHashes string) error {
-	key := tarantool.StringKey{S: userID}
-	ops := []tarantool.Op{
-		{Op: "=", Field: fieldAgendaPhoneNumbersHashes, Arg: agendaHashes}, // | agenda_phone_number_hashes = new value.
-	}
-	res := []*userProgress{}
-	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
-		return errors.Wrapf(err, "failed to update %v record with the agenda phone numbers hashes for userID:%v", userProgressSpace, userID)
-	}
-
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()),
-		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
-}
-
-func (r *repository) InsertAgendaReferrals(agendaOwnerID, userInAgendaID UserID) error {
-	agendaReferral := &agendaReferrals{
-		UserID:       userInAgendaID,
-		AgendaUserID: agendaOwnerID,
-	}
-	res := []*agendaReferrals{}
-	if err := r.db.InsertTyped(agendaReferralsSpace, agendaReferral, &res); err != nil {
-		return errors.Wrapf(err,
-			"failed to insert agenda referrals record for user.ID:%v", agendaOwnerID)
-	}
-
-	return nil
-}
-
 func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error {
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
@@ -183,6 +157,6 @@ func (u *userProgress) UserProgress() *UserProgress {
 		AgendaPhoneNumbersHashes:          u.AgendaPhoneNumbersHashes,
 		LastMiningStartedAt:               u.LastMiningStartedAt,
 		MaxConsecutiveMiningSessionsCount: u.MaxConsecutiveMiningSessionsCount,
-		TotalUserReferalPings:             u.TotalUserReferalPings,
+		TotalUserReferralPings:            u.TotalUserReferalPings,
 	}
 }

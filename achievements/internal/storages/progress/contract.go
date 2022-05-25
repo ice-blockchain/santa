@@ -19,7 +19,7 @@ type (
 		UpdateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error
 
 		UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID users.UserID, agendaPhoneHashes string) error
-		InsertAgendaReferrals(agendaOwnerID, userInAgendaID UserID) error
+		InsertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
 
 		ResetConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
 		UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
@@ -29,27 +29,32 @@ type (
 		GetUserProgress(userID users.UserID) (*UserProgress, error)
 	}
 	UserProgress struct {
-		UserID UserID
+		UserID UserID `json:"userID"`
 		// Agenda phone numbers hashes we store to see if users are in agenda for each other.
-		AgendaPhoneNumbersHashes string
+		AgendaPhoneNumbersHashes string `json:"agendaPhoneNumbersHashes"`
 		// User's balance (iceflakes).
-		Balance uint64
+		Balance uint64 `json:"balance"`
 		// Count of user's referrals on Tier 1.
-		T1Referrals uint64
+		T1Referrals uint64 `json:"t1Referrals"`
 		// Timestamp.
-		LastMiningStartedAt uint64
+		LastMiningStartedAt uint64 `json:"lastMiningStartedAt"`
 		// Consecutive count (no more than 10 hours pause between the mining sessions).
-		MaxConsecutiveMiningSessionsCount uint32
-		TotalUserReferalPings             uint32
+		MaxConsecutiveMiningSessionsCount uint32 `json:"maxConsecutiveMiningSessionsCount"`
+		TotalUserReferralPings            uint32 `json:"totalUserReferralPings"`
+	}
+	AgendaReferralsCount struct {
+		UserID               UserID `json:"userID"`
+		AgendaReferralsCount uint64 `json:"agendaReferralsCount"`
 	}
 )
 
 // Private API.
 type (
 	repository struct {
-		db                          tarantool.Connector
-		mb                          messagebroker.Client
-		publishUpdatedProgressTopic string
+		db                               tarantool.Connector
+		mb                               messagebroker.Client
+		publishUpdatedProgressTopic      string
+		publishAgendaReferralsCountTopic string
 	}
 	// | userSource is a source processor to insert/update user's state at USER_ACHIEVEMENTS space and to count total users.
 	userSource struct {
