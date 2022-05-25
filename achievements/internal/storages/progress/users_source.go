@@ -10,6 +10,7 @@ import (
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
+	"strings"
 )
 
 func New(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -67,15 +68,35 @@ func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSna
 		if err = u.r.UpdateTotalUsersCount(1); err != nil {
 			return errors.Wrapf(err, "failed to update total_users counter")
 		}
-		if err = u.r.InsertUserProgress(ctx, user.ID); err != nil {
+		if err = u.r.InsertUserProgress(ctx, user.User); err != nil {
 			return errors.Wrapf(err, "failed to insert user achievements record")
 		}
 	}
 	// Next we need to check if we need to update T1 referrals count (userID = referredBy, count +=1).
 	if user.ReferredBy != "" {
 		if err = u.r.UpdateT1ReferralsCount(ctx, user.ReferredBy, 1); err != nil {
-			return errors.Wrapf(err, "failed to update t1 referrals counter")
+			return errors.Wrapf(err, "progress/userSource: failed to update t1 referrals counter")
 		}
+		if err = u.checkAndUpdateAgendaReferrals(user.ReferredBy, user.User); err != nil {
+			return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
+		}
+	}
+	if user.Before != nil && user.AgendaPhoneNumberHashes != "" { // In case of modification - update agenda hashes.
+		if err = u.r.UpdateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
+			return errors.Wrapf(err, "progress/userSource: failed to update agenda phone number hashes")
+		}
+	}
+	return nil
+}
+
+func (u *userSource) checkAndUpdateAgendaReferrals(referredByID users.UserID, user *users.User) error {
+	// Check here if user's phone number is in referredBy's agenda.
+	referredByUser, err := u.r.GetUserProgress(referredByID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to read referedBy user's progress (%v) for user %v", referredByID, user.ID)
+	}
+	if strings.Contains(referredByUser.AgendaPhoneNumbersHashes, user.PhoneNumberHash) {
+		// update agenda_referrals
 	}
 
 	return nil

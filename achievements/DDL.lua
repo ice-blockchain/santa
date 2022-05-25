@@ -7,9 +7,9 @@ box.execute([[CREATE TABLE IF NOT EXISTS global  (
 
 box.execute([[CREATE TABLE IF NOT EXISTS user_progress  (
                     user_id STRING primary key,
+                    agenda_phone_number_hashes STRING,
                     balance UNSIGNED NOT NULL DEFAULT 0,
                     t1_referrals UNSIGNED NOT NULL DEFAULT 0,
-                    agenda_phone_number_hashes STRING,
                     last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
                     max_consecutive_user_mining_sessions UNSIGNED NOT NULL DEFAULT 0,
                     total_user_referral_pings UNSIGNED NOT NULL DEFAULT 0

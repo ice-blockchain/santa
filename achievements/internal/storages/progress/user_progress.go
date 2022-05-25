@@ -50,12 +50,12 @@ func (r *repository) GetUserProgress(userID users.UserID) (*UserProgress, error)
 	return res.UserProgress(), nil
 }
 
-func (r *repository) InsertUserProgress(ctx context.Context, userID users.UserID) error {
+func (r *repository) InsertUserProgress(ctx context.Context, user *users.User) error {
 	ua := &userProgress{
-		UserID:                            userID,
+		UserID:                            user.ID,
 		Balance:                           0,
 		T1Referrals:                       0,
-		AgendaReferrals:                   0,
+		AgendaPhoneNumbersHashes:          user.AgendaPhoneNumberHashes,
 		LastMiningStartedAt:               0,
 		MaxConsecutiveMiningSessionsCount: 0,
 		TotalUserReferalPings:             0,
@@ -63,9 +63,10 @@ func (r *repository) InsertUserProgress(ctx context.Context, userID users.UserID
 	res := []*userProgress{}
 	if err := r.db.InsertTyped(userProgressSpace, ua, &res); err != nil {
 		return errors.Wrapf(err,
-			"failed to insert user achievements record for user.ID:%v", userID)
+			"failed to insert user achievements record for user.ID:%v", user.ID)
 	}
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress: failed to send updated progress message for UserID:%v", userID)
+
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress: failed to send updated progress message for UserID:%v", user.ID)
 }
 
 func (r *repository) UpdateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error {
@@ -97,6 +98,20 @@ func (r *repository) UpdateTotalUsersCount(diff int64) error {
 		"failed to update global record the KEY = 'TOTAL_USERS'")
 }
 
+func (r *repository) UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID UserID, agendaHashes string) error {
+	key := tarantool.StringKey{S: userID}
+	ops := []tarantool.Op{
+		{Op: "=", Field: fieldAgendaPhoneNumbersHashes, Arg: agendaHashes}, // | agenda_phone_number_hashes = new value.
+	}
+	res := []*userProgress{}
+	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
+		return errors.Wrapf(err, "failed to update %v record with the agenda phone numbers hashes for userID:%v", userProgressSpace, userID)
+	}
+
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()),
+		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
+}
+
 func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error {
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
@@ -108,7 +123,8 @@ func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, u
 		return errors.Wrapf(err, "failed to update %v record with the new count consecutive mining sessions for userID:%v", userProgressSpace, userID)
 	}
 
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()),
+		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }
 
 func (r *repository) ResetConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error {
@@ -147,7 +163,7 @@ func (u *userProgress) UserProgress() *UserProgress {
 		UserID:                            u.UserID,
 		Balance:                           u.Balance,
 		T1Referrals:                       u.T1Referrals,
-		AgendaReferrals:                   u.AgendaReferrals,
+		AgendaPhoneNumbersHashes:          u.AgendaPhoneNumbersHashes,
 		LastMiningStartedAt:               u.LastMiningStartedAt,
 		MaxConsecutiveMiningSessionsCount: u.MaxConsecutiveMiningSessionsCount,
 		TotalUserReferalPings:             u.TotalUserReferalPings,
