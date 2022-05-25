@@ -3,28 +3,23 @@ package badges
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
-	var config struct {
-		MessageBroker struct {
-			Topics []struct {
-				Name string `yaml:"name" json:"name"`
-			} `yaml:"topics"`
-		} `yaml:"messageBroker"`
-	}
-	appCfg.MustLoadFromKey("achievements", &config)
+	appCfg.MustLoadFromKey("achievements", &cfg)
+
 	return &repository{
 		db:                         db,
 		mb:                         mb,
-		publishAchievedBadgesTopic: config.MessageBroker.Topics[1].Name,
+		publishAchievedBadgesTopic: cfg.MessageBroker.Topics[1].Name,
 	}
 }
 
@@ -71,7 +66,10 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 	return errors.Wrapf(<-responder, "[achieve-badge] failed to send message to broker")
 }
 
+// nolint:funlen // Long SQL here
 func (r *repository) AchieveBadgesWithCompletedRequirements(ctx context.Context, progress *progress.UserProgress) error {
+	// SQL to read all unachieved badges for user (by type) based on current progress state (provided in params)
+	// and to insert therm for that user in one query.
 	sql := `
 INSERT INTO ACHIEVED_USER_BADGES (USER_ID, BADGE_NAME, ACHIEVED_AT) 
 SELECT :userID, badge_names.*, :achievedAt FROM (SELECT SOCIAL_BADGES.NAME from BADGES SOCIAL_BADGES
@@ -88,7 +86,6 @@ UNION SELECT LEVEL_BADGES.NAME from  BADGES LEVEL_BADGES
     and (SELECT count(*) from achieved_user_levels where USER_ID = :userID) <= LEVEL_BADGES.TO_INCLUSIVE) badge_names
 left join ACHIEVED_USER_BADGES on USER_ID = :userID and BADGE_NAME = badge_names.NAME
 where ACHIEVED_USER_BADGES.BADGE_NAME IS NULL;
-
 `
 	now := uint64(time.Now().UTC().UnixNano())
 	params := map[string]interface{}{
@@ -107,5 +104,6 @@ where ACHIEVED_USER_BADGES.BADGE_NAME IS NULL;
 			return errors.Wrapf(err, "failed to send achieved badge %v to message broker for userId:%v", achievedBadgeByUser.BadgeName, progress.UserID)
 		}
 	}
+
 	return nil
 }

@@ -3,11 +3,12 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"strings"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -26,7 +27,6 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 	}
 	if user.User != nil {
 		achievedTask := u.getCompletedTask(user)
-		//nolint:godox,nolintlint // TODO: think about how to achieve social sharing (endpoint call after sharing?), join twitter, etc.
 		if achievedTask != "" {
 			err := u.r.AchieveTask(ctx, user.ID, achievedTask)
 			if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
@@ -34,6 +34,7 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 			}
 		}
 	}
+
 	return nil
 }
 

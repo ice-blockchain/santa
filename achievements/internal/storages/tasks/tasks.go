@@ -3,29 +3,25 @@ package tasks
 import (
 	"context"
 	"encoding/json"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
-	"time"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
-	var config struct {
-		MessageBroker struct {
-			Topics []struct {
-				Name string `yaml:"name" json:"name"`
-			} `yaml:"topics"`
-		} `yaml:"messageBroker"`
-	}
-	appCfg.MustLoadFromKey("achievements", &config)
+	appCfg.MustLoadFromKey("achievements", &cfg)
+
 	return &repository{
 		db:                        db,
 		mb:                        mb,
-		publishAchievedTasksTopic: config.MessageBroker.Topics[0].Name,
+		publishAchievedTasksTopic: cfg.MessageBroker.Topics[0].Name,
 	}
 }
+
 func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "add user failed because context failed")
@@ -42,6 +38,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
 		return errors.Wrapf(err, "failed to achieve user's task %v for userID:%v", taskName, userID)
 	}
+
 	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskName, now), "failed to send achieved task to message broker: %v for userID:%v", taskName, userID)
 }
 

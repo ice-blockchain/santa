@@ -5,6 +5,7 @@ package levels
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 
@@ -13,7 +14,9 @@ import (
 )
 
 func NewTaskSource(db tarantool.Connector) messagebroker.Processor {
-	return &taskSource{r: &repository{db: db}}
+	return &taskSource{
+		r: newRepository(db),
+	}
 }
 
 func (t *taskSource) Process(ctx context.Context, message *messagebroker.Message) error {
@@ -26,5 +29,5 @@ func (t *taskSource) Process(ctx context.Context, message *messagebroker.Message
 	}
 
 	// Increment user's level for each task completion (Levels -> #7).
-	return errors.Wrapf(t.r.IncrementUserLevel(ctx, achievedTask.UserID), "taskSource: failed to increment user's level for task completion:%#v", achievedTask)
+	return errors.Wrapf(t.r.IncrementUserLevel(ctx, achievedTask.UserID), "levels/taskSource: failed to increment user's level for task completion:%#v", achievedTask)
 }

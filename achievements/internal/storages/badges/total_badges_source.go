@@ -5,8 +5,9 @@ package badges
 import (
 	"context"
 	"encoding/json"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"math"
+
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/pkg/errors"
@@ -22,8 +23,9 @@ func (b *totalBadgesSource) Process(ctx context.Context, message *messagebroker.
 	}
 	achievedBadge := new(AchievedBadgeMessage)
 	if err := json.Unmarshal(message.Value, achievedBadge); err != nil {
-		return errors.Wrapf(err, "totalBadgesSource: cannot unmarshall %v into %#v", string(message.Value), achievedBadge)
+		return errors.Wrapf(err, "badges/totalBadgesSource: cannot unmarshall %v into %#v", string(message.Value), achievedBadge)
 	}
+
 	return errors.Wrapf(b.updateTotalBadgesCount(achievedBadge.Name, 1), "totalBadgesSource: failed to update total badge count for badge:%v", achievedBadge.Name)
 }
 

@@ -31,11 +31,23 @@ type (
 	}
 	// | progressSource is source processor to increment user's levels on consecutive mining sessions.
 	progressSource struct {
-		r Repository
+		r                                         Repository
+		consecutiveMiningSessionsToIncrementLevel []uint32
 	}
 
-	// | agendaReferralsSource is source processor to increment user's levels on referred users from agenda (Levels -> 9-11)
+	// | agendaReferralsSource is source processor to increment user's levels on referred users from agenda (Levels -> 9-11).
 	agendaReferralsSource struct {
-		r Repository
+		r                              Repository
+		referralCountsToIncrementLevel []uint64
+	}
+
+	config struct {
+		Levels struct {
+			AgendaReferrals           []uint64 `yaml:"agendaReferrals"`
+			ConsecutiveMiningSessions []uint32 `yaml:"consecutiveMiningSessions"`
+		} `yaml:"levels"`
 	}
 )
+
+//nolint:gochecknoglobals // Because its loaded once, at runtime.
+var cfg config

@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
@@ -29,9 +30,9 @@ type (
 
 	// | AchievedTaskMessage is a message broker notification event when user achieves a new task.
 	AchievedTaskMessage struct {
-		UserID     UserID
-		TaskName   string
-		AchievedAt uint64
+		UserID     UserID `json:"userID"`
+		TaskName   string `json:"taskName"`
+		AchievedAt uint64 `json:"achievedAt"`
 	}
 )
 
@@ -56,7 +57,8 @@ type (
 	// | userSource is source processor to achieve tasks based on user messages from message broker
 	// Tasks -> #6
 	progressSource struct {
-		r Repository
+		r                         Repository
+		t1ReferralsToAchieveTask6 uint64
 	}
 
 	task struct {
@@ -75,14 +77,28 @@ type (
 		TaskName   string
 		AchievedAt uint64
 	}
+
+	config struct {
+		MessageBroker struct {
+			Topics []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+
+		Tasks struct {
+			T1Referrals uint64 `yaml:"T1Referrals"`
+		} `yaml:"tasks"`
+	}
 )
 
 const (
-	tasksSpace                = "TASKS"
-	t1ReferralsToAchieveTask6 = 5
-	defaultUserPictureName    = "default-user-image.jpg"
-	taskClaimUsername         = "TASK1"
-	taskFirstMiningSession    = "TASK2"
-	taskUploadProfilePicture  = "TASK3"
-	taskGetFiveReferrals      = "TASK6"
+	tasksSpace               = "TASKS"
+	defaultUserPictureName   = "default-user-image.jpg"
+	taskClaimUsername        = "TASK1"
+	taskFirstMiningSession   = "TASK2"
+	taskUploadProfilePicture = "TASK3"
+	taskGetFiveReferrals     = "TASK6"
 )
+
+//nolint:gochecknoglobals // Because its loaded once, at runtime.
+var cfg config

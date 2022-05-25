@@ -3,6 +3,7 @@ package badges
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -19,8 +20,9 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 	}
 	userProgress := new(progress.UserProgress)
 	if err := json.Unmarshal(message.Value, userProgress); err != nil {
-		return errors.Wrapf(err, "tasks/progressSource: cannot unmarshall %v into %#v", string(message.Value), userProgress)
+		return errors.Wrapf(err, "badges/progressSource: cannot unmarshall %v into %#v", string(message.Value), userProgress)
 	}
-	return errors.Wrapf(p.r.AchieveBadgesWithCompletedRequirements(ctx, userProgress), "badges/progressSource: failed to achieve completed user's badges for userID:%v", userProgress.UserID)
 
+	return errors.Wrapf(p.r.AchieveBadgesWithCompletedRequirements(ctx, userProgress),
+		"badges/progressSource: failed to achieve completed user's badges for userID:%v", userProgress.UserID)
 }

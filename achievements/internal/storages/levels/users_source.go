@@ -3,6 +3,7 @@ package levels
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -11,7 +12,7 @@ import (
 
 func NewUserSource(db tarantool.Connector) messagebroker.Processor {
 	return &userSource{
-		r: &repository{db: db},
+		r: newRepository(db),
 	}
 }
 

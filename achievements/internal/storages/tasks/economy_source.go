@@ -2,6 +2,7 @@ package tasks
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
@@ -22,5 +23,6 @@ func (m *economyMiningSource) Process(ctx context.Context, message *messagebroke
 	if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
 		return errors.Wrapf(err, "tasks/economyMiningSource: Failed to achieve task for the first mining session for userID:%v", userID)
 	}
+
 	return nil
 }

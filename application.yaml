@@ -24,6 +24,20 @@ cmd/santa-sleigh:
     certPath: cmd/santa-sleigh/.testdata/localhost.crt
     keyPath: cmd/santa-sleigh/.testdata/localhost.key
 achievements:
+  levels:
+    agendaReferrals:
+      - 10
+      - 5
+      - 1
+    consecutiveMiningSessions:
+      - 90
+      - 60
+      - 30
+      - 10
+      - 5
+      - 1
+  tasks:
+    T1Referrals: 5
   db:
     spaces:
       - GLOBAL

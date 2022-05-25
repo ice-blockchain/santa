@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
 )
+
+func newRepository(db tarantool.Connector) Repository {
+	return &repository{db: db}
+}
 
 func (r *repository) IncrementUserLevel(ctx context.Context, userID UserID) error {
 	if ctx.Err() != nil {

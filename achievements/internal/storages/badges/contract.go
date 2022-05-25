@@ -2,6 +2,7 @@ package badges
 
 import (
 	"context"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -10,9 +11,7 @@ import (
 
 // Public API.
 
-var (
-	ErrAlreadyAchieved = storage.ErrDuplicate
-)
+var ErrAlreadyAchieved = storage.ErrDuplicate
 
 type (
 	UserID    = string
@@ -37,11 +36,11 @@ type (
 	// | AchievedBadgeMessage is a message broker notification event when user achieves a new badge.
 	AchievedBadgeMessage struct {
 		// Primary key.
-		Name string
+		Name string `json:"name"`
 		// User.
-		UserID UserID
+		UserID UserID `json:"userID"`
 		// Time when badge was achieved.
-		AchievedAt uint64
+		AchievedAt uint64 `json:"achievedAt"`
 	}
 )
 
@@ -76,4 +75,15 @@ type (
 		BadgeName  string
 		AchievedAt uint64
 	}
+
+	config struct {
+		MessageBroker struct {
+			Topics []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+	}
 )
+
+//nolint:gochecknoglobals // Because its loaded once, at runtime.
+var cfg config
