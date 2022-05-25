@@ -2,10 +2,11 @@ package progress
 
 import (
 	"context"
+	"time"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"time"
 )
 
 // Public API.
@@ -16,7 +17,9 @@ type (
 		DeleteUserProgress(userID users.UserID) error
 		UpdateTotalUsersCount(diff int64) error
 		UpdateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error
+
 		UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID users.UserID, agendaPhoneHashes string) error
+		InsertAgendaReferrals(agendaOwnerID, userInAgendaID UserID) error
 
 		ResetConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
 		UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
@@ -48,7 +51,7 @@ type (
 		mb                          messagebroker.Client
 		publishUpdatedProgressTopic string
 	}
-	// | userSource is a source processor to insert/update user's state at USER_ACHIEVEMENTS space and to count total users
+	// | userSource is a source processor to insert/update user's state at USER_ACHIEVEMENTS space and to count total users.
 	userSource struct {
 		r ReadRepository
 	}
@@ -83,16 +86,25 @@ type (
 		MaxConsecutiveMiningSessionsCount uint32
 		TotalUserReferalPings             uint32
 	}
+
+	// | agendaReferrals  is an internal type to store if users are in agenda for each other (agenda_referrals space).
+	agendaReferrals struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack     struct{} `msgpack:",asArray"`
+		UserID       UserID
+		AgendaUserID UserID
+	}
 )
 
 const (
-	userProgressSpace = "USER_PROGRESS"
-
+	userProgressSpace    = "USER_PROGRESS"
+	agendaReferralsSpace = "AGENDA_REFERRALS"
 	//nolint:gomnd,nolintlint // 24 hour is session duration, and up to 10 hours between sessions
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
-	// Database fields for tarantol oprations, we   keep them in sync with DDL.
+
+	// Database fields for tarantool oprations, we   keep them in sync with DDL.
 	fieldAgendaPhoneNumbersHashes          = 1
 	fieldT1Referrals                       = 3
-	lastMinintStartedAtField               = 4
-	maxConsecutiveMiningSessionsCountField = 5
+	fieldLastMiningStartedAt               = 4
+	fieldMaxConsecutiveMiningSessionsCount = 5
 )

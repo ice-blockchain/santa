@@ -3,13 +3,14 @@ package progress
 import (
 	"context"
 	"encoding/json"
+	"math"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/pkg/errors"
-	"math"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) ReadRepository {
@@ -28,6 +29,7 @@ func newRepository(db tarantool.Connector, mb messagebroker.Client) ReadReposito
 		publishUpdatedProgressTopic: config.MessageBroker.Topics[2].Name,
 	}
 }
+
 func (r *repository) DeleteUserProgress(userID users.UserID) error {
 	sql := `DELETE FROM user_achievements WHERE user_id = :userID`
 	params := map[string]interface{}{
@@ -80,8 +82,9 @@ func (r *repository) UpdateT1ReferralsCount(ctx context.Context, userID users.Us
 	}
 	res := []*userProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, incrementOps, &res); err != nil {
-		errors.Wrapf(err, "failed to update %v record with the new count of T1 referals for userID:%v", userProgressSpace, userID)
+		return errors.Wrapf(err, "failed to update %v record with the new count of T1 referals for userID:%v", userProgressSpace, userID)
 	}
+
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress: failed to send updated progress message for UserID:%v", userID)
 }
 
@@ -112,11 +115,25 @@ func (r *repository) UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID 
 		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }
 
+func (r *repository) InsertAgendaReferrals(agendaOwnerID, userInAgendaID UserID) error {
+	agendaReferral := &agendaReferrals{
+		UserID:       userInAgendaID,
+		AgendaUserID: agendaOwnerID,
+	}
+	res := []*agendaReferrals{}
+	if err := r.db.InsertTyped(agendaReferralsSpace, agendaReferral, &res); err != nil {
+		return errors.Wrapf(err,
+			"failed to insert agenda referrals record for user.ID:%v", agendaOwnerID)
+	}
+
+	return nil
+}
+
 func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error {
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
-		{Op: "=", Field: lastMinintStartedAtField, Arg: lastStartedTS},   // | last_mining_started_at = lastStartedTS.
-		{Op: "+", Field: maxConsecutiveMiningSessionsCountField, Arg: 1}, // | max_count +=1.
+		{Op: "=", Field: fieldLastMiningStartedAt, Arg: lastStartedTS},   // | last_mining_started_at = lastStartedTS.
+		{Op: "+", Field: fieldMaxConsecutiveMiningSessionsCount, Arg: 1}, // | max_count +=1.
 	}
 	res := []*userProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
@@ -130,8 +147,8 @@ func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, u
 func (r *repository) ResetConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error {
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
-		{Op: "=", Field: lastMinintStartedAtField, Arg: lastStartedTS},   // | last_mining_started_at = lastStartedTS.
-		{Op: "=", Field: maxConsecutiveMiningSessionsCountField, Arg: 1}, // | max_count = 1 (lastest session just started).
+		{Op: "=", Field: fieldLastMiningStartedAt, Arg: lastStartedTS},   // | last_mining_started_at = lastStartedTS.
+		{Op: "=", Field: fieldMaxConsecutiveMiningSessionsCount, Arg: 1}, // | max_count = 1 (lastest session just started).
 	}
 	res := []*userProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {

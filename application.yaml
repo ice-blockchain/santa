@@ -35,6 +35,7 @@ achievements:
       - TASKS
       - ACHIEVED_USER_TASKS
       - CURRENT_USER_ROLES
+      - AGENDA_REFERRALS
     urls:
       - localhost:3301
     user: admin
