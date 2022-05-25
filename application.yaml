@@ -90,3 +90,5 @@ achievements:
       - economy-mining # start mining events
       - achievements-tasks # achieved tasks by the user
       - achievements-badges # achieved badges by the user
+      - achievements-progress # user_progress updates
+      - achievements-agenda-referrals # count of users referred from agenda changed

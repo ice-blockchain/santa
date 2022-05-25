@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewBadgeProcessor(db tarantool.Connector) messagebroker.Processor {
+func NewTotalBadgesProcessor(db tarantool.Connector) messagebroker.Processor {
 	return &totalBadgesSource{db: db}
 }
 

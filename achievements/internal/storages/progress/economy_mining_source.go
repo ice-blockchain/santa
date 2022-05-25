@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewEcomonyMiningSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewEconomyMiningSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &economyMiningSource{
 		r: newRepository(db, mb),
 	}

@@ -4,10 +4,13 @@ package achievements
 
 import (
 	"context"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/hashicorp/go-multierror"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/levels"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
@@ -61,13 +64,40 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	}
 }
 
+// nolint:funlen a lot of processors here
 func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebroker.Topic]messagebroker.Processor {
 	return map[messagebroker.Topic]messagebroker.Processor{
-		// TODO: fill with new processors
-		cfg.MessageBroker.ConsumingTopics[0]: tasks.NewUserSource(db, mb),
-		//cfg.MessageBroker.ConsumingTopics[1]: economy_processor.NewMiningEventProcessor(db, repo),
-		//cfg.MessageBroker.ConsumingTopics[2]: achievementprocessor.NewTaskProcessor(db, repo),
-		//cfg.MessageBroker.ConsumingTopics[3]: achievementprocessor.NewBadgeProcessor(db),
+		// | users-events .
+		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessor(
+			tasks.NewUserSource(db, mb),
+			levels.NewUserSource(db),
+			progress.NewUserSource(db, mb),
+		),
+		// | economy-mining .
+		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessor(
+			progress.NewEconomyMiningSource(db, mb),
+			tasks.NewEconomyMiningSource(db, mb),
+		),
+		// | achievements-tasks .
+		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessor(
+			levels.NewTaskSource(db),
+			tasks.NewEconomyMiningSource(db, mb),
+		),
+		// | achievements-badges .
+		cfg.MessageBroker.ConsumingTopics[3]: newProxyProcessor(
+			badges.NewTotalBadgesProcessor(db),
+		),
+		// | achievements-progress .
+		cfg.MessageBroker.ConsumingTopics[4]: newProxyProcessor(
+			tasks.NewProgressSource(db, mb),
+			levels.NewProgressSource(db),
+			badges.NewProgressSource(db, mb),
+			// Roles upcoming processor to be here
+		),
+		// | achievements-progress .
+		cfg.MessageBroker.ConsumingTopics[5]: newProxyProcessor(
+			levels.NewAgendaReferralsSource(db),
+		),
 	}
 }
 

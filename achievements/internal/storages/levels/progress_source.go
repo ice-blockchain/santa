@@ -15,7 +15,7 @@ import (
 func NewProgressSource(db tarantool.Connector) messagebroker.Processor {
 	appCfg.MustLoadFromKey("achievements", &cfg)
 	if len(cfg.Levels.ConsecutiveMiningSessions) == 0 {
-		// Consecutive mining sessions increments level (Levels -> #2-6, #1)
+		// Consecutive mining sessions increments level (Levels -> #2-6, #1).
 		cfg.Levels.ConsecutiveMiningSessions = []uint32{90, 60, 30, 10, 5, 1}
 	}
 
@@ -46,8 +46,11 @@ func (p *progressSource) achieveLevelsForConsecutiveMiningSessions(ctx context.C
 	for _, value := range p.consecutiveMiningSessionsToIncrementLevel {
 		if value == progress.MaxConsecutiveMiningSessionsCount {
 			if err := p.r.IncrementUserLevel(ctx, progress.UserID); err != nil {
-				return errors.Wrapf(err, "failed to increment user's level due to %v consecutive mining sessions for userID:%v", progress.MaxConsecutiveMiningSessionsCount, progress.UserID)
+				return errors.Wrapf(err,
+					"failed to increment user's level due to %v consecutive mining sessions for userID:%v",
+					progress.MaxConsecutiveMiningSessionsCount, progress.UserID)
 			}
+
 			break
 		}
 	}

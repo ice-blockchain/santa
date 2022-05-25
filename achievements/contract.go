@@ -5,19 +5,17 @@ package achievements
 import (
 	"context"
 	_ "embed"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
 	"io"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 // Public API.
 
-var (
-	ErrRelationNotFound = storage.ErrRelationNotFound
-)
+var ErrRelationNotFound = storage.ErrRelationNotFound
 
 type (
 	BadgeName        = string
@@ -81,7 +79,6 @@ var (
 type (
 	repository struct {
 		db tarantool.Connector
-		mb messagebroker.Client
 	}
 
 	processor struct {
@@ -118,5 +115,8 @@ type (
 		Achieved bool `json:"achieved" example:"false"`
 		// The percentage of all the users that have this badge.
 		GlobalAchievementPercentage float64 `json:"globalAchievementPercentage" example:"25.5"`
+	}
+	proxyProcessor struct {
+		internalProcessors []messagebroker.Processor
 	}
 )

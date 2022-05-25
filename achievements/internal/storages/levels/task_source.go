@@ -29,5 +29,6 @@ func (t *taskSource) Process(ctx context.Context, message *messagebroker.Message
 	}
 
 	// Increment user's level for each task completion (Levels -> #7).
-	return errors.Wrapf(t.r.IncrementUserLevel(ctx, achievedTask.UserID), "levels/taskSource: failed to increment user's level for task completion:%#v", achievedTask)
+	return errors.Wrapf(t.r.IncrementUserLevel(ctx, achievedTask.UserID),
+		"levels/taskSource: failed to increment user's level for task completion:%#v", achievedTask)
 }
