@@ -4,6 +4,7 @@ package achievements
 
 import (
 	"context"
+	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/hashicorp/go-multierror"
@@ -63,7 +64,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebroker.Topic]messagebroker.Processor {
 	return map[messagebroker.Topic]messagebroker.Processor{
 		// TODO: fill with new processors
-		//cfg.MessageBroker.ConsumingTopics[0]: user_processor.New(db, repo),
+		cfg.MessageBroker.ConsumingTopics[0]: tasks.NewUserSource(db, mb),
 		//cfg.MessageBroker.ConsumingTopics[1]: economy_processor.NewMiningEventProcessor(db, repo),
 		//cfg.MessageBroker.ConsumingTopics[2]: achievementprocessor.NewTaskProcessor(db, repo),
 		//cfg.MessageBroker.ConsumingTopics[3]: achievementprocessor.NewBadgeProcessor(db),

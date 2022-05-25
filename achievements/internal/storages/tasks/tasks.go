@@ -40,7 +40,7 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 	}
 	query, err := r.db.PrepareExecute(sql, params)
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
-		return errors.Wrapf(err, "failed to achieve user's level for userID:%v", userID)
+		return errors.Wrapf(err, "failed to achieve user's task %v for userID:%v", taskName, userID)
 	}
 	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskName, now), "failed to send achieved task to message broker: %v for userID:%v", taskName, userID)
 }

@@ -71,9 +71,10 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 	return errors.Wrapf(<-responder, "[achieve-badge] failed to send message to broker")
 }
 
-func (r *repository) GetBadgesWithCompletedRequirements(progress *progress.UserProgress) ([]BadgeName, error) {
+func (r *repository) AchieveBadgesWithCompletedRequirements(ctx context.Context, progress *progress.UserProgress) error {
 	sql := `
-SELECT badge_names.* FROM (SELECT SOCIAL_BADGES.NAME from BADGES SOCIAL_BADGES
+INSERT INTO ACHIEVED_USER_BADGES (USER_ID, BADGE_NAME, ACHIEVED_AT) 
+SELECT :userID, badge_names.*, :achievedAt FROM (SELECT SOCIAL_BADGES.NAME from BADGES SOCIAL_BADGES
     WHERE SOCIAL_BADGES.TYPE = 'SOCIAL'
     and :t1Referrals >= SOCIAL_BADGES.FROM_INCLUSIVE
     and :t1Referrals <= SOCIAL_BADGES.TO_INCLUSIVE
@@ -89,18 +90,22 @@ left join ACHIEVED_USER_BADGES on USER_ID = :userID and BADGE_NAME = badge_names
 where ACHIEVED_USER_BADGES.BADGE_NAME IS NULL;
 
 `
+	now := uint64(time.Now().UTC().UnixNano())
 	params := map[string]interface{}{
 		"t1Referrals": progress.T1Referrals,
 		"balance":     progress.Balance,
 		"userID":      progress.UserID,
+		"achievedAt":  now,
 	}
-	type WithBadgeName struct {
-		_msgpack  struct{} `msgpack:",asArray"`
-		BadgeName BadgeName
+	res := []*achievedBadge{}
+	err := r.db.PrepareExecuteTyped(sql, params, &res)
+	if err != nil {
+		return errors.Wrapf(err, "failed to achieve user's completed badges for userID:%v", progress.UserID)
 	}
-	queryResult := []BadgeName{}
-	if err := r.db.PrepareExecuteTyped(sql, params, &queryResult); err != nil {
-		return nil, errors.Wrapf(err, "failed to get badges for progress state: %#v", progress)
+	for _, achievedBadgeByUser := range res {
+		if err := r.sendAchievedBadge(ctx, progress.UserID, achievedBadgeByUser.BadgeName, now); err != nil {
+			return errors.Wrapf(err, "failed to send achieved badge %v to message broker for userId:%v", achievedBadgeByUser.BadgeName, progress.UserID)
+		}
 	}
-	return queryResult, nil
+	return nil
 }

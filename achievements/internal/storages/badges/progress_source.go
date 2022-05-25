@@ -21,15 +21,6 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 	if err := json.Unmarshal(message.Value, userProgress); err != nil {
 		return errors.Wrapf(err, "tasks/progressSource: cannot unmarshall %v into %#v", string(message.Value), userProgress)
 	}
-	badgesToAchieve, err := p.r.GetBadgesWithCompletedRequirements(userProgress)
-	if err != nil {
-		return errors.Wrapf(err, "badges/progressSource: failed to check if user fulfill badge requirments, userID:%v", userProgress.UserID)
-	}
-	for _, badgeName := range badgesToAchieve {
-		err = p.r.AchieveBadge(ctx, userProgress.UserID, badgeName)
-		if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
-			return errors.Wrapf(err, "badges/progressSource: failed to achieve a badge:%v, userID:%v", badgeName, userProgress.UserID)
-		}
-	}
-	return nil
+	return errors.Wrapf(p.r.AchieveBadgesWithCompletedRequirements(ctx, userProgress), "badges/progressSource: failed to achieve completed user's badges for userID:%v", userProgress.UserID)
+
 }

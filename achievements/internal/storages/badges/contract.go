@@ -21,7 +21,7 @@ type (
 
 	Repository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
-		GetBadgesWithCompletedRequirements(progress *progress.UserProgress) ([]BadgeName, error)
+		AchieveBadgesWithCompletedRequirements(ctx context.Context, progress *progress.UserProgress) error
 	}
 
 	Badge struct {
@@ -52,7 +52,13 @@ type (
 		mb                         messagebroker.Client
 		publishAchievedBadgesTopic string
 	}
+	totalBadgesSource struct {
+		db tarantool.Connector
+	}
 
+	progressSource struct {
+		r Repository
+	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
@@ -62,12 +68,12 @@ type (
 		// but I cant find golang mapping in docs (interface{}?).
 		Value uint64
 	}
-
-	totalBadgesSource struct {
-		db tarantool.Connector
-	}
-
-	progressSource struct {
-		r Repository
+	// `achievedBadge` is an internal type to store user's achieved badges in database.
+	achievedBadge struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserID     UserID
+		BadgeName  string
+		AchievedAt uint64
 	}
 )
