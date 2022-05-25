@@ -12,9 +12,8 @@ type (
 	RoleName = string
 
 	Repository interface {
-		InsertCurrentUserRole(users.UserID, RoleName) error
-		DeleteCurrentUserRole(users.UserID, RoleName) error
-		GetCurrentUserRolesCount(users.UserID) (uint64, error)
+		UpsertCurrentUserRole(users.UserID, RoleName) error
+		GetCurrentUserRole(users.UserID) (string, error)
 	}
 
 	CurrentUserRole struct {
@@ -42,8 +41,4 @@ type (
 		RoleName  RoleName     `json:"role_name"`
 		UpdatedAt uint64       `json:"updated_at"`
 	}
-)
-
-const (
-	currentUserRolesSpace = "current_user_roles"
 )
