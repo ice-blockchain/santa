@@ -16,6 +16,11 @@ var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
 )
 
+const (
+	Tasks  = "TASKS"
+	Badges = "BADGES"
+)
+
 type (
 	BadgeName        = string
 	BadgeType        = string

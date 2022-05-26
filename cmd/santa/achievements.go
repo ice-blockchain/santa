@@ -69,8 +69,9 @@ func (req *RequestGetUserAchievements) GetAuthenticatedUser() server.Authenticat
 func (req *RequestGetUserAchievements) Validate() *server.Response {
 	for _, collectible := range req.IncludeCollectibles {
 		c := strings.ToUpper(collectible)
-		if c != "TASKS" && c != "BADGES" {
-			err := errors.Errorf("element `%v` for includeCollectibles is not allowed, only `TASKS` or `BADGES` are", collectible)
+		if c != achievements.Tasks && c != achievements.Badges {
+			err := errors.Errorf("element `%v` for includeCollectibles is not allowed, only `%v` or `%v` are",
+				collectible, achievements.Tasks, achievements.Badges)
 
 			return &server.Response{
 				Code: http.StatusBadRequest,
