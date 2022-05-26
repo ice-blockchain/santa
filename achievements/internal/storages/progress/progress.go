@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package progress
 
 import (
@@ -5,10 +7,9 @@ import (
 	"encoding/json"
 	"math"
 
-	"github.com/ice-blockchain/wintr/coin"
-
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
+	"github.com/ice-blockchain/wintr/coin"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
@@ -57,7 +58,10 @@ func (r *repository) GetUserProgress(userID users.UserID) (*UserProgress, error)
 }
 
 func (r *repository) InsertUserProgress(ctx context.Context, user *users.User) error {
-	balance, _ := coin.New("0")
+	balance, err := coin.New("0")
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse 0 coins in wintr")
+	}
 	ua := &userProgress{
 		UserID:                            user.ID,
 		Balance:                           balance,
