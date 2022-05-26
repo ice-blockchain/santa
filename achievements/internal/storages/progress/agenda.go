@@ -51,7 +51,7 @@ func (r *repository) getCountOfAgendaReferrals(ctx context.Context, userID UserI
 	type withCount struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
-		c        uint64
+		Count    uint64
 	}
 	var queryResult []*withCount
 	sql := `select count(1) as c from agenda_referrals where agenda_user_id = :userId`
@@ -65,7 +65,7 @@ func (r *repository) getCountOfAgendaReferrals(ctx context.Context, userID UserI
 		return 0, nil
 	}
 
-	return queryResult[0].c, nil
+	return queryResult[0].Count, nil
 }
 
 func (r *repository) sendAgendaReferralsCountUpdate(ctx context.Context, userID UserID, countOfAgendaReferrals uint64) error {

@@ -44,6 +44,7 @@ func (a *agendaReferralsSource) achieveLevelsForReferralsFromAgenda(ctx context.
 			if err := a.r.IncrementUserLevel(ctx, userID); err != nil {
 				return errors.Wrapf(err, "failed to increment user's level due to %v referrals from agenda for userID:%v", refCount, userID)
 			}
+
 			break
 		}
 	}

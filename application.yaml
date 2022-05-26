@@ -3,7 +3,7 @@
 development: true
 logger:
   encoder: console
-  level: debug
+  level: info
 cmd/santa:
   host: localhost
   version: local
@@ -20,7 +20,7 @@ cmd/santa-sleigh:
   version: local
   defaultEndpointTimeout: 30s
   httpServer:
-    port: 1443
+    port: 2443
     certPath: cmd/santa-sleigh/.testdata/localhost.crt
     keyPath: cmd/santa-sleigh/.testdata/localhost.key
 achievements:

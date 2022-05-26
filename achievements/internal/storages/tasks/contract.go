@@ -44,38 +44,19 @@ type (
 		publishAchievedTasksTopic string
 	}
 
-	// | userSource is source processor to achieve tasks based on user messages from message broker
-	// Tasks -> #1,#3
+	// | userSource is source processor to achieve tasks based on user messages from message broker (Tasks -> #1,#3).
 	usersSource struct {
 		r Repository
 	}
-	// | economyMiningSource is source processor to achieve tasks based on first user's mining session (Tasks -> #2)
+	// | economyMiningSource is source processor to achieve tasks based on first user's mining session (Tasks -> #2).
 	economyMiningSource struct {
 		r Repository
 	}
 
-	// | userSource is source processor to achieve tasks based on user messages from message broker
-	// Tasks -> #6
+	// | progressSource is source processor to achieve tasks based on user progress messages from message broker (Tasks -> #6, T1 referrals).
 	progressSource struct {
 		r                         Repository
 		t1ReferralsToAchieveTask6 uint64
-	}
-
-	task struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		// Primary key.
-		Name TaskName
-		// Index of the task ( they should be done in specific order).
-		Index uint64
-	}
-	// `achievedTask` is an internal type to store user's achieved tasks in database.
-	achievedTask struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack   struct{} `msgpack:",asArray"`
-		UserID     UserID
-		TaskName   string
-		AchievedAt uint64
 	}
 
 	config struct {
@@ -92,7 +73,6 @@ type (
 )
 
 const (
-	tasksSpace               = "TASKS"
 	defaultUserPictureName   = "default-user-image.jpg"
 	taskClaimUsername        = "TASK1"
 	taskFirstMiningSession   = "TASK2"

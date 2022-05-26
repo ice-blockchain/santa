@@ -64,14 +64,14 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	}
 }
 
-// nolint:funlen a lot of processors here
+// nolint:funlen // A lot of processors here.
 func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebroker.Topic]messagebroker.Processor {
 	return map[messagebroker.Topic]messagebroker.Processor{
 		// | users-events .
 		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessor(
+			progress.NewUserSource(db, mb),
 			tasks.NewUserSource(db, mb),
 			levels.NewUserSource(db),
-			progress.NewUserSource(db, mb),
 		),
 		// | economy-mining .
 		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessor(
@@ -81,7 +81,6 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		// | achievements-tasks .
 		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessor(
 			levels.NewTaskSource(db),
-			tasks.NewEconomyMiningSource(db, mb),
 		),
 		// | achievements-badges .
 		cfg.MessageBroker.ConsumingTopics[3]: newProxyProcessor(
@@ -92,9 +91,9 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 			tasks.NewProgressSource(db, mb),
 			levels.NewProgressSource(db),
 			badges.NewProgressSource(db, mb),
-			// Roles upcoming processor to be here
+			// Roles upcoming processor to be here.
 		),
-		// | achievements-progress .
+		// | achievements-agenda-referrals .
 		cfg.MessageBroker.ConsumingTopics[5]: newProxyProcessor(
 			levels.NewAgendaReferralsSource(db),
 		),

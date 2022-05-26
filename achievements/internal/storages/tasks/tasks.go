@@ -57,32 +57,10 @@ func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, taskNa
 	responder := make(chan error, 1)
 	r.mb.SendMessage(ctx, &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
-		Key:     userID,
+		Key:     userID + taskName,
 		Topic:   r.publishAchievedTasksTopic,
 		Value:   b,
 	}, responder)
 
 	return errors.Wrapf(<-responder, "[achieve-task] failed to send message to broker")
-}
-
-func (r *repository) GetTask(ctx context.Context, taskName TaskName) (*task, error) {
-	if ctx.Err() != nil {
-		return nil, errors.Wrap(ctx.Err(), "get task failed because context failed")
-	}
-	var res task
-	if err := r.db.GetTyped(tasksSpace, "pk_unnamed_TASKS_1", tarantool.StringKey{S: taskName}, &res); err != nil {
-		return nil, errors.Wrapf(err, "unable to get tasks record for taskName:%v", taskName)
-	}
-	if res.Name == "" {
-		return nil, errors.Wrapf(storage.ErrNotFound, "no task record for name:%v", taskName)
-	}
-
-	return &res, nil
-}
-
-func (t *task) Task() *Task {
-	return &Task{
-		Name:  t.Name,
-		Index: t.Index,
-	}
 }

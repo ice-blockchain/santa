@@ -6,10 +6,9 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-
-	"github.com/framey-io/go-tarantool"
 	"github.com/pkg/errors"
 )
 

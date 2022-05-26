@@ -4,6 +4,7 @@ package achievements
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 )
 

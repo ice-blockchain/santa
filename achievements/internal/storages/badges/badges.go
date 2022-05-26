@@ -58,7 +58,7 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 	responder := make(chan error, 1)
 	r.mb.SendMessage(ctx, &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
-		Key:     userID,
+		Key:     userID + badgeName,
 		Topic:   r.publishAchievedBadgesTopic,
 		Value:   b,
 	}, responder)
@@ -67,15 +67,15 @@ func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badge
 }
 
 // nolint:funlen // Long SQL here
-func (r *repository) AchieveBadgesWithCompletedRequirements(ctx context.Context, progress *progress.UserProgress) error {
-	// SQL to read all unachieved badges for user (by type) based on current progress state (provided in params)
-	// and to insert therm for that user in one query.
+func (r *repository) AchieveBadgesWithCompletedRequirements(ctx context.Context, userProgress *progress.UserProgress) error {
+	// SQL to read all unachieved badges for user (by type) based on current userProgress state (provided in params)
+	// and to insert them for that user in one query. And then we fetch inserted rows based on ACHIEVED_AT = :achievedAt.
 	sql := `
 INSERT INTO ACHIEVED_USER_BADGES (USER_ID, BADGE_NAME, ACHIEVED_AT) 
 SELECT :userID, badge_names.*, :achievedAt FROM (SELECT SOCIAL_BADGES.NAME from BADGES SOCIAL_BADGES
     WHERE SOCIAL_BADGES.TYPE = 'SOCIAL'
-    and :t1Referrals >= SOCIAL_BADGES.FROM_INCLUSIVE
-    and :t1Referrals <= SOCIAL_BADGES.TO_INCLUSIVE
+    and :referrals >= SOCIAL_BADGES.FROM_INCLUSIVE
+    and :referrals <= SOCIAL_BADGES.TO_INCLUSIVE
 UNION ALL SELECT ICE_BADGES.NAME from BADGES ICE_BADGES
     WHERE ICE_BADGES.TYPE = 'ICE'
     and :balance >= ICE_BADGES.FROM_INCLUSIVE
@@ -89,19 +89,30 @@ where ACHIEVED_USER_BADGES.BADGE_NAME IS NULL;
 `
 	now := uint64(time.Now().UTC().UnixNano())
 	params := map[string]interface{}{
-		"t1Referrals": progress.T1Referrals,
-		"balance":     progress.Balance,
-		"userID":      progress.UserID,
-		"achievedAt":  now,
+		"referrals":  userProgress.T1Referrals,
+		"balance":    userProgress.Balance,
+		"userID":     userProgress.UserID,
+		"achievedAt": now,
 	}
-	res := []*achievedBadge{}
-	err := r.db.PrepareExecuteTyped(sql, params, &res)
+	err := storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params))
+	if err != nil && !errors.Is(err, storage.ErrNotFound) {
+		return errors.Wrapf(err, "failed to achieve user's completed badges for userID:%v", userProgress.UserID)
+	} else if err != nil && errors.Is(err, storage.ErrNotFound) {
+		// Nothing to insert, no new badges.
+		return nil
+	}
+	achievedBadges := []*achievedBadge{}
+	queryParams := map[string]interface{}{
+		"userID":     userProgress.UserID,
+		"achievedAt": now,
+	}
+	err = r.db.PrepareExecuteTyped(`SELECT * FROM ACHIEVED_USER_BADGES WHERE ACHIEVED_AT = :achievedAt AND USER_ID = :userID;`, queryParams, &achievedBadges)
 	if err != nil {
-		return errors.Wrapf(err, "failed to achieve user's completed badges for userID:%v", progress.UserID)
+		return errors.Wrapf(err, "failed to achieve user's completed badges for userID:%v", userProgress.UserID)
 	}
-	for _, achievedBadgeByUser := range res {
-		if err := r.sendAchievedBadge(ctx, progress.UserID, achievedBadgeByUser.BadgeName, now); err != nil {
-			return errors.Wrapf(err, "failed to send achieved badge %v to message broker for userId:%v", achievedBadgeByUser.BadgeName, progress.UserID)
+	for _, achievedBadgeByUser := range achievedBadges {
+		if err := r.sendAchievedBadge(ctx, userProgress.UserID, achievedBadgeByUser.BadgeName, now); err != nil {
+			return errors.Wrapf(err, "failed to send achieved badge %v to message broker for userId:%v", achievedBadgeByUser.BadgeName, userProgress.UserID)
 		}
 	}
 

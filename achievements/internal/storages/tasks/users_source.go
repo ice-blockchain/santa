@@ -43,10 +43,12 @@ func (u *usersSource) getCompletedTask(user *users.UserSnapshot) string {
 	// 1. Claim your nickname.
 	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {
 		achievedTask = taskClaimUsername
+
+		return achievedTask
 	}
 	// 3. Upload profile picture.
-	hadDefaultPictureBefore := strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)
-	if !strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName) && (user.Before == nil || hadDefaultPictureBefore) {
+	hadDefaultPictureBefore := strings.HasSuffix(user.Before.ProfilePictureURL, defaultUserPictureName)
+	if (!strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)) && (user.Before == nil || hadDefaultPictureBefore) {
 		achievedTask = taskUploadProfilePicture
 	}
 

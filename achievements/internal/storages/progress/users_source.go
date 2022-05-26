@@ -62,6 +62,7 @@ func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSna
 	return nil
 }
 
+// nolint:gocognit // Processing "ErrNotFound" case here, so the complexity is high
 func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSnapshot) error {
 	_, err := u.r.GetUserProgress(user.ID)
 	if errors.Is(err, storage.ErrNotFound) {

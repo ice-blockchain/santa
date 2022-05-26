@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	appCfg "github.com/ice-blockchain/wintr/config"
-
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
+	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
@@ -42,13 +41,13 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 	return nil
 }
 
-func (p *progressSource) achieveLevelsForConsecutiveMiningSessions(ctx context.Context, progress *progress.UserProgress) error {
+func (p *progressSource) achieveLevelsForConsecutiveMiningSessions(ctx context.Context, userProgress *progress.UserProgress) error {
 	for _, value := range p.consecutiveMiningSessionsToIncrementLevel {
-		if value == progress.MaxConsecutiveMiningSessionsCount {
-			if err := p.r.IncrementUserLevel(ctx, progress.UserID); err != nil {
+		if value == userProgress.MaxConsecutiveMiningSessionsCount {
+			if err := p.r.IncrementUserLevel(ctx, userProgress.UserID); err != nil {
 				return errors.Wrapf(err,
 					"failed to increment user's level due to %v consecutive mining sessions for userID:%v",
-					progress.MaxConsecutiveMiningSessionsCount, progress.UserID)
+					userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)
 			}
 
 			break

@@ -7,9 +7,8 @@ import (
 	"encoding/json"
 	"math"
 
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-
 	"github.com/framey-io/go-tarantool"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
 
