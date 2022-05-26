@@ -111,12 +111,12 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
-		Name BadgeName `db:"name"`
+		Name BadgeName
 		// BadgeType of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
-		BadgeType string `db:"type"`
+		BadgeType string
 		// Min-max range of the certain value (based on badgeType) to achieve the badge.
-		FromInclusive uint64 `db:"from_inclusive"`
-		ToInclusive   uint64 `db:"to_inclusive"`
+		FromInclusive uint64
+		ToInclusive   uint64
 	}
 
 	// `achievedBadge` is an internal type to store user's achieved badges in database.
@@ -130,25 +130,30 @@ type (
 
 	userAchievement struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack    struct{} `msgpack:",asArray"`
-		UserID      UserID
-		Role        string
-		Balance     uint64
-		Level       uint64
-		T1Referrals uint64
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserBadges string
+		UserTasks  string
+		UserRole   string
+		BadgeTypes string
+		UserLevel  uint64
 	}
 
-	badgeOverview struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		badge
-		Achieved bool `db:"achieved"`
+	userBadge struct {
+		Name          string `json:"name"`
+		Type          string `json:"type"`
+		FromInclusive uint64 `json:"from_inclusive"`
+		ToInclusive   uint64 `json:"to_inclusive"`
+		AchievedAt    uint64 `json:"achieved_at"`
 	}
 
-	badgeTypes struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		Type     string   `db:"type"`
-		Size     uint64   `db:"size"`
+	userTask struct {
+		Name       string `json:"name"`
+		TaskIndex  uint64 `json:"task_index"`
+		AchievedAt uint64 `json:"achieved_at"`
+	}
+
+	badgeType struct {
+		Type  string `json:"type"`
+		Count uint64 `json:"count"`
 	}
 )
