@@ -205,7 +205,7 @@
                     "example": 25.5
                 },
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
@@ -221,7 +221,7 @@
             "type": "object",
             "properties": {
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
@@ -243,19 +243,6 @@
                 "type": {
                     "type": "string",
                     "example": "SOCIAL"
-                }
-            }
-        },
-        "achievements.ProgressInterval": {
-            "type": "object",
-            "properties": {
-                "left": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "right": {
-                    "type": "integer",
-                    "example": 22
                 }
             }
         },
@@ -298,6 +285,19 @@
                     "items": {
                         "$ref": "#/definitions/achievements.Task"
                     }
+                }
+            }
+        },
+        "badges.ProgressInterval": {
+            "type": "object",
+            "properties": {
+                "left": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "right": {
+                    "type": "integer",
+                    "example": 22
                 }
             }
         },
