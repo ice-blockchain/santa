@@ -34,11 +34,11 @@ func (r *repository) userAchievementQuery(collectibles []string) string {
 	var sql string
 	switch {
 	case contains(collectibles, Tasks) && !contains(collectibles, Badges):
-		sql = `SELECT '' as achieved_badges, achieved_tasks, user_role, '' as badge_types, levels FROM user_achievements WHERE user_id = :userId`
+		sql = `SELECT '' as achieved_badges, achieved_tasks, user_role, '' as badge_types, levels FROM user_achievements_tasks_view WHERE user_id = :userId`
 	case !contains(collectibles, Tasks) && contains(collectibles, Badges):
-		sql = `SELECT achieved_badges, '' as achieved_tasks, user_role, badge_types, levels FROM user_achievements WHERE user_id = :userId`
+		sql = `SELECT achieved_badges, '' as achieved_tasks, user_role, badge_types, levels FROM user_achievements_badges_view WHERE user_id = :userId`
 	case contains(collectibles, Tasks) && contains(collectibles, Badges):
-		sql = `SELECT achieved_badges, achieved_tasks, user_role, badge_types, levels FROM user_achievements WHERE user_id = :userId`
+		sql = `SELECT achieved_badges, achieved_tasks, user_role, badge_types, levels FROM user_achievements_full_view WHERE user_id = :userId`
 	}
 
 	return sql
