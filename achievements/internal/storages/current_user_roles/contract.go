@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package roles
 
 import (
@@ -29,7 +31,7 @@ type (
 		db tarantool.Connector
 	}
 
-	// | userProgressSource is a source processor to insert/delete user's roles at CURRENT_USER_ROLES space
+	// | userProgressSource is a source processor to insert/delete user's roles at CURRENT_USER_ROLES space.
 	userProgressSource struct {
 		r Repository
 	}
