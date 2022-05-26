@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package roles
 
 import (
@@ -8,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRepository(db tarantool.Connector) Repository {
+func newRepository(db tarantool.Connector) Repository {
 	return &repository{db: db}
 }
 

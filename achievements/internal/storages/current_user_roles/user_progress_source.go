@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: BUSL-1.1
+
 package roles
 
 import (
@@ -10,9 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewCurrentUserRolesProcessor(db tarantool.Connector) messagebroker.Processor {
+func NewProgressSource(db tarantool.Connector) messagebroker.Processor {
 	return &userProgressSource{
-		r: &repository{db: db},
+		r: newRepository(db),
 	}
 }
 
