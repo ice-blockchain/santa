@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"math"
 
+	"github.com/ice-blockchain/wintr/coin"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	appCfg "github.com/ice-blockchain/wintr/config"
@@ -55,9 +57,10 @@ func (r *repository) GetUserProgress(userID users.UserID) (*UserProgress, error)
 }
 
 func (r *repository) InsertUserProgress(ctx context.Context, user *users.User) error {
+	balance, _ := coin.New("0")
 	ua := &userProgress{
 		UserID:                            user.ID,
-		Balance:                           0,
+		Balance:                           balance,
 		T1Referrals:                       0,
 		AgendaPhoneNumbersHashes:          user.AgendaPhoneNumberHashes,
 		LastMiningStartedAt:               0,

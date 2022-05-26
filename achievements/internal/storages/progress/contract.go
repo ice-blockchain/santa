@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/ice-blockchain/wintr/coin"
+
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -33,7 +35,7 @@ type (
 		// Agenda phone numbers hashes we store to see if users are in agenda for each other.
 		AgendaPhoneNumbersHashes string `json:"agendaPhoneNumbersHashes"`
 		// User's balance (iceflakes).
-		Balance uint64 `json:"balance"`
+		Balance *coin.Coin `json:"balance"`
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64 `json:"t1Referrals"`
 		// Timestamp.
@@ -82,7 +84,7 @@ type (
 		// AgendaPhoneNumbersHashes we store to see if users are in agenda for each other.
 		AgendaPhoneNumbersHashes string
 		// User's balance (iceflakes).
-		Balance uint64
+		Balance *coin.Coin
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64
 		// Timestamp.
