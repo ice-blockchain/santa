@@ -43,32 +43,26 @@ func (r *repository) getUserAchievement(userID UserID) (*userAchievement, error)
 func (r *repository) userAchievementQuery() string {
 	return `
 SELECT
-    (SELECT '[' || group_concat('{"name": "' || name ||
-                               '", "type": "' || type ||
-                               '", "fromInclusive": ' || cast(from_inclusive as string) ||
-                               ', "toInclusive": ' || cast(to_inclusive as string) ||
-                               ', "achievedAt": ' || cast(achieved_at as string) || '}') || ']'
-    FROM (
-        SELECT
-            b.name, b.type, b.from_inclusive, b.to_inclusive, COALESCE(aub.achieved_at, 0) as achieved_at
-        FROM badges AS b
-            LEFT JOIN achieved_user_badges AS aub
-                ON aub.badge_name = b.name
-                       AND aub.user_id = :userId
-        ORDER BY b.type, b.from_inclusive
-    )) as user_badges,
-    (SELECT '[' || group_concat('{"name": "' || name ||
-                                '","taskIndex": ' || cast(task_index as string) ||
-                                ',"achievedAt": ' || cast(achieved_at as string) || '}') || ']'
-    FROM (SELECT t.name,
-                 t.task_index,
-                 coalesce(aut.achieved_at, 0) as achieved_at
-          FROM tasks AS t
-                   LEFT JOIN achieved_user_tasks aut
-                             ON aut.task_name = t.name
-                                 AND aut.user_id = :userId
-          ORDER BY task_index
-    )) as user_tasks,
+    (SELECT '[' || group_concat('{"name": "' || b.name ||
+                               '", "type": "' || b.type ||
+                               '", "fromInclusive": ' || cast(b.from_inclusive as string) ||
+                               ', "toInclusive": ' || cast(b.to_inclusive as string) ||
+                               ', "achievedAt": ' || cast(COALESCE(aub.achieved_at, 0) as string) || '}') || ']'
+	FROM badges AS b
+		LEFT JOIN achieved_user_badges AS aub
+			ON aub.badge_name = b.name
+				   AND aub.user_id = :userId
+	ORDER BY b.type, b.from_inclusive
+    ) as user_badges,
+    (SELECT '[' || group_concat('{"name": "' || t.name ||
+                                '","taskIndex": ' || cast(t.task_index as string) ||
+                                ',"achievedAt": ' || cast(coalesce(aut.achieved_at, 0) as string) || '}') || ']' 
+	  FROM tasks AS t
+			   LEFT JOIN achieved_user_tasks aut
+						 ON aut.task_name = t.name
+							 AND aut.user_id = :userId
+	  ORDER BY task_index
+    ) as user_tasks,
     cur.ROLE_NAME as user_role,
     (SELECT '[' || group_concat('{"type": "' || type ||
                 '","count": ' || CAST(CNT as string) || '}') || ']'
