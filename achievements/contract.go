@@ -16,6 +16,11 @@ var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
 )
 
+const (
+	Tasks  = "TASKS"
+	Badges = "BADGES"
+)
+
 type (
 	BadgeName        = string
 	BadgeType        = string
@@ -34,10 +39,11 @@ type (
 	}
 	BadgeOverview struct {
 		Badge
-		Position struct {
-			X     uint64 `json:"x" example:"3"`
-			OutOf uint64 `json:"outOf" example:"10"`
-		} `json:"position"`
+		Position Position `json:"position"`
+	}
+	Position struct {
+		X     uint64 `json:"x" example:"3"`
+		OutOf uint64 `json:"outOf" example:"10"`
 	}
 	Task struct {
 		Name     string `json:"name" example:"CLAIM_USERNAME"`
@@ -65,6 +71,7 @@ type (
 
 	ReadRepository interface {
 		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
+		GetUserAchievements(ctx context.Context, userID UserID, collectibles []string) (*UserAchievements, error)
 	}
 	WriteRepository interface {
 		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
@@ -110,7 +117,7 @@ type (
 		_msgpack struct{} `msgpack:",asArray"`
 		// Primary key.
 		Name BadgeName
-		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
+		// BadgeType of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
 		BadgeType string
 		// Min-max range of the certain value (based on badgeType) to achieve the badge.
 		FromInclusive uint64
@@ -124,5 +131,34 @@ type (
 		UserID     UserID
 		BadgeName  string
 		AchievedAt uint64
+	}
+
+	userAchievement struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack   struct{} `msgpack:",asArray"`
+		UserBadges string
+		UserTasks  string
+		UserRole   string
+		BadgeTypes string
+		UserLevel  uint64
+	}
+
+	userBadge struct {
+		Name          string `json:"name"`
+		Type          string `json:"type"`
+		FromInclusive uint64 `json:"fromInclusive"`
+		ToInclusive   uint64 `json:"toInclusive"`
+		AchievedAt    uint64 `json:"achievedAt"`
+	}
+
+	userTask struct {
+		Name       string `json:"name"`
+		TaskIndex  uint64 `json:"taskIndex"`
+		AchievedAt uint64 `json:"achievedAt"`
+	}
+
+	badgeType struct {
+		Type  string `json:"type"`
+		Count uint64 `json:"count"`
 	}
 )

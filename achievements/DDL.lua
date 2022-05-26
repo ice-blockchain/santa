@@ -106,7 +106,7 @@ box.execute([[CREATE TABLE IF NOT EXISTS current_user_levels  (
 
 box.execute([[CREATE TABLE IF NOT EXISTS tasks  (
                     name STRING primary key,
-                    index UNSIGNED NOT NULL DEFAULT 0
+                    task_index UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[INSERT INTO tasks (name, task_index)
@@ -133,5 +133,91 @@ box.execute([[CREATE TABLE IF NOT EXISTS current_user_roles  (
                     role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR'),
                     updated_at UNSIGNED NOT NULL
                     ) WITH ENGINE = 'vinyl';]])
+
+box.execute([[DROP VIEW IF EXISTS user_achievements_full_view;]])
+box.execute([[CREATE VIEW IF NOT EXISTS user_achievements_full_view AS
+SELECT
+    up.user_id,
+    cur.role_name as user_role,
+    (
+        SELECT count(1) FROM achieved_user_levels WHERE user_id = up.user_id
+    ) as levels,
+    (
+        SELECT '[' || group_concat('{"type": "' || type || '", "count": ' || CAST(CNT as string) || '}') || ']'
+        FROM (SELECT type, COUNT(*) as cnt FROM badges GROUP BY type)
+    ) as badge_types,
+    (
+        SELECT '[' || group_concat('{"name": "' || b.name ||
+                               '", "type": "' || b.type ||
+                               '", "fromInclusive": ' || cast(b.from_inclusive as string) ||
+                               ', "toInclusive": ' || cast(b.to_inclusive as string) ||
+                               ', "achievedAt": ' || cast(COALESCE(aub.achieved_at, 0) as string) || '}') || ']'
+        FROM badges AS b
+            LEFT JOIN achieved_user_badges AS aub
+                ON aub.badge_name = b.name
+                       AND aub.user_id = up.user_id
+        ORDER BY b.type, b.from_inclusive
+    ) as achieved_badges,
+    (
+        SELECT '[' || group_concat('{"name": "' || t.name ||
+                                '","taskIndex": ' || cast(t.task_index as string) ||
+                                ',"achievedAt": ' || cast(coalesce(aut.achieved_at, 0) as string) || '}') || ']'
+        FROM tasks AS t
+            LEFT JOIN achieved_user_tasks aut
+                ON aut.task_name = t.name
+                AND aut.user_id = up.user_id
+          ORDER BY task_index
+    ) as achieved_tasks
+FROM user_progress as up
+    LEFT JOIN current_user_roles as cur ON cur.user_id = up.user_id;]])
+
+box.execute([[DROP VIEW IF EXISTS user_achievements_badges_view;]])
+box.execute([[CREATE VIEW IF NOT EXISTS user_achievements_badges_view AS
+SELECT
+    up.user_id,
+    cur.role_name as user_role,
+    (
+        SELECT count(1) FROM achieved_user_levels WHERE user_id = up.user_id
+    ) as levels,
+    (
+        SELECT '[' || group_concat('{"type": "' || type || '","count": ' || CAST(CNT as string) || '}') || ']'
+        FROM (SELECT type, COUNT(*) as cnt FROM badges GROUP BY type)
+    ) as badge_types,
+    (
+        SELECT '[' || group_concat('{"name": "' || b.name ||
+                               '", "type": "' || b.type ||
+                               '", "fromInclusive": ' || cast(b.from_inclusive as string) ||
+                               ', "toInclusive": ' || cast(b.to_inclusive as string) ||
+                               ', "achievedAt": ' || cast(COALESCE(aub.achieved_at, 0) as string) || '}') || ']'
+        FROM badges AS b
+            LEFT JOIN achieved_user_badges AS aub
+                ON aub.badge_name = b.name
+                       AND aub.user_id = up.user_id
+        ORDER BY b.type, b.from_inclusive
+    ) as achieved_badges
+FROM user_progress as up
+    LEFT JOIN current_user_roles as cur ON cur.user_id = up.user_id;]])
+
+box.execute([[DROP VIEW IF EXISTS user_achievements_tasks_view;]])
+box.execute([[CREATE VIEW IF NOT EXISTS user_achievements_tasks_view AS SELECT
+    up.user_id,
+    cur.role_name as user_role,
+    (
+        SELECT count(1) FROM achieved_user_levels WHERE user_id = up.user_id
+    ) as levels,
+    (
+        SELECT '[' || group_concat('{"name": "' || t.name ||
+                                '","taskIndex": ' || cast(t.task_index as string) ||
+                                ',"achievedAt": ' || cast(coalesce(aut.achieved_at, 0) as string) || '}') || ']'
+        FROM tasks AS t
+            LEFT JOIN achieved_user_tasks aut
+                ON aut.task_name = t.name
+                AND aut.user_id = up.user_id
+          ORDER BY task_index
+    ) as achieved_tasks
+FROM user_progress as up
+    LEFT JOIN current_user_roles as cur ON cur.user_id = up.user_id;
+
+]])
 
 -- TODO will add indexes later on

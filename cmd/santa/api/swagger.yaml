@@ -28,17 +28,19 @@ definitions:
         example: ICE Breaker
         type: string
       position:
-        properties:
-          outOf:
-            example: 10
-            type: integer
-          x:
-            example: 3
-            type: integer
-        type: object
+        $ref: '#/definitions/achievements.Position'
       type:
         example: SOCIAL
         type: string
+    type: object
+  achievements.Position:
+    properties:
+      outOf:
+        example: 10
+        type: integer
+      x:
+        example: 3
+        type: integer
     type: object
   achievements.ProgressInterval:
     properties:
