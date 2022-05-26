@@ -15,14 +15,12 @@ func (r *repository) GetUserAchievements(ctx context.Context, userID UserID, col
 		return nil, errors.Wrap(ctx.Err(), "failed to get user achievements because of context failed")
 	}
 
-	_ = collectibles
-
 	a, err := r.getUserAchievement(userID)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable get user achievement")
 	}
 
-	return a.decodeAchievement()
+	return a.decodeAchievement(collectibles)
 }
 
 func (r *repository) getUserAchievement(userID UserID) (*userAchievement, error) {
@@ -47,9 +45,9 @@ func (r *repository) userAchievementQuery() string {
 SELECT
     (SELECT '[' || group_concat('{"name": "' || name ||
                                '", "type": "' || type ||
-                               '", "from_inclusive": ' || cast(from_inclusive as string) ||
-                               ', "to_inclusive": ' || cast(to_inclusive as string) ||
-                               ', "achieved_at": ' || cast(achieved_at as string) || '}') || ']'
+                               '", "fromInclusive": ' || cast(from_inclusive as string) ||
+                               ', "toInclusive": ' || cast(to_inclusive as string) ||
+                               ', "achievedAt": ' || cast(achieved_at as string) || '}') || ']'
     FROM (
         SELECT
             b.name, b.type, b.from_inclusive, b.to_inclusive, COALESCE(aub.achieved_at, 0) as achieved_at
@@ -60,8 +58,8 @@ SELECT
         ORDER BY b.type, b.from_inclusive
     )) as user_badges,
     (SELECT '[' || group_concat('{"name": "' || name ||
-                                '","task_index": ' || cast(task_index as string) ||
-                                ',"achieved_at": ' || cast(achieved_at as string) || '}') || ']'
+                                '","taskIndex": ' || cast(task_index as string) ||
+                                ',"achievedAt": ' || cast(achieved_at as string) || '}') || ']'
     FROM (SELECT t.name,
                  t.task_index,
                  coalesce(aut.achieved_at, 0) as achieved_at
@@ -73,16 +71,26 @@ SELECT
     )) as user_tasks,
     cur.ROLE_NAME as user_role,
     (SELECT '[' || group_concat('{"type": "' || type ||
-                         '","count": ' || CAST(CNT as string) || '}') || ']'
-     FROM (SELECT type, COUNT(*) as cnt FROM badges GROUP BY type)) as badge_types,
-	(SELECT count(1) FROM achieved_user_levels WHERE user_id = :userId) as user_level
+                '","count": ' || CAST(CNT as string) || '}') || ']'
+    FROM (SELECT type, COUNT(*) as cnt FROM badges GROUP BY type)) as badge_types,
+    (SELECT count(1) FROM achieved_user_levels WHERE user_id = :userId) as user_level
 FROM user_progress as up
     LEFT JOIN current_user_roles as cur ON cur.USER_ID = up.USER_ID
 WHERE up.user_id = :userId
 `
 }
 
-func (a *userAchievement) decodeAchievement() (*UserAchievements, error) {
+func contains(data []string, match string) bool {
+	for _, item := range data {
+		if item == match {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (a *userAchievement) decodeAchievement(collectibles []string) (*UserAchievements, error) {
 	var badgeTypes []*badgeType
 	if err := json.NewDecoder(bytes.NewReader([]byte(a.BadgeTypes))).Decode(&badgeTypes); err != nil {
 		return nil, errors.Wrapf(err, "unable to decode badgeType: %s", a.BadgeTypes)
@@ -93,13 +101,17 @@ func (a *userAchievement) decodeAchievement() (*UserAchievements, error) {
 	}
 
 	var userBadges []*userBadge
-	if err := json.NewDecoder(bytes.NewReader([]byte(a.UserBadges))).Decode(&userBadges); err != nil {
-		return nil, errors.Wrapf(err, "unable to decode userBadge: %s", a.UserBadges)
+	if contains(collectibles, "BADGES") {
+		if err := json.NewDecoder(bytes.NewReader([]byte(a.UserBadges))).Decode(&userBadges); err != nil {
+			return nil, errors.Wrapf(err, "unable to decode userBadge: %s", a.UserBadges)
+		}
 	}
 
 	var userTasks []*userTask
-	if err := json.NewDecoder(bytes.NewReader([]byte(a.UserTasks))).Decode(&userTasks); err != nil {
-		return nil, errors.Wrapf(err, "unable to decode userTasks: %s", a.UserTasks)
+	if contains(collectibles, "TASKS") {
+		if err := json.NewDecoder(bytes.NewReader([]byte(a.UserTasks))).Decode(&userTasks); err != nil {
+			return nil, errors.Wrapf(err, "unable to decode userTasks: %s", a.UserTasks)
+		}
 	}
 
 	return a.buildAchievement(badgeMap, userBadges, userTasks), nil

@@ -141,15 +141,15 @@ type (
 	userBadge struct {
 		Name          string `json:"name"`
 		Type          string `json:"type"`
-		FromInclusive uint64 `json:"from_inclusive"`
-		ToInclusive   uint64 `json:"to_inclusive"`
-		AchievedAt    uint64 `json:"achieved_at"`
+		FromInclusive uint64 `json:"fromInclusive"`
+		ToInclusive   uint64 `json:"toInclusive"`
+		AchievedAt    uint64 `json:"achievedAt"`
 	}
 
 	userTask struct {
 		Name       string `json:"name"`
-		TaskIndex  uint64 `json:"task_index"`
-		AchievedAt uint64 `json:"achieved_at"`
+		TaskIndex  uint64 `json:"taskIndex"`
+		AchievedAt uint64 `json:"achievedAt"`
 	}
 
 	badgeType struct {
