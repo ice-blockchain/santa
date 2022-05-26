@@ -15,15 +15,6 @@ func (r *repository) GetUserAchievements(ctx context.Context, userID UserID, col
 		return nil, errors.Wrap(ctx.Err(), "failed to get user achievements because of context failed")
 	}
 
-	achieve, err := r.getUserAchievement(userID, collectibles)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable get user achievement")
-	}
-
-	return achieve.decodeAchievement(collectibles)
-}
-
-func (r *repository) getUserAchievement(userID UserID, collectibles []string) (*userAchievement, error) {
 	params := map[string]interface{}{
 		"userId": userID,
 	}
@@ -36,7 +27,7 @@ func (r *repository) getUserAchievement(userID UserID, collectibles []string) (*
 		return nil, errors.Wrapf(ErrRelationNotFound, "no user found with id: %v", userID)
 	}
 
-	return result[0], nil
+	return result[0].decodeAchievement(collectibles)
 }
 
 func (r *repository) userAchievementQuery(collectibles []string) string {
