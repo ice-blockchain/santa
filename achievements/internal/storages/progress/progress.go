@@ -59,18 +59,10 @@ func (r *repository) GetUserProgress(userID users.UserID) (*UserProgress, error)
 }
 
 func (r *repository) InsertUserProgress(ctx context.Context, user *users.User) error {
-	balance, err := coin.New("0")
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse 0 coins in wintr")
-	}
 	ua := &userProgress{
-		UserID:                            user.ID,
-		Balance:                           balance,
-		T1Referrals:                       0,
-		AgendaPhoneNumbersHashes:          user.AgendaPhoneNumberHashes,
-		LastMiningStartedAt:               0,
-		MaxConsecutiveMiningSessionsCount: 0,
-		TotalUserReferalPings:             0,
+		UserID:                   user.ID,
+		Coin:                     coin.UnsafeNew("0"),
+		AgendaPhoneNumbersHashes: user.AgendaPhoneNumberHashes,
 	}
 	res := []*userProgress{}
 	if err := r.db.InsertTyped(userProgressSpace, ua, &res); err != nil {
@@ -160,7 +152,7 @@ func (r *repository) sendUpdatedUserProgress(ctx context.Context, p *UserProgres
 func (u *userProgress) UserProgress() *UserProgress {
 	return &UserProgress{
 		UserID:                            u.UserID,
-		Balance:                           u.Balance,
+		Balance:                           u.Amount,
 		T1Referrals:                       u.T1Referrals,
 		AgendaPhoneNumbersHashes:          u.AgendaPhoneNumbersHashes,
 		LastMiningStartedAt:               u.LastMiningStartedAt,

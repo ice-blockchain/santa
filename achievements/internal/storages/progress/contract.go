@@ -33,7 +33,7 @@ type (
 	}
 	UserProgress struct {
 		// User's balance.
-		Balance *coin.Coin `json:"balance"`
+		Balance *coin.ICEFlake `json:"balance"`
 		// Primary key.
 		UserID UserID `json:"userID"`
 		// Agenda phone numbers hashes we store to see if users are in agenda for each other.
@@ -83,7 +83,7 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		// User's balance.
-		Balance *coin.Coin
+		*coin.Coin
 		// Primary key.
 		UserID UserID
 		// AgendaPhoneNumbersHashes we store to see if users are in agenda for each other.
