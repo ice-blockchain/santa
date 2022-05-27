@@ -26,9 +26,12 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 	if err := json.Unmarshal(message.Value, user); err != nil {
 		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
+	if user.User != nil {
+		return errors.Wrapf(u.achieveLevelForPhoneNumberConfirmation(ctx, user),
+			"levels/userSource: failed to increment user's level for the phone number confirmation")
+	}
 
-	return errors.Wrapf(u.achieveLevelForPhoneNumberConfirmation(ctx, user),
-		"levels/userSource: failed to increment user's level for the phone number confirmation")
+	return nil
 }
 
 func (u *userSource) achieveLevelForPhoneNumberConfirmation(ctx context.Context, user *users.UserSnapshot) error {
