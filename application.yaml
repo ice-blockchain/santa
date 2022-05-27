@@ -26,16 +26,23 @@ cmd/santa-sleigh:
 achievements:
   levels:
     agendaReferrals:
-      - 10
-      - 5
-      - 1
+      - 10: L16
+      - 5: L15
+      - 1: L14
     consecutiveMiningSessions:
-      - 90
-      - 60
-      - 30
-      - 10
-      - 5
-      - 1
+      - 90: L5
+      - 60: L4
+      - 30: L3
+      - 10: L2
+      - 5: L1
+    taskCompletion:
+      - TASK1: L6
+      - TASK2: L7
+      - TASK3: L8
+      - TASK4: L9
+      - TASK5: L10
+      - TASK6: L11
+      - TASK7: L12
   tasks:
     T1Referrals: 5
   db:

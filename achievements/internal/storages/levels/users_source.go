@@ -27,15 +27,14 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 
-	return errors.Wrapf(u.achieveLevels(ctx, user), "levels/userSource: failed to increment user's level for the phone number confirmation")
+	return errors.Wrapf(u.achieveLevelForPhoneNumberConfirmation(ctx, user),
+		"levels/userSource: failed to increment user's level for the phone number confirmation")
 }
 
-func (u *userSource) achieveLevels(ctx context.Context, user *users.UserSnapshot) error {
-	// New level for user (Levels -> 8 Confirm phone number)
-	// it seems eskimo can send unconfirmed number at initial user creation for now
-	// but in case of user modification (before != nil) it sends confirmed number, catch it here.
+func (u *userSource) achieveLevelForPhoneNumberConfirmation(ctx context.Context, user *users.UserSnapshot) error {
+	// New level for user (Levels -> 8 Confirm phone number).
 	if user.PhoneNumber != "" && user.Before != nil && user.Before.PhoneNumber == "" {
-		err := u.r.IncrementUserLevel(ctx, user.ID)
+		err := u.r.achieveUserLevel(ctx, user.ID, levelForPhoneNumberConfirmation)
 		if err != nil {
 			return errors.Wrapf(err, "failed to increment user's level for the phone number confirmation userID:%v", user.ID)
 		}

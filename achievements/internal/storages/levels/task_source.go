@@ -22,12 +22,24 @@ func (t *taskSource) Process(ctx context.Context, message *messagebroker.Message
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	achievedTask := new(tasks.AchievedTaskMessage)
-	if err := json.Unmarshal(message.Value, achievedTask); err != nil {
-		return errors.Wrapf(err, "levels/taskSource: cannot unmarshall %v into %#v", string(message.Value), achievedTask)
+	completedTask := new(tasks.AchievedTaskMessage)
+	if err := json.Unmarshal(message.Value, completedTask); err != nil {
+		return errors.Wrapf(err, "levels/taskSource: cannot unmarshall %v into %#v", string(message.Value), completedTask)
 	}
 
 	// Increment user's level for each task completion (Levels -> #7).
-	return errors.Wrapf(t.r.IncrementUserLevel(ctx, achievedTask.UserID),
-		"levels/taskSource: failed to increment user's level for task completion:%#v", achievedTask)
+	return errors.Wrapf(t.achieveLevelsForTaskCompletion(ctx, completedTask),
+		"levels/taskSource: failed to increment user's level for task completion:%#v", completedTask)
+}
+
+func (t *taskSource) achieveLevelsForTaskCompletion(ctx context.Context, completedTask *tasks.AchievedTaskMessage) error {
+	achievedLevelName, isNewLevelAchieved := cfg.Levels.TaskCompletion[completedTask.TaskName]
+	if isNewLevelAchieved {
+		if err := t.r.achieveUserLevel(ctx, completedTask.UserID, achievedLevelName); err != nil {
+			return errors.Wrapf(err,
+				"levels/taskSource: failed to increment user's level for task completion:%#v", completedTask)
+		}
+	}
+
+	return nil
 }

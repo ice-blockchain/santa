@@ -15,14 +15,9 @@ import (
 
 func NewAgendaReferralsSource(db tarantool.Connector) messagebroker.Processor {
 	appCfg.MustLoadFromKey("achievements", &cfg)
-	if len(cfg.Levels.AgendaReferrals) == 0 {
-		// Default = 10,5,1 (Levels -> #9-11)..
-		cfg.Levels.AgendaReferrals = []uint64{10, 5, 1}
-	}
 
 	return &agendaReferralsSource{
-		r:                              newRepository(db),
-		referralCountsToIncrementLevel: cfg.Levels.AgendaReferrals,
+		r: newRepository(db),
 	}
 }
 
@@ -41,13 +36,10 @@ func (a *agendaReferralsSource) Process(ctx context.Context, message *messagebro
 }
 
 func (a *agendaReferralsSource) achieveLevelsForReferralsFromAgenda(ctx context.Context, userID UserID, refCount uint64) error {
-	for _, value := range a.referralCountsToIncrementLevel {
-		if value == refCount {
-			if err := a.r.IncrementUserLevel(ctx, userID); err != nil {
-				return errors.Wrapf(err, "failed to increment user's level due to %v referrals from agenda for userID:%v", refCount, userID)
-			}
-
-			break
+	achievedLevelName, isNewLevelAchieved := cfg.Levels.AgendaReferrals[refCount]
+	if isNewLevelAchieved {
+		if err := a.r.achieveUserLevel(ctx, userID, achievedLevelName); err != nil {
+			return errors.Wrapf(err, "failed to increment user's level due to %v referrals from agenda for userID:%v", refCount, userID)
 		}
 	}
 

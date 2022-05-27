@@ -10,10 +10,10 @@ import (
 
 // Public API.
 type (
-	UserID = string
-
+	UserID     = string
+	LevelName  = string
 	Repository interface {
-		IncrementUserLevel(ctx context.Context, userID UserID) error
+		achieveUserLevel(ctx context.Context, userID UserID, levelName LevelName) error
 	}
 )
 
@@ -33,22 +33,25 @@ type (
 	}
 	// | progressSource is source processor to increment user's levels on consecutive mining sessions.
 	progressSource struct {
-		r                                         Repository
-		consecutiveMiningSessionsToIncrementLevel []uint32
+		r Repository
 	}
 
 	// | agendaReferralsSource is source processor to increment user's levels on referred users from agenda (Levels -> 9-11).
 	agendaReferralsSource struct {
-		r                              Repository
-		referralCountsToIncrementLevel []uint64
+		r Repository
 	}
 
 	config struct {
 		Levels struct {
-			AgendaReferrals           []uint64 `yaml:"agendaReferrals"`
-			ConsecutiveMiningSessions []uint32 `yaml:"consecutiveMiningSessions"`
+			AgendaReferrals           map[uint64]string `yaml:"agendaReferrals"`
+			ConsecutiveMiningSessions map[uint32]string `yaml:"consecutiveMiningSessions"`
+			TaskCompletion            map[string]string `yaml:"taskCompletion"`
 		} `yaml:"levels"`
 	}
+)
+
+const (
+	levelForPhoneNumberConfirmation = "L13"
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.

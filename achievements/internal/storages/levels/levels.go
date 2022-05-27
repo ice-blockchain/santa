@@ -4,7 +4,6 @@ package levels
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/framey-io/go-tarantool"
@@ -16,16 +15,17 @@ func newRepository(db tarantool.Connector) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) IncrementUserLevel(ctx context.Context, userID UserID) error {
+func (r *repository) achieveUserLevel(ctx context.Context, userID UserID, levelName LevelName) error {
 	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "add user failed because context failed")
+		return errors.Wrap(ctx.Err(), "achieve level failed because context failed")
 	}
-	nextLevel := `'L'||CAST((SELECT COUNT(1)+1 as next_level FROM achieved_user_levels WHERE user_id = :userID) AS STRING)`
-	sql := fmt.Sprintf(`REPLACE INTO achieved_user_levels(USER_ID, LEVEL_NAME,ACHIEVED_AT)
-                                                     VALUES( :userID,  %v,       :achievedAt);`, nextLevel)
+	now := uint64(time.Now().UTC().UnixNano())
+	sql := `INSERT INTO achieved_user_levels(USER_ID, LEVEL_NAME,   ACHIEVED_AT)
+                                                   VALUES(:userID,  :levelName,  :achievedAt);`
 	params := map[string]interface{}{
 		"userID":     userID,
-		"achievedAt": uint64(time.Now().UTC().UnixNano()),
+		"levelName":  levelName,
+		"achievedAt": now,
 	}
 	query, err := r.db.PrepareExecute(sql, params)
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
