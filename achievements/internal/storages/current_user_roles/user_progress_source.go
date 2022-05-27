@@ -36,7 +36,7 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 	return errors.Wrapf(u.processUserProgress(currentRole, userProgress), "error processing user progress")
 }
 
-func (u *userProgressSource) processUserProgress(role string, userProgress *progress.UserProgress) error {
+func (u *userProgressSource) processUserProgress(role RoleName, userProgress *progress.UserProgress) error {
 	switch {
 	case role == "":
 		if err := u.r.upsertCurrentUserRole(userProgress.UserID, "PIONEER"); err != nil {
