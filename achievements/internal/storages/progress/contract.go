@@ -60,7 +60,7 @@ type (
 		publishUpdatedProgressTopic      string
 		publishAgendaReferralsCountTopic string
 	}
-	// | userSource is a source processor to insert/update user's state at USER_ACHIEVEMENTS space and to count total users.
+	// | userSource is a source processor to insert/update user's state at USER_PROGRESS space and to count total users.
 	userSource struct {
 		r ReadRepository
 	}
@@ -78,7 +78,7 @@ type (
 		Value uint64
 	}
 
-	// | userProgress  is an internal type to store user achievements badges in database (USER_ACHIEVEMENTS space).
+	// | userProgress  is an internal type to store user current progress state in database (USER_PROGRESS space).
 	userProgress struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`

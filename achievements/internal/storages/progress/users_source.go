@@ -29,7 +29,7 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(err, "achievements/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 
-	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_ACHIEVEMENTS
+	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_PROGRESS
 	// and decrement t1 referrals count for its parent if user was referred by another user.
 	if user.User == nil && user.Before != nil {
 		if err := u.handleUserDeletion(ctx, user); err != nil {

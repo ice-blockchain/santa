@@ -5,6 +5,7 @@ package progress
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 
 	"github.com/framey-io/go-tarantool"
@@ -36,7 +37,7 @@ func newRepository(db tarantool.Connector, mb messagebroker.Client) ReadReposito
 }
 
 func (r *repository) DeleteUserProgress(userID users.UserID) error {
-	sql := `DELETE FROM user_achievements WHERE user_id = :userID`
+	sql := fmt.Sprintf(`DELETE FROM %v WHERE user_id = :userID`, userProgressSpace)
 	params := map[string]interface{}{
 		"userID": userID,
 	}
