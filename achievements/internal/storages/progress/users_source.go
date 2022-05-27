@@ -46,17 +46,16 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 }
 
 func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSnapshot) error {
-	if err := u.r.DeleteUserProgress(user.Before.ID); err != nil {
-		return errors.Wrapf(err, "failed to deleteUserAchievements")
-	}
 	if err := u.r.UpdateTotalUsersCount(-1); err != nil {
 		return errors.Wrapf(err, "failed to update total_users counter")
 	}
-
 	if user.Before.ReferredBy != "" {
 		if err := u.r.UpdateT1ReferralsCount(ctx, user.Before.ReferredBy, -1); err != nil {
 			return errors.Wrapf(err, "failed to update t1 referrals counter")
 		}
+	}
+	if err := u.r.DeleteUserProgress(user.Before.ID); err != nil {
+		return errors.Wrapf(err, "failed to deleteUserAchievements")
 	}
 
 	return nil
