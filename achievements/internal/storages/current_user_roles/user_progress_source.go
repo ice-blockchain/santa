@@ -28,7 +28,7 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 		return errors.Wrapf(err, "achievements/current_user_roles: cannot unmarshall %v into %#v", string(message.Value), userProgress)
 	}
 
-	currentRole, err := u.r.GetCurrentUserRole(userProgress.UserID)
+	currentRole, err := u.r.getCurrentUserRole(userProgress.UserID)
 	if err != nil {
 		return errors.Wrapf(err, "error get current user rules count for UserID:%v", userProgress.UserID)
 	}
@@ -39,13 +39,13 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 func (u *userProgressSource) processUserProgress(role string, userProgress *progress.UserProgress) error {
 	switch {
 	case role == "":
-		if err := u.r.UpsertCurrentUserRole(userProgress.UserID, "PIONEER"); err != nil {
-			return errors.Wrapf(err, "error upsert current user role for UserID:%v", userProgress.UserID)
+		if err := u.r.upsertCurrentUserRole(userProgress.UserID, "PIONEER"); err != nil {
+			return errors.Wrapf(err, "error setting PIONEER for UserID:%v", userProgress.UserID)
 		}
 
-	case role == "PIONEER" && userProgress.T1Referrals == 100:
-		if err := u.r.UpsertCurrentUserRole(userProgress.UserID, "AMBASSADOR"); err != nil {
-			return errors.Wrapf(err, "error insert current user role for UserID:%v", userProgress.UserID)
+	case role == "PIONEER" && userProgress.T1Referrals == AmbassadorLimit:
+		if err := u.r.upsertCurrentUserRole(userProgress.UserID, "AMBASSADOR"); err != nil {
+			return errors.Wrapf(err, "error setting AMBASSADOR for UserID:%v", userProgress.UserID)
 		}
 	}
 

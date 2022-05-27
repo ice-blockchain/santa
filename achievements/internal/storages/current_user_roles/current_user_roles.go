@@ -14,18 +14,18 @@ func newRepository(db tarantool.Connector) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) UpsertCurrentUserRole(userID users.UserID, roleName RoleName) error {
-	ua := &currentUserRole{
+func (r *repository) upsertCurrentUserRole(userID users.UserID, roleName RoleName) error {
+	cur := &currentUserRole{
 		UserID:    userID,
 		RoleName:  roleName,
 		UpdatedAt: uint64(time.Now().UTC().UnixNano()),
 	}
 
-	return errors.Wrapf(r.db.UpsertAsync("CURRENT_USER_ROLES", ua, []tarantool.Op{}).GetTyped(&[]currentUserRole{}),
+	return errors.Wrapf(r.db.UpsertAsync("CURRENT_USER_ROLES", cur, []tarantool.Op{}).GetTyped(&[]currentUserRole{}),
 		"error upserting current user role for userID:%v", userID)
 }
 
-func (r *repository) GetCurrentUserRole(userID users.UserID) (string, error) {
+func (r *repository) getCurrentUserRole(userID users.UserID) (string, error) {
 	var res []*userRole
 	sql := `SELECT role_name FROM current_user_roles WHERE user_id = :user_id`
 

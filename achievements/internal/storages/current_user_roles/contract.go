@@ -10,12 +10,17 @@ import (
 )
 
 // Public API.
+
+const (
+	AmbassadorLimit = 100
+)
+
 type (
 	RoleName = string
 
 	Repository interface {
-		UpsertCurrentUserRole(users.UserID, RoleName) error
-		GetCurrentUserRole(users.UserID) (string, error)
+		upsertCurrentUserRole(users.UserID, RoleName) error
+		getCurrentUserRole(users.UserID) (string, error)
 	}
 
 	CurrentUserRole struct {
@@ -47,6 +52,6 @@ type (
 	userRole struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
-		RoleName RoleName
+		RoleName RoleName `json:"role_name"`
 	}
 )
