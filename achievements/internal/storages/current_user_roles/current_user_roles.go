@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-package roles
+package currentuserroles
 
 import (
 	"time"
