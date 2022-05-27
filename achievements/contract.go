@@ -17,6 +17,13 @@ import (
 
 var ErrRelationNotFound = storage.ErrRelationNotFound
 
+const (
+	// Badge types.
+	BadgeTypeSocial = badges.BadgeTypeSocial
+	BadgeTypeIce    = badges.BadgeTypeIce
+	BadgeTypeLevel  = badges.BadgeTypeLevel
+)
+
 type (
 	BadgeName        = string
 	TaskName         = string

@@ -12,9 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewUserSource(db tarantool.Connector) messagebroker.Processor {
+func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &userSource{
-		r: newRepository(db),
+		r: newRepository(db, mb),
 	}
 }
 
@@ -27,8 +27,13 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 	if user.User != nil {
-		return errors.Wrapf(u.achieveLevelForPhoneNumberConfirmation(ctx, user),
-			"levels/userSource: failed to increment user's level for the phone number confirmation")
+		// Insert zero value (level = 0) to update it when first level will be achieved.
+		if err := u.r.insertCurrentUserLevel(ctx, user.ID); err != nil {
+			return errors.Wrapf(err, "levels/userSource: failed to insert current user level for userID: %v", user.ID)
+		}
+		if err := u.achieveLevelForPhoneNumberConfirmation(ctx, user); err != nil {
+			return errors.Wrapf(err, "levels/userSource: failed to increment user's level for the phone number confirmation")
+		}
 	}
 
 	return nil

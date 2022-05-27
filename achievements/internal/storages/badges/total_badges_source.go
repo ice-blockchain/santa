@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewTotalBadgesProcessor(db tarantool.Connector) messagebroker.Processor {
+func NewAchievedBadgesProcessor(db tarantool.Connector) messagebroker.Processor {
 	return &totalBadgesSource{db: db}
 }
 
@@ -35,7 +35,7 @@ func (b *totalBadgesSource) updateTotalBadgesCount(badgeName BadgeName, diff int
 		op = "-"
 	}
 	incrementOps := []tarantool.Op{
-		{Op: op, Field: 1, Arg: diff},
+		{Op: op, Field: fieldGlobalValue, Arg: diff},
 	}
 
 	return errors.Wrapf(b.db.UpsertAsync("GLOBAL", &global{Key: key, Value: 1}, incrementOps).GetTyped(&[]*global{}),

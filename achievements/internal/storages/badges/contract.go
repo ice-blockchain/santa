@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
@@ -15,14 +14,21 @@ import (
 
 var ErrAlreadyAchieved = storage.ErrDuplicate
 
+const (
+	// Badge types.
+	BadgeTypeSocial = "SOCIAL"
+	BadgeTypeIce    = "ICE"
+	BadgeTypeLevel  = "LEVEL"
+)
+
 type (
 	UserID    = string
 	BadgeName = string
 	BadgeType = string
 
 	Repository interface {
-		AchieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
-		AchieveBadgesWithCompletedRequirements(ctx context.Context, progress *progress.UserProgress) error
+		achieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
+		getUnachievedBadges(ctx context.Context, userID UserID) ([]*Badge, error)
 	}
 
 	Badge struct {
@@ -49,9 +55,8 @@ type (
 // Private API.
 type (
 	repository struct {
-		db                         tarantool.Connector
-		mb                         messagebroker.Client
-		publishAchievedBadgesTopic string
+		db tarantool.Connector
+		mb messagebroker.Client
 	}
 	totalBadgesSource struct {
 		db tarantool.Connector
@@ -60,22 +65,26 @@ type (
 	progressSource struct {
 		r Repository
 	}
+	levelSource struct {
+		r Repository
+	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
+		Value    interface{}
 		Key      string
-		// For now we're saving only integer, but scalar may be one of
-		// boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary,
-		// but I cant find golang mapping in docs (interface{}?).
-		Value uint64
 	}
-	// `achievedBadge` is an internal type to store user's achieved badges in database.
-	achievedBadge struct {
+
+	badge struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack   struct{} `msgpack:",asArray"`
-		UserID     UserID
-		BadgeName  string
-		AchievedAt uint64
+		_msgpack struct{} `msgpack:",asArray"`
+		// Primary key.
+		Name BadgeName
+		// Type of badge, one of: SOCIAL (based on referrals), ICE (based on coins), LEVEL ( based on user's level).
+		BadgeType string
+		// Min-max range of the certain value (based on badgeType) to achieve the badge.
+		FromInclusive uint64
+		ToInclusive   uint64
 	}
 
 	config struct {
@@ -89,3 +98,7 @@ type (
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
 var cfg config
+
+const (
+	fieldGlobalValue = 0
+)

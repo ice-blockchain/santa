@@ -13,11 +13,11 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewAgendaReferralsSource(db tarantool.Connector) messagebroker.Processor {
+func NewAgendaReferralsSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	appCfg.MustLoadFromKey("achievements", &cfg)
 
 	return &agendaReferralsSource{
-		r: newRepository(db),
+		r: newRepository(db, mb),
 	}
 }
 

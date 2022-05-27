@@ -4,8 +4,10 @@ package levels
 
 import (
 	"context"
+	"time"
 
 	"github.com/framey-io/go-tarantool"
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 )
 
 // Public API.
@@ -14,6 +16,13 @@ type (
 	LevelName  = string
 	Repository interface {
 		achieveUserLevel(ctx context.Context, userID UserID, levelName LevelName) error
+		insertCurrentUserLevel(ctx context.Context, userID UserID) error
+	}
+	AchievedLevel struct {
+		AchievedAt  time.Time `json:"achievedAt"`
+		UserID      UserID    `json:"userId"`
+		LevelName   LevelName `json:"levelName"`
+		TotalLevels uint64    `json:"totalLevels"`
 	}
 )
 
@@ -21,6 +30,7 @@ type (
 type (
 	repository struct {
 		db tarantool.Connector
+		mb messagebroker.Client
 	}
 
 	// | taskSource is source processor to increment user's levels on task completion ( each task 1 level, Levels -> #7 ).
@@ -47,11 +57,32 @@ type (
 			ConsecutiveMiningSessions map[uint32]string `yaml:"consecutiveMiningSessions"`
 			TaskCompletion            map[string]string `yaml:"taskCompletion"`
 		} `yaml:"levels"`
+
+		MessageBroker struct {
+			Topics []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+	}
+
+	// | currentUserLevels is internal type to handle database values (current_user_levels space).
+	currentUserLevels struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		UserID   UserID
+		// Total number of levels achieved to user (needed for badge achieving).
+		Level uint64
+		// Timestamp.
+		UpdatedAt uint64
 	}
 )
 
 const (
+	currentUsersLevelsSpace = "CURRENT_USER_LEVELS"
+
 	levelForPhoneNumberConfirmation = "L13"
+	fieldCurrentUserLevelsLevel     = 1
+	fieldCurrentUserLevelsUpdatedAt = 2
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.

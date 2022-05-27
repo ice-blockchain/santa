@@ -96,7 +96,7 @@ func (r *repository) UpdateTotalUsersCount(diff int64) error {
 		op = "-"
 	}
 	incrementOps := []tarantool.Op{
-		{Op: op, Field: 1, Arg: diff},
+		{Op: op, Field: fieldGlobalValue, Arg: diff},
 	}
 
 	return errors.Wrap(r.db.UpsertAsync("GLOBAL", &global{Key: "TOTAL_USERS", Value: 1}, incrementOps).GetTyped(&[]*global{}),

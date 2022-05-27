@@ -71,7 +71,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessor(
 			progress.NewUserSource(db, mb),
 			tasks.NewUserSource(db, mb),
-			levels.NewUserSource(db),
+			levels.NewUserSource(db, mb),
 		),
 		// | economy-mining .
 		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessor(
@@ -80,22 +80,26 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		),
 		// | achievements-tasks .
 		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessor(
-			levels.NewTaskSource(db),
+			levels.NewTaskSource(db, mb),
 		),
 		// | achievements-badges .
 		cfg.MessageBroker.ConsumingTopics[3]: newProxyProcessor(
-			badges.NewTotalBadgesProcessor(db),
+			badges.NewAchievedBadgesProcessor(db),
 		),
 		// | achievements-progress .
 		cfg.MessageBroker.ConsumingTopics[4]: newProxyProcessor(
 			tasks.NewProgressSource(db, mb),
-			levels.NewProgressSource(db),
+			levels.NewProgressSource(db, mb),
 			badges.NewProgressSource(db, mb),
 			// Roles upcoming processor to be here.
 		),
 		// | achievements-agenda-referrals .
 		cfg.MessageBroker.ConsumingTopics[5]: newProxyProcessor(
-			levels.NewAgendaReferralsSource(db),
+			levels.NewAgendaReferralsSource(db, mb),
+		),
+		// | achievements-levels .
+		cfg.MessageBroker.ConsumingTopics[6]: newProxyProcessor(
+			badges.NewLevelSource(db, mb),
 		),
 	}
 }

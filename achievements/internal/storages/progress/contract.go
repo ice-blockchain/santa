@@ -71,11 +71,8 @@ type (
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
+		Value    interface{}
 		Key      string
-		// For now we're saving only integer, but scalar may be one of
-		// boolean, integer, unsigned, double, number, decimal, string, uuid, varbinary,
-		// but I cant find golang mapping in docs (interface{}?).
-		Value uint64
 	}
 
 	// | userProgress  is an internal type to store user current progress state in database (USER_PROGRESS space).
@@ -113,8 +110,9 @@ const (
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
 
 	// Database fields for tarantool oprations, we   keep them in sync with DDL.
-	fieldAgendaPhoneNumbersHashes          = 1
+	fieldAgendaPhoneNumbersHashes          = 2
 	fieldT1Referrals                       = 3
 	fieldLastMiningStartedAt               = 4
 	fieldMaxConsecutiveMiningSessionsCount = 5
+	fieldGlobalValue                       = 0
 )

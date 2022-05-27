@@ -53,6 +53,7 @@ achievements:
       - ACHIEVED_USER_BADGES
       - LEVELS
       - ACHIEVED_USER_LEVELS
+      - CURRENT_USER_LEVELS
       - TASKS
       - ACHIEVED_USER_TASKS
       - CURRENT_USER_ROLES
@@ -83,6 +84,10 @@ achievements:
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: achievements-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
         ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
       - name: users-events
         partitions: 10
@@ -99,3 +104,4 @@ achievements:
       - achievements-badges # achieved badges by the user
       - achievements-progress # user_progress updates
       - achievements-agenda-referrals # count of users referred from agenda changed
+      - achievements-levels # achieved levels by the user

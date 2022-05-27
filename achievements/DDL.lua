@@ -1,8 +1,8 @@
 -- SPDX-License-Identifier: BUSL-1.1
 
 box.execute([[CREATE TABLE IF NOT EXISTS global  (
-                    key STRING primary key,
-                    value SCALAR NOT NULL
+                    value SCALAR NOT NULL,
+                    key STRING primary key
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS user_progress  (

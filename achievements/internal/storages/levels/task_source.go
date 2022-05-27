@@ -12,9 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewTaskSource(db tarantool.Connector) messagebroker.Processor {
+func NewTaskSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &taskSource{
-		r: newRepository(db),
+		r: newRepository(db, mb),
 	}
 }
 

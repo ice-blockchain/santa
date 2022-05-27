@@ -10,11 +10,6 @@ import (
 // Public API.
 
 const (
-	// Badge types.
-	badgeTypeSocial = "SOCIAL"
-	badgeTypeIce    = "ICE"
-	badgeTypeLevel  = "LEVEL"
-
 	// Error codes.
 	userNotFoundCode         = "USER_NOT_FOUND"
 	invalidRequestProperties = "INVALID_PROPERTIES"
