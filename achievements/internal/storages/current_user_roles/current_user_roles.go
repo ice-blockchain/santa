@@ -21,20 +21,23 @@ func (r *repository) UpsertCurrentUserRole(userID users.UserID, roleName RoleNam
 		UpdatedAt: uint64(time.Now().UTC().UnixNano()),
 	}
 
-	return errors.Wrapf(r.db.UpsertAsync("current_user_roles", ua, nil).GetTyped(&[]*currentUserRole{}),
+	return errors.Wrapf(r.db.UpsertAsync("CURRENT_USER_ROLES", ua, []tarantool.Op{}).GetTyped(&[]currentUserRole{}),
 		"error upserting current user role for userID:%v", userID)
 }
 
 func (r *repository) GetCurrentUserRole(userID users.UserID) (string, error) {
-	var roleName string
-
+	var res []*userRole
 	sql := `SELECT role_name FROM current_user_roles WHERE user_id = :user_id`
 
-	params := map[string]interface{}{"userID": userID}
+	params := map[string]interface{}{"user_id": userID}
 
-	if err := r.db.PrepareExecuteTyped(sql, params, &roleName); err != nil {
+	if err := r.db.PrepareExecuteTyped(sql, params, &res); err != nil {
 		return "", errors.Wrapf(err, "failed to get current user role for user.ID:%v", userID)
 	}
 
-	return roleName, nil
+	if len(res) == 0 {
+		return "", nil
+	}
+
+	return res[0].RoleName, nil
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 	"github.com/hashicorp/go-multierror"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
+	roles "github.com/ice-blockchain/santa/achievements/internal/storages/current_user_roles"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/levels"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
 	"github.com/ice-blockchain/santa/achievements/internal/storages/tasks"
@@ -91,6 +92,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 			tasks.NewProgressSource(db, mb),
 			levels.NewProgressSource(db),
 			badges.NewProgressSource(db, mb),
+			roles.NewProgressSource(db),
 			// Roles upcoming processor to be here.
 		),
 		// | achievements-agenda-referrals .

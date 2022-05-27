@@ -43,4 +43,10 @@ type (
 		RoleName  RoleName     `json:"role_name"`
 		UpdatedAt uint64       `json:"updated_at"`
 	}
+
+	userRole struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		RoleName RoleName
+	}
 )
