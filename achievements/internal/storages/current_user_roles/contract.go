@@ -9,10 +9,6 @@ import (
 
 // Public API.
 
-const (
-	ambassadorLimit = 100
-)
-
 type (
 	RoleName = string
 
@@ -23,6 +19,11 @@ type (
 )
 
 // Private API.
+
+const (
+	ambassadorLimit = 100
+)
+
 type (
 	repository struct {
 		db tarantool.Connector
