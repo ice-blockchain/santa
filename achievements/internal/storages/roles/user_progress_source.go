@@ -14,7 +14,7 @@ import (
 
 func NewProgressSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &userProgressSource{
-		r: NewRepository(db, mb),
+		r: NewRepository(db, mb).(*repository),
 	}
 }
 

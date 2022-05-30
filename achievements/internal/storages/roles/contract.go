@@ -40,7 +40,7 @@ type (
 
 	// | userProgressSource is a source processor to insert/delete user's roles at CURRENT_USER_ROLES space.
 	userProgressSource struct {
-		r repository
+		r *repository
 	}
 
 	currentUserRole struct {

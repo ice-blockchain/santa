@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRepository(db tarantool.Connector, mb messagebroker.Client) *repository {
+func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 	return &repository{db: db, mb: mb}
 }
 
