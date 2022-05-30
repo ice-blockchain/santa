@@ -3,7 +3,6 @@
 package roles
 
 import (
-	"context"
 	"time"
 
 	"github.com/framey-io/go-tarantool"
@@ -17,7 +16,6 @@ type (
 	RoleName = string
 
 	Repository interface {
-		upsertCurrentUserRole(context.Context, users.UserID, RoleName) error
 	}
 
 	CurrentUserRole struct {
@@ -42,7 +40,7 @@ type (
 
 	// | userProgressSource is a source processor to insert/delete user's roles at CURRENT_USER_ROLES space.
 	userProgressSource struct {
-		r Repository
+		r repository
 	}
 
 	currentUserRole struct {
