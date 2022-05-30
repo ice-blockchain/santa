@@ -3,18 +3,18 @@ module github.com/ice-blockchain/santa
 go 1.18
 
 require (
+	cosmossdk.io/math v1.0.0-beta.2
 	github.com/framey-io/go-tarantool v0.0.0-20220317175443-747a509561d8
-	github.com/gin-gonic/gin v1.7.7
+	github.com/gin-gonic/gin v1.8.0
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/eskimo v1.4.0
 	github.com/ice-blockchain/freezer v1.3.0
-	github.com/ice-blockchain/wintr v1.9.0
+	github.com/ice-blockchain/wintr v1.11.0
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/swag v1.8.2
 )
 
 require (
-	cosmossdk.io/math v1.0.0-beta.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
@@ -81,7 +81,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.13.0 // indirect
 	github.com/twilio/twilio-go v0.26.0 // indirect
 	github.com/twmb/franz-go v1.5.3 // indirect
-	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220526170723-297bcc02381d // indirect
+	github.com/twmb/franz-go/pkg/kadm v0.0.0-20220529183036-7689d6ffb990 // indirect
 	github.com/twmb/franz-go/pkg/kmsg v1.1.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.3.5 // indirect
@@ -96,7 +96,7 @@ require (
 	google.golang.org/genproto v0.0.0-20220527130721-00d5c0f3be58 // indirect
 	google.golang.org/grpc v1.46.2 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
-	gopkg.in/ini.v1 v1.66.4 // indirect
+	gopkg.in/ini.v1 v1.66.5 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

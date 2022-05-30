@@ -89,6 +89,10 @@ achievements:
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: achievements-roles
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
         ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
       - name: users-events
         partitions: 10
@@ -106,3 +110,4 @@ achievements:
       - achievements-progress # user_progress updates
       - achievements-agenda-referrals # count of users referred from agenda changed
       - achievements-levels # achieved levels by the user
+      - achievements-roles # achieved roles by the user
