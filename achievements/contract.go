@@ -125,5 +125,6 @@ type (
 	}
 	proxyProcessor struct {
 		internalProcessors []messagebroker.Processor
+		asyncProcessing    bool
 	}
 )
