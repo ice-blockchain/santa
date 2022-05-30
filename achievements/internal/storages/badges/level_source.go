@@ -52,7 +52,7 @@ func (l *levelSource) achieveBadgesForUserLevel(ctx context.Context, userLevel *
 
 func (l *levelSource) checkAndAchieveBadge(ctx context.Context, userID UserID, badge *Badge, criteriaValue uint64) error {
 	if criteriaValue >= badge.Interval.Left && criteriaValue <= badge.Interval.Right {
-		if err := l.r.achieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, ErrAlreadyAchieved) {
+		if err := l.r.achieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "failed to achieve badge %v to userID %v", badge.Name, userID)
 		}
 	}

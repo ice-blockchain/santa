@@ -56,7 +56,7 @@ func (p *progressSource) achieveBadgesForUserProgress(ctx context.Context, userP
 
 func (p *progressSource) checkAndAchieveBadge(ctx context.Context, userID UserID, badge *Badge, criteriaValue math.Uint) error {
 	if criteriaValue.GTE(math.NewUint(badge.Interval.Left)) && criteriaValue.LTE(math.NewUint(badge.Interval.Right)) {
-		if err := p.r.achieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, ErrAlreadyAchieved) {
+		if err := p.r.achieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "failed to achieve badge %v to userID %v", badge.Name, userID)
 		}
 	}

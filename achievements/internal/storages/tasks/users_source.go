@@ -42,15 +42,24 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 func (u *usersSource) detectCompletedTasks(user *users.UserSnapshot) []string {
 	completedTasks := []string{}
 	// 1. Claim your nickname.
-	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {
+	if u.isNicknameClaimed(user) {
 		completedTasks = append(completedTasks, taskClaimUsername)
 	}
 	// 3. Upload profile picture.
-	defaultUserPictureName := cfg.Tasks.DefaultUserPictureName
-	hadDefaultPictureBefore := strings.HasSuffix(user.Before.ProfilePictureURL, defaultUserPictureName)
-	if (!strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)) && (user.Before == nil || hadDefaultPictureBefore) {
+	if u.isProfilePictureUploaded(user) {
 		completedTasks = append(completedTasks, taskUploadProfilePicture)
 	}
 
 	return completedTasks
+}
+
+func (u *usersSource) isNicknameClaimed(user *users.UserSnapshot) bool {
+	return user.Username != "" && (user.Before == nil || user.Before.Username == "")
+}
+
+func (u *usersSource) isProfilePictureUploaded(user *users.UserSnapshot) bool {
+	defaultUserPictureName := cfg.Tasks.DefaultUserPictureName
+	hadDefaultPictureBefore := user.Before != nil && strings.HasSuffix(user.Before.ProfilePictureURL, defaultUserPictureName)
+
+	return (!strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)) && (user.Before == nil || hadDefaultPictureBefore)
 }

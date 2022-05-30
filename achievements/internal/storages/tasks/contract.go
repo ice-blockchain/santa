@@ -12,9 +12,6 @@ import (
 )
 
 // Public API.
-var (
-	errAlreadyAchieved = storage.ErrDuplicate
-)
 
 type (
 	TaskName = string
@@ -75,4 +72,7 @@ const (
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
-var cfg config
+var (
+	cfg                config
+	errAlreadyAchieved = storage.ErrDuplicate
+)

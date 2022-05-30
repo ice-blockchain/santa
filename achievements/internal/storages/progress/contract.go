@@ -10,6 +10,7 @@ import (
 	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/pkg/errors"
 )
 
 // Public API.
@@ -114,7 +115,10 @@ type (
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
-var cfg config
+var (
+	cfg       config
+	errNoData = errors.New("empty data")
+)
 
 const (
 	userProgressSpace    = "USER_PROGRESS"

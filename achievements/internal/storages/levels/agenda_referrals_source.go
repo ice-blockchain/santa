@@ -38,7 +38,7 @@ func (a *agendaReferralsSource) Process(ctx context.Context, message *messagebro
 func (a *agendaReferralsSource) achieveLevelsForReferralsFromAgenda(ctx context.Context, userID UserID, refCount uint64) error {
 	achievedLevelName, isNewLevelAchieved := cfg.Levels.AgendaReferrals[refCount]
 	if isNewLevelAchieved {
-		if err := a.r.achieveUserLevel(ctx, userID, achievedLevelName); err != nil {
+		if err := a.r.achieveUserLevel(ctx, userID, achievedLevelName); err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "failed to increment user's level due to %v referrals from agenda for userID:%v", refCount, userID)
 		}
 	}

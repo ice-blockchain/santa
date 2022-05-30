@@ -35,7 +35,7 @@ func (t *taskSource) Process(ctx context.Context, message *messagebroker.Message
 func (t *taskSource) achieveLevelsForTaskCompletion(ctx context.Context, completedTask *tasks.CompletedTask) error {
 	achievedLevelName, isNewLevelAchieved := cfg.Levels.TaskCompletion[completedTask.TaskName]
 	if isNewLevelAchieved {
-		if err := t.r.achieveUserLevel(ctx, completedTask.UserID, achievedLevelName); err != nil {
+		if err := t.r.achieveUserLevel(ctx, completedTask.UserID, achievedLevelName); err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err,
 				"levels/taskSource: failed to increment user's level for task completion:%#v", completedTask)
 		}

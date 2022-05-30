@@ -47,7 +47,7 @@ func (r *repository) insertCurrentUserLevel(ctx context.Context, userID UserID) 
 		UpdatedAt: 0,
 	}
 	if err := r.db.InsertTyped(currentUsersLevelsSpace, lvl, &[]*currentUserLevels{}); err != nil && !errors.Is(err, storage.ErrDuplicate) {
-		return errors.Wrapf(err, "failed to current user level record for user.ID:%v", userID)
+		return errors.Wrapf(err, "failed to insert current user level record for user.ID:%v", userID)
 	}
 
 	return nil
@@ -65,6 +65,7 @@ func (r *repository) incrementCurrentLevel(ctx context.Context, userID UserID, a
 	}
 
 	res := []*currentUserLevels{}
+	// Updated here (not upsert) to get result with new value, upsert does not return anything.
 	if err := r.db.UpdateTyped(currentUsersLevelsSpace, "pk_unnamed_CURRENT_USER_LEVELS_1", key, incrementOps, &res); err != nil {
 		return errors.Wrapf(err, "failed to update current user level (%v) for user %v", achievedLevel, userID)
 	}

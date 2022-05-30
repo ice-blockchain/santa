@@ -41,7 +41,7 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 func (p *progressSource) achieveLevelsForConsecutiveMiningSessions(ctx context.Context, userProgress *progress.UserProgress) error {
 	achievedLevelName, isNewLevelAchieved := cfg.Levels.ConsecutiveMiningSessions[userProgress.MaxConsecutiveMiningSessionsCount]
 	if isNewLevelAchieved {
-		if err := p.r.achieveUserLevel(ctx, userProgress.UserID, achievedLevelName); err != nil {
+		if err := p.r.achieveUserLevel(ctx, userProgress.UserID, achievedLevelName); err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err,
 				"failed to increment user's level due to %v consecutive mining sessions for userID:%v",
 				userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 // Public API.
@@ -86,4 +87,7 @@ const (
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
-var cfg config
+var (
+	cfg                config
+	errAlreadyAchieved = storage.ErrDuplicate
+)

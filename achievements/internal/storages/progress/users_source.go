@@ -33,7 +33,7 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(u.handleUserDeletion(ctx, user), "failed to handle user deletion event")
 	}
 
-	return errors.Wrap(u.handleUserCreation(ctx, user), "failed to handle user creation/modification event")
+	return errors.Wrap(u.handleUserCreateOrUpdate(ctx, user), "failed to handle user creation/modification event")
 }
 
 func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSnapshot) error {
@@ -52,26 +52,36 @@ func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSna
 	return nil
 }
 
-// nolint:gocognit // Processing "ErrNotFound" case here, so the complexity is high
-func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSnapshot) error {
+func (u *userSource) handleUserCreateOrUpdate(ctx context.Context, user *users.UserSnapshot) error {
 	_, err := u.r.getUserProgress(user.ID)
 	if errors.Is(err, storage.ErrNotFound) {
-		// User's achievements record does not exists, so it is a new user - increment counter.
-		if err = u.r.incrementOrDecrementTotalUsersCount(1); err != nil {
-			return errors.Wrapf(err, "failed to update total_users counter")
-		}
-		if err = u.r.insertUserProgress(ctx, user.User); err != nil {
-			return errors.Wrapf(err, "failed to insert user achievements record")
+		if err = u.handleUserCreation(ctx, user); err != nil {
+			return errors.Wrapf(err, "failed to handle user creation userID:%v", user.ID)
 		}
 	}
+
+	return errors.Wrapf(u.handleUserModification(ctx, user), "failed to handle user moditication userID: %v", user.ID)
+}
+
+func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSnapshot) error {
+	// User's achievements record does not exists, so it is a new user - increment counter.
+	if err := u.r.incrementOrDecrementTotalUsersCount(1); err != nil {
+		return errors.Wrapf(err, "failed to update total_users counter")
+	}
+	// And insert a new record into user_progress for a new user.
+
+	return errors.Wrapf(u.r.insertUserProgress(ctx, user.User), "failed to insert user achievements record")
+}
+
+func (u *userSource) handleUserModification(ctx context.Context, user *users.UserSnapshot) error {
 	// Next we need to check if we need to update T1 referrals count (userID = referredBy, count +=1).
 	if user.ReferredBy != "" {
-		if err = u.updateUserReferrals(ctx, user.User); err != nil {
+		if err := u.updateUserReferrals(ctx, user.User); err != nil {
 			return errors.Wrapf(err, "failed to update user's referrals for userID:%v (referredBy=%v)", user.ID, user.ReferredBy)
 		}
 	}
 	if user.Before != nil && user.AgendaPhoneNumberHashes != "" { // In case of modification - update agenda hashes.
-		if err = u.r.updateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
+		if err := u.r.updateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
 			return errors.Wrapf(err, "progress/userSource: failed to update agenda phone number hashes")
 		}
 	}
@@ -80,8 +90,10 @@ func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSna
 }
 
 func (u *userSource) updateUserReferrals(ctx context.Context, user *users.User) error {
-	if err := u.checkAndUpdateAgendaReferrals(ctx, user.ReferredBy, user); err != nil {
-		return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
+	if user.PhoneNumberHash != "" {
+		if err := u.checkAndUpdateAgendaReferrals(ctx, user.ReferredBy, user); err != nil {
+			return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
+		}
 	}
 
 	return errors.Wrapf(u.r.updateT1ReferralsCount(ctx, user.ReferredBy, 1), "progress/userSource: failed to update t1 referrals counter")
@@ -92,6 +104,9 @@ func (u *userSource) checkAndUpdateAgendaReferrals(ctx context.Context, referred
 	referredByUser, err := u.r.getUserProgress(referredByID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read referedBy user's progress (%v) for agenda update (%v user added)", referredByID, user.ID)
+	}
+	if referredByUser.AgendaPhoneNumbersHashes == "" {
+		return nil
 	}
 	if !strings.Contains(referredByUser.AgendaPhoneNumbersHashes, user.PhoneNumberHash) {
 		// Maybe the user removed that contact from agenda.

@@ -55,9 +55,12 @@ func (r *repository) deleteAgendaReferrals(ctx context.Context, agendaOwnerID, u
 		UserID:       userIDInAgenda,
 		AgendaUserID: agendaOwnerID,
 	}
-	if err := storage.CheckSQLDMLErr(r.db.Delete(agendaReferralsSpace, "pk_unnamed_AGENDA_REFERRALS_1", agendaReferral)); err != nil {
+	resp, err := r.db.Delete(agendaReferralsSpace, "pk_unnamed_AGENDA_REFERRALS_1", agendaReferral)
+	if err = storage.CheckSQLDMLErr(resp, err); err != nil && !errors.Is(err, errNoData) {
 		return errors.Wrapf(err,
 			"failed to delete agenda referrals record for %v:%v", userIDInAgenda, agendaOwnerID)
+	} else if err != nil && errors.Is(err, errNoData) {
+		return nil
 	}
 	count, err := r.getCountOfAgendaReferrals(ctx, agendaOwnerID)
 	if err != nil {
@@ -101,7 +104,7 @@ func (r *repository) sendAgendaReferralsCountUpdate(ctx context.Context, userID 
 	r.mb.SendMessage(ctx, &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
 		Key:     userID,
-		Topic:   cfg.MessageBroker.Topics[2].Name,
+		Topic:   cfg.MessageBroker.Topics[3].Name,
 		Value:   b,
 	}, responder)
 

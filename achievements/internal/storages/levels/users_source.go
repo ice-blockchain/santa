@@ -27,9 +27,11 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(err, "levels/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 	if user.User != nil {
-		// Insert zero value (level = 0) to update it when first level will be achieved.
-		if err := u.r.insertCurrentUserLevel(ctx, user.ID); err != nil {
-			return errors.Wrapf(err, "levels/userSource: failed to insert current user level for userID: %v", user.ID)
+		if user.Before == nil {
+			// Insert zero value (level = 0) to update it later when first level will be achieved.
+			if err := u.r.insertCurrentUserLevel(ctx, user.ID); err != nil {
+				return errors.Wrapf(err, "levels/userSource: failed to insert current user level for userID: %v", user.ID)
+			}
 		}
 		if err := u.achieveLevelForPhoneNumberConfirmation(ctx, user); err != nil {
 			return errors.Wrapf(err, "levels/userSource: failed to increment user's level for the phone number confirmation")
@@ -43,7 +45,7 @@ func (u *userSource) achieveLevelForPhoneNumberConfirmation(ctx context.Context,
 	// New level for user (Levels -> 8 Confirm phone number).
 	if user.PhoneNumber != "" && user.Before != nil && user.Before.PhoneNumber == "" {
 		err := u.r.achieveUserLevel(ctx, user.ID, levelForPhoneNumberConfirmation)
-		if err != nil {
+		if err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "failed to increment user's level for the phone number confirmation userID:%v", user.ID)
 		}
 	}

@@ -13,8 +13,6 @@ import (
 
 // Public API.
 
-var ErrAlreadyAchieved = storage.ErrDuplicate
-
 const (
 	// Badge types.
 	BadgeTypeSocial = "SOCIAL"
@@ -98,7 +96,10 @@ type (
 )
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
-var cfg config
+var (
+	cfg                config
+	errAlreadyAchieved = storage.ErrDuplicate
+)
 
 const (
 	fieldGlobalValue = 0
