@@ -27,13 +27,13 @@ func (r *repository) achieveBadge(ctx context.Context, userID UserID, badgeName 
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "achieve badge failed because context failed")
 	}
-	now := uint64(time.Now().UTC().UnixNano())
+	now := time.Now().UTC()
 	sql := `INSERT INTO achieved_user_badges(USER_ID, badge_name,   ACHIEVED_AT)
                                                    VALUES(:userID,  :badgeName,  :achievedAt);`
 	params := map[string]interface{}{
 		"userID":     userID,
 		"badgeName":  badgeName,
-		"achievedAt": now,
+		"achievedAt": uint64(now.UnixNano()),
 	}
 	query, err := r.db.PrepareExecute(sql, params)
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
@@ -43,8 +43,8 @@ func (r *repository) achieveBadge(ctx context.Context, userID UserID, badgeName 
 	return errors.Wrapf(r.sendAchievedBadge(ctx, userID, badgeName, now), "failed to send achieved badge %v to message broker for userId:%v", badgeName, userID)
 }
 
-func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badgeName BadgeName, achievedTime uint64) error {
-	m := AchievedBadgeMessage{
+func (r *repository) sendAchievedBadge(ctx context.Context, userID UserID, badgeName BadgeName, achievedTime time.Time) error {
+	m := AchievedBadge{
 		Name:       badgeName,
 		UserID:     userID,
 		AchievedAt: achievedTime,

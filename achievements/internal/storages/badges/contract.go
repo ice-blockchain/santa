@@ -4,6 +4,7 @@ package badges
 
 import (
 	"context"
+	"time"
 
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -41,14 +42,14 @@ type (
 		Right uint64 `json:"right" example:"22"`
 	}
 
-	// | AchievedBadgeMessage is a message broker notification event when user achieves a new badge.
-	AchievedBadgeMessage struct {
+	// | AchievedBadge is a message broker notification event when user achieves a new badge.
+	AchievedBadge struct {
+		// Time when badge was achieved.
+		AchievedAt time.Time `json:"achievedAt"`
 		// Primary key.
 		Name string `json:"name"`
 		// User.
 		UserID UserID `json:"userId"`
-		// Time when badge was achieved.
-		AchievedAt uint64 `json:"achievedAt"`
 	}
 )
 

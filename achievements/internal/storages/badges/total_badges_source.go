@@ -20,7 +20,7 @@ func (b *totalBadgesSource) Process(ctx context.Context, message *messagebroker.
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	achievedBadge := new(AchievedBadgeMessage)
+	achievedBadge := new(AchievedBadge)
 	if err := json.Unmarshal(message.Value, achievedBadge); err != nil {
 		return errors.Wrapf(err, "badges/totalBadgesSource: cannot unmarshall %v into %#v", string(message.Value), achievedBadge)
 	}
