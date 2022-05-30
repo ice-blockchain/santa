@@ -72,7 +72,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessorWithAsync(false, // It is crucial to insert user_progress first.
 			progress.NewUsersProcessor(db, mb),
 			tasks.NewUsersProcessor(db, mb),
-			levels.NewUserSource(db, mb),
+			levels.NewUsersProcessor(db, mb),
 		),
 		// | economy-mining .
 		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessorWithAsync(true,
@@ -81,7 +81,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		),
 		// | achievements-tasks .
 		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessorWithAsync(false, // Only one processor, so we dont need async.
-			levels.NewTaskSource(db, mb),
+			levels.NewCompletedTaskProcessor(db, mb),
 		),
 		// | achievements-badges .
 		cfg.MessageBroker.ConsumingTopics[3]: newProxyProcessorWithAsync(false,
@@ -90,17 +90,17 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		// | achievements-progress .
 		cfg.MessageBroker.ConsumingTopics[4]: newProxyProcessorWithAsync(true,
 			tasks.NewProgressProcessor(db, mb),
-			levels.NewProgressSource(db, mb),
-			badges.NewProgressSource(db, mb),
+			levels.NewProgressProcessor(db, mb),
+			badges.NewProgressProcessor(db, mb),
 			// Roles upcoming processor to be here.
 		),
 		// | achievements-agenda-referrals .
 		cfg.MessageBroker.ConsumingTopics[5]: newProxyProcessorWithAsync(false,
-			levels.NewAgendaReferralsSource(db, mb),
+			levels.NewAgendaReferralsProcessor(db, mb),
 		),
 		// | achievements-levels .
 		cfg.MessageBroker.ConsumingTopics[6]: newProxyProcessorWithAsync(false,
-			badges.NewLevelSource(db, mb),
+			badges.NewLevelProcessor(db, mb),
 		),
 	}
 }

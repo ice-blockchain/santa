@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewLevelSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewLevelProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &levelSource{r: newRepository(db, mb)}
 }
 

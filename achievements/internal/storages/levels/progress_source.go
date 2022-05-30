@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewProgressSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	appCfg.MustLoadFromKey("achievements", &cfg)
 
 	return &progressSource{

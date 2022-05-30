@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewUsersProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &userSource{
 		r: newRepository(db, mb),
 	}
