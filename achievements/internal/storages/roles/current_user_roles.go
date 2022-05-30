@@ -47,7 +47,7 @@ func (r *repository) sendCurrentUserRole(ctx context.Context, userID users.UserI
 
 	b, err := json.Marshal(m)
 	if err != nil {
-		return errors.Wrapf(err, "[achieve] failed to marshal %#v", m)
+		return errors.Wrapf(err, "[achieve-roles] failed to marshal %#v", m)
 	}
 
 	responder := make(chan error, 1)

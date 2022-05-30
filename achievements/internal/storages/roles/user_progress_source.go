@@ -39,5 +39,5 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 	}
 
 	return errors.Wrapf(u.r.upsertCurrentUserRole(ctx, userProgress.UserID, role),
-		"error setting PIONEER role for UserID:%v", userProgress.UserID)
+		"error setting %v role for UserID:%v", role, userProgress.UserID)
 }
