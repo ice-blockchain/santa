@@ -29,13 +29,11 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 	}
 
 	var role string
-	switch {
-	case userProgress.T1Referrals == requiredReferralsForPioneerRole:
-		role = "PIONEER"
-	case userProgress.T1Referrals == requiredReferralsForAmbassadorRole:
+
+	if userProgress.T1Referrals >= requiredReferralsForAmbassadorRole {
 		role = "AMBASSADOR"
-	default:
-		return nil
+	} else {
+		role = "PIONEER"
 	}
 
 	return errors.Wrapf(u.r.upsertCurrentUserRole(ctx, userProgress.UserID, role),

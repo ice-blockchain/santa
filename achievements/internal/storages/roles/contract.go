@@ -3,32 +3,30 @@
 package roles
 
 import (
-	"time"
-
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	wt "github.com/ice-blockchain/wintr/time"
 )
 
 // Public API.
 
 type (
-	RoleName = string
+	RoleName   = string
+	Repository interface{}
 
-	Repository interface {
-	}
-
-	CurrentUserRole struct {
-		UpdatedAt time.Time    `json:"updated_at"`
-		UserID    users.UserID `json:"user_id"`
-		RoleName  `json:"role_name"`
+	CurrentUserRole struct { //nolint:govet // SQL
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack  struct{}     `msgpack:",asArray"`
+		UserID    users.UserID `json:"userId"`
+		RoleName  RoleName     `json:"role_name"`
+		UpdatedAt *wt.Time     `json:"updatedAt"`
 	}
 )
 
 // Private API.
 
 const (
-	requiredReferralsForPioneerRole    = 1
 	requiredReferralsForAmbassadorRole = 100
 )
 
@@ -41,14 +39,6 @@ type (
 	// | userProgressSource is a source processor to insert/delete user's roles at CURRENT_USER_ROLES space.
 	userProgressSource struct {
 		r *repository
-	}
-
-	currentUserRole struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack  struct{} `msgpack:",asArray"`
-		UserID    users.UserID
-		RoleName  RoleName
-		UpdatedAt uint64
 	}
 
 	config struct {
