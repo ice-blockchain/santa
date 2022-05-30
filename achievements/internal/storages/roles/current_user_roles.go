@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRepository(db tarantool.Connector, mb messagebroker.Client) repository {
-	return repository{db: db, mb: mb}
+func NewRepository(db tarantool.Connector, mb messagebroker.Client) *repository {
+	return &repository{db: db, mb: mb}
 }
 
 func (r *repository) upsertCurrentUserRole(ctx context.Context, userID users.UserID, roleName RoleName) error {
