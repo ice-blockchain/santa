@@ -17,7 +17,7 @@ func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messa
 	appCfg.MustLoadFromKey("achievements", &cfg)
 
 	return &progressSource{
-		r: newRepository(db, mb),
+		r: newRepository(db, mb).(*repository),
 	}
 }
 

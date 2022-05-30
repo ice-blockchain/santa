@@ -3,7 +3,6 @@
 package levels
 
 import (
-	"context"
 	"time"
 
 	"github.com/framey-io/go-tarantool"
@@ -13,12 +12,9 @@ import (
 
 // Public API.
 type (
-	UserID     = string
-	LevelName  = string
-	Repository interface {
-		achieveUserLevel(ctx context.Context, userID UserID, levelName LevelName) error
-		insertCurrentUserLevel(ctx context.Context, userID UserID) error
-	}
+	UserID        = string
+	LevelName     = string
+	Repository    interface{}
 	AchievedLevel struct {
 		AchievedAt  time.Time `json:"achievedAt"`
 		UserID      UserID    `json:"userId"`
@@ -36,20 +32,20 @@ type (
 
 	// | taskSource is source processor to increment user's levels on task completion ( each task 1 level, Levels -> #7 ).
 	taskSource struct {
-		r Repository
+		r *repository
 	}
 	// | userSource is source processor to increment user's levels on phone number confirmation (Levels -> #8).
 	userSource struct {
-		r Repository
+		r *repository
 	}
 	// | progressSource is source processor to increment user's levels on consecutive mining sessions.
 	progressSource struct {
-		r Repository
+		r *repository
 	}
 
 	// | agendaReferralsSource is source processor to increment user's levels on referred users from agenda (Levels -> 9-11).
 	agendaReferralsSource struct {
-		r Repository
+		r *repository
 	}
 
 	config struct {

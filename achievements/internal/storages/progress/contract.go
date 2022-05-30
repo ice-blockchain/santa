@@ -3,11 +3,9 @@
 package progress
 
 import (
-	"context"
 	"time"
 
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
@@ -15,21 +13,8 @@ import (
 
 // Public API.
 type (
-	UserID     = string
-	Repository interface {
-		getUserProgress(userID users.UserID) (*UserProgress, error)
-
-		insertUserProgress(ctx context.Context, user *users.User) error
-		deleteUserProgress(userID users.UserID) error
-		incrementOrDecrementTotalUsersCount(diff int64) error
-		updateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error
-
-		updateAgendaPhoneNumbersHashes(ctx context.Context, userID users.UserID, agendaPhoneHashes string) error
-		insertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
-		deleteAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
-
-		updateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStarted time.Time, reset bool) error
-	}
+	UserID       = string
+	Repository   interface{}
 	UserProgress struct {
 		// User's balance.
 		Balance *coin.ICEFlake `json:"balance"`
@@ -59,11 +44,11 @@ type (
 	}
 	// | userSource is a source processor to insert/update user's state at USER_PROGRESS space and to count total users.
 	userSource struct {
-		r Repository
+		r *repository
 	}
 	// | economyMiningSource is a source processor to count user's consecutive mining sessions.
 	economyMiningSource struct {
-		r Repository
+		r *repository
 	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.

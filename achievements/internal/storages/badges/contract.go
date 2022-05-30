@@ -3,7 +3,6 @@
 package badges
 
 import (
-	"context"
 	"time"
 
 	"github.com/framey-io/go-tarantool"
@@ -25,10 +24,7 @@ type (
 	BadgeName = string
 	BadgeType = string
 
-	Repository interface {
-		achieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error
-		getUnachievedBadges(ctx context.Context, userID UserID) ([]*Badge, error)
-	}
+	Repository interface{}
 
 	Badge struct {
 		Name     string           `json:"name" example:"ICE Breaker"`
@@ -62,10 +58,10 @@ type (
 	}
 
 	progressSource struct {
-		r Repository
+		r *repository
 	}
 	levelSource struct {
-		r Repository
+		r *repository
 	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.

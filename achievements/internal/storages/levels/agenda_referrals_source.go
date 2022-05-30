@@ -17,7 +17,7 @@ func NewAgendaReferralsProcessor(db tarantool.Connector, mb messagebroker.Client
 	appCfg.MustLoadFromKey("achievements", &cfg)
 
 	return &agendaReferralsSource{
-		r: newRepository(db, mb),
+		r: newRepository(db, mb).(*repository),
 	}
 }
 

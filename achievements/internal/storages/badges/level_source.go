@@ -13,7 +13,7 @@ import (
 )
 
 func NewLevelProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
-	return &levelSource{r: newRepository(db, mb)}
+	return &levelSource{r: newRepository(db, mb).(*repository)}
 }
 
 func (l *levelSource) Process(ctx context.Context, message *messagebroker.Message) error {

@@ -14,7 +14,7 @@ import (
 
 func NewUsersProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &userSource{
-		r: newRepository(db, mb),
+		r: newRepository(db, mb).(*repository),
 	}
 }
 

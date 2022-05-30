@@ -14,7 +14,7 @@ import (
 
 func NewCompletedTaskProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &taskSource{
-		r: newRepository(db, mb),
+		r: newRepository(db, mb).(*repository),
 	}
 }
 

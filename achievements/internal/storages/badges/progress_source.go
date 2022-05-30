@@ -14,7 +14,7 @@ import (
 )
 
 func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
-	return &progressSource{r: newRepository(db, mb)}
+	return &progressSource{r: newRepository(db, mb).(*repository)}
 }
 
 func (p *progressSource) Process(ctx context.Context, message *messagebroker.Message) error {
