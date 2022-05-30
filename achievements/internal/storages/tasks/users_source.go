@@ -13,9 +13,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewUsersProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &usersSource{
-		r: newRepository(db, mb),
+		r: NewRepository(db, mb),
 	}
 }
 
@@ -28,11 +28,10 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 		return errors.Wrapf(err, "tasks/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 	if user.User != nil {
-		achievedTask := u.getCompletedTask(user)
-		if achievedTask != "" {
-			err := u.r.AchieveTask(ctx, user.ID, achievedTask)
-			if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
-				return errors.Wrapf(err, "failed to achieve task %#v for userID:%v", achievedTask, user.ID)
+		completedTasks := u.detectCompletedTasks(user)
+		for _, task := range completedTasks {
+			if err := u.r.CompleteTask(ctx, user.ID, task); err != nil && !errors.Is(err, errAlreadyAchieved) {
+				return errors.Wrapf(err, "failed to complete task %#v for userID:%v", task, user.ID)
 			}
 		}
 	}
@@ -40,19 +39,18 @@ func (u *usersSource) Process(ctx context.Context, message *messagebroker.Messag
 	return nil
 }
 
-func (u *usersSource) getCompletedTask(user *users.UserSnapshot) string {
-	achievedTask := ""
+func (u *usersSource) detectCompletedTasks(user *users.UserSnapshot) []string {
+	completedTasks := []string{}
 	// 1. Claim your nickname.
 	if user.Username != "" && (user.Before == nil || user.Before.Username == "") {
-		achievedTask = taskClaimUsername
-
-		return achievedTask
+		completedTasks = append(completedTasks, taskClaimUsername)
 	}
 	// 3. Upload profile picture.
+	defaultUserPictureName := cfg.Tasks.DefaultUserPictureName
 	hadDefaultPictureBefore := strings.HasSuffix(user.Before.ProfilePictureURL, defaultUserPictureName)
 	if (!strings.HasSuffix(user.ProfilePictureURL, defaultUserPictureName)) && (user.Before == nil || hadDefaultPictureBefore) {
-		achievedTask = taskUploadProfilePicture
+		completedTasks = append(completedTasks, taskUploadProfilePicture)
 	}
 
-	return achievedTask
+	return completedTasks
 }

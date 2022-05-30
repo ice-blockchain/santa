@@ -4,6 +4,7 @@ package tasks
 
 import (
 	"context"
+	"time"
 
 	"github.com/framey-io/go-tarantool"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -12,7 +13,7 @@ import (
 
 // Public API.
 var (
-	ErrAlreadyAchieved = storage.ErrDuplicate
+	errAlreadyAchieved = storage.ErrDuplicate
 )
 
 type (
@@ -20,30 +21,22 @@ type (
 	UserID   = string
 
 	Repository interface {
-		AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error
+		CompleteTask(context.Context, UserID, TaskName) error
 	}
 
-	Task struct {
-		// Primary key.
-		Name TaskName
-		// Index of the task ( they should be done in specific order).
-		Index uint64
-	}
-
-	// | AchievedTaskMessage is a message broker notification event when user achieves a new task.
-	AchievedTaskMessage struct {
-		UserID     UserID `json:"userID"`
-		TaskName   string `json:"taskName"`
-		AchievedAt uint64 `json:"achievedAt"`
+	// | CompletedTask is a message broker notification event when user achieves a new task.
+	CompletedTask struct {
+		AchievedAt time.Time `json:"achievedAt"`
+		UserID     UserID    `json:"userId"`
+		TaskName   string    `json:"taskName"`
 	}
 )
 
 // Private API.
 type (
 	repository struct {
-		db                        tarantool.Connector
-		mb                        messagebroker.Client
-		publishAchievedTasksTopic string
+		db tarantool.Connector
+		mb messagebroker.Client
 	}
 
 	// | userSource is source processor to achieve tasks based on user messages from message broker (Tasks -> #1,#3).
@@ -57,8 +50,7 @@ type (
 
 	// | progressSource is source processor to achieve tasks based on user progress messages from message broker (Tasks -> #6, T1 referrals).
 	progressSource struct {
-		r                         Repository
-		t1ReferralsToAchieveTask6 uint64
+		r Repository
 	}
 
 	config struct {
@@ -69,13 +61,13 @@ type (
 		} `yaml:"messageBroker"`
 
 		Tasks struct {
-			T1Referrals uint64 `yaml:"T1Referrals"`
+			DefaultUserPictureName string `yaml:"defaultUserPictureName"`
+			T1Referrals            uint64 `yaml:"t1Referrals"`
 		} `yaml:"tasks"`
 	}
 )
 
 const (
-	defaultUserPictureName   = "default-user-image.jpg"
 	taskClaimUsername        = "TASK1"
 	taskFirstMiningSession   = "TASK2"
 	taskUploadProfilePicture = "TASK3"

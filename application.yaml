@@ -44,7 +44,8 @@ achievements:
       - TASK6: L11
       - TASK7: L12
   tasks:
-    T1Referrals: 5
+    t1Referrals: 5
+    defaultUserPictureName: default-user-image.jpg
   db:
     spaces:
       - GLOBAL

@@ -70,13 +70,13 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		// | users-events .
 		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessor(
 			progress.NewUserSource(db, mb),
-			tasks.NewUserSource(db, mb),
+			tasks.NewUsersProcessor(db, mb),
 			levels.NewUserSource(db, mb),
 		),
 		// | economy-mining .
 		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessor(
 			progress.NewEconomyMiningSource(db, mb),
-			tasks.NewEconomyMiningSource(db, mb),
+			tasks.NewEconomyMiningProcessor(db, mb),
 		),
 		// | achievements-tasks .
 		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessor(
@@ -88,7 +88,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 		),
 		// | achievements-progress .
 		cfg.MessageBroker.ConsumingTopics[4]: newProxyProcessor(
-			tasks.NewProgressSource(db, mb),
+			tasks.NewProgressProcessor(db, mb),
 			levels.NewProgressSource(db, mb),
 			badges.NewProgressSource(db, mb),
 			// Roles upcoming processor to be here.

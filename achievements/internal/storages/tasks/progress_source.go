@@ -12,10 +12,9 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewProgressSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &progressSource{
-		r:                         newRepository(db, mb),
-		t1ReferralsToAchieveTask6: cfg.Tasks.T1Referrals,
+		r: NewRepository(db, mb),
 	}
 }
 
@@ -28,9 +27,9 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 		return errors.Wrapf(err, "tasks/progressSource: cannot unmarshall %v into %#v", string(message.Value), userProgress)
 	}
 	// Tasks -> #6 (Invite 5 friends).
-	if userProgress.T1Referrals == p.t1ReferralsToAchieveTask6 {
-		err := p.r.AchieveTask(ctx, userProgress.UserID, taskGetFiveReferrals)
-		if err != nil && !errors.Is(err, ErrAlreadyAchieved) {
+	if userProgress.T1Referrals == cfg.Tasks.T1Referrals {
+		err := p.r.CompleteTask(ctx, userProgress.UserID, taskGetFiveReferrals)
+		if err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "tasks/progressSource: failed to achieve %v task for user %v", taskGetFiveReferrals, userProgress.UserID)
 		}
 	}

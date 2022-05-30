@@ -46,7 +46,7 @@ type (
 		// Primary key.
 		Name string `json:"name"`
 		// User.
-		UserID UserID `json:"userID"`
+		UserID UserID `json:"userId"`
 		// Time when badge was achieved.
 		AchievedAt uint64 `json:"achievedAt"`
 	}

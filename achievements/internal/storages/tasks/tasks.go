@@ -14,27 +14,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
+func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 	appCfg.MustLoadFromKey("achievements", &cfg)
 
 	return &repository{
-		db:                        db,
-		mb:                        mb,
-		publishAchievedTasksTopic: cfg.MessageBroker.Topics[0].Name,
+		db: db,
+		mb: mb,
 	}
 }
 
-func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName TaskName) error {
+func (r *repository) CompleteTask(ctx context.Context, userID UserID, taskName TaskName) error {
 	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "add user failed because context failed")
+		return errors.Wrapf(ctx.Err(), "failed to achieve a task %v because context failed (for userID:%v)", taskName, userID)
 	}
-	now := uint64(time.Now().UTC().UnixNano())
+	now := time.Now().UTC()
 	sql := `INSERT INTO achieved_user_tasks(USER_ID, task_name,   ACHIEVED_AT)
                                                    VALUES(:userID,  :taskName,  :achievedAt);`
 	params := map[string]interface{}{
 		"userID":     userID,
 		"taskName":   taskName,
-		"achievedAt": now,
+		"achievedAt": uint64(now.UnixNano()),
 	}
 	query, err := r.db.PrepareExecute(sql, params)
 	if err = storage.CheckSQLDMLErr(query, err); err != nil {
@@ -44,8 +43,8 @@ func (r *repository) AchieveTask(ctx context.Context, userID UserID, taskName Ta
 	return errors.Wrapf(r.sendAchievedTask(ctx, userID, taskName, now), "failed to send achieved task to message broker: %v for userID:%v", taskName, userID)
 }
 
-func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, taskName TaskName, achievedTime uint64) error {
-	m := AchievedTaskMessage{
+func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, taskName TaskName, achievedTime time.Time) error {
+	m := CompletedTask{
 		UserID:     userID,
 		TaskName:   taskName,
 		AchievedAt: achievedTime,
@@ -59,8 +58,8 @@ func (r *repository) sendAchievedTask(ctx context.Context, userID UserID, taskNa
 	responder := make(chan error, 1)
 	r.mb.SendMessage(ctx, &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
-		Key:     userID + taskName,
-		Topic:   r.publishAchievedTasksTopic,
+		Key:     userID,
+		Topic:   cfg.MessageBroker.Topics[0].Name,
 		Value:   b,
 	}, responder)
 

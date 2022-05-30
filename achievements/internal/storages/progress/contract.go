@@ -35,7 +35,7 @@ type (
 		// User's balance.
 		Balance *coin.ICEFlake `json:"balance"`
 		// Primary key.
-		UserID UserID `json:"userID"`
+		UserID UserID `json:"userId"`
 		// Agenda phone numbers hashes we store to see if users are in agenda for each other.
 		AgendaPhoneNumbersHashes string `json:"agendaPhoneNumbersHashes"`
 		// Count of user's referrals on Tier 1.
@@ -47,7 +47,7 @@ type (
 		TotalUserReferralPings            uint32 `json:"totalUserReferralPings"`
 	}
 	AgendaReferralsCount struct {
-		UserID               UserID `json:"userID"`
+		UserID               UserID `json:"userId"`
 		AgendaReferralsCount uint64 `json:"agendaReferralsCount"`
 	}
 )
