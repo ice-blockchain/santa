@@ -94,7 +94,7 @@ func (r *repository) incrementOrDecrementTotalUsersCount(diff int64) error {
 		"failed to update global record the KEY = 'TOTAL_USERS'")
 }
 
-func (r *repository) UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS time.Time, reset bool) error {
+func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS time.Time, reset bool) error {
 	key := tarantool.StringKey{S: userID}
 	var op string
 	if reset {

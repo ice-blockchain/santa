@@ -28,7 +28,7 @@ type (
 		insertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
 		deleteAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
 
-		UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStarted time.Time, reset bool) error
+		updateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStarted time.Time, reset bool) error
 	}
 	UserProgress struct {
 		// User's balance.
@@ -123,7 +123,7 @@ var (
 const (
 	userProgressSpace    = "USER_PROGRESS"
 	agendaReferralsSpace = "AGENDA_REFERRALS"
-	//nolint:gomnd,nolintlint // 24 hour is session duration, and up to 10 hours between sessions
+	// nolint:gomnd // 24 hour is session duration, and up to 10 hours between sessions
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
 
 	// Database fields for tarantool oprations, we   keep them in sync with DDL.

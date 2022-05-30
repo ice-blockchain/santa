@@ -37,6 +37,6 @@ func (e *economyMiningSource) Process(ctx context.Context, message *messagebroke
 	// and if not - increment counter of consecutive sessions.
 	reset := time.Now().UTC().Sub(time.Unix(0, int64(userProgress.LastMiningStartedAt))) >= maxTimeBetweenConsecutiveMiningSessions
 
-	return errors.Wrapf(e.r.UpdateConsecutiveMiningSessionsCount(ctx, userID, miningEvent.TS, reset),
+	return errors.Wrapf(e.r.updateConsecutiveMiningSessionsCount(ctx, userID, miningEvent.TS, reset),
 		"failed to update consecutive mining sessions for userID:%v", userID)
 }
