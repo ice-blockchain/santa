@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/levels"
+	"github.com/ice-blockchain/santa/achievements/internal/levels"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )

@@ -8,7 +8,7 @@ import (
 	"io"
 
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/badges"
+	"github.com/ice-blockchain/santa/achievements/internal/badges"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )

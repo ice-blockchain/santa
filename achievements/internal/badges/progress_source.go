@@ -8,7 +8,7 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/framey-io/go-tarantool"
-	"github.com/ice-blockchain/santa/achievements/internal/storages/progress"
+	"github.com/ice-blockchain/santa/achievements/internal/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
 )
