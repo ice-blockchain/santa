@@ -16,20 +16,18 @@ import (
 type (
 	UserID     = string
 	Repository interface {
-		InsertUserProgress(ctx context.Context, user *users.User) error
-		DeleteUserProgress(userID users.UserID) error
-		UpdateTotalUsersCount(diff int64) error
-		UpdateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error
+		getUserProgress(userID users.UserID) (*UserProgress, error)
 
-		UpdateAgendaPhoneNumbersHashes(ctx context.Context, userID users.UserID, agendaPhoneHashes string) error
-		InsertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
+		insertUserProgress(ctx context.Context, user *users.User) error
+		deleteUserProgress(userID users.UserID) error
+		incrementOrDecrementTotalUsersCount(diff int64) error
+		updateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error
 
-		ResetConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
-		UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS uint64) error
-	}
-	ReadRepository interface {
-		Repository
-		GetUserProgress(userID users.UserID) (*UserProgress, error)
+		updateAgendaPhoneNumbersHashes(ctx context.Context, userID users.UserID, agendaPhoneHashes string) error
+		insertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
+		deleteAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error
+
+		UpdateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStarted time.Time, reset bool) error
 	}
 	UserProgress struct {
 		// User's balance.
@@ -55,18 +53,16 @@ type (
 // Private API.
 type (
 	repository struct {
-		db                               tarantool.Connector
-		mb                               messagebroker.Client
-		publishUpdatedProgressTopic      string
-		publishAgendaReferralsCountTopic string
+		db tarantool.Connector
+		mb messagebroker.Client
 	}
 	// | userSource is a source processor to insert/update user's state at USER_PROGRESS space and to count total users.
 	userSource struct {
-		r ReadRepository
+		r Repository
 	}
 	// | economyMiningSource is a source processor to count user's consecutive mining sessions.
 	economyMiningSource struct {
-		r ReadRepository
+		r Repository
 	}
 	global struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
@@ -101,7 +97,24 @@ type (
 		UserID       UserID
 		AgendaUserID UserID
 	}
+
+	withCount struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
+		Count    uint64
+	}
+
+	config struct {
+		MessageBroker struct {
+			Topics []struct {
+				Name string `yaml:"name" json:"name"`
+			} `yaml:"topics"`
+		} `yaml:"messageBroker"`
+	}
 )
+
+//nolint:gochecknoglobals // Because its loaded once, at runtime.
+var cfg config
 
 const (
 	userProgressSpace    = "USER_PROGRESS"

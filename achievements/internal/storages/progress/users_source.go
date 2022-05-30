@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewUserSource(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
+func NewUsersProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
 	return &userSource{
 		r: newRepository(db, mb),
 	}
@@ -29,32 +29,23 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 		return errors.Wrapf(err, "achievements/userSource: cannot unmarshall %v into %#v", string(message.Value), user)
 	}
 
-	// User deletion, we need to handle it, update total_users in GLOBAL and delete him from USER_PROGRESS
-	// and decrement t1 referrals count for its parent if user was referred by another user.
 	if user.User == nil && user.Before != nil {
-		if err := u.handleUserDeletion(ctx, user); err != nil {
-			return errors.Wrapf(err, "failed to handle user deletion event")
-		}
-
-		return nil // We're complete here with deletion.
-	}
-	if err := u.handleUserCreation(ctx, user); err != nil {
-		return errors.Wrap(err, "failed to handle user creation/modification event")
+		return errors.Wrapf(u.handleUserDeletion(ctx, user), "failed to handle user deletion event")
 	}
 
-	return nil
+	return errors.Wrap(u.handleUserCreation(ctx, user), "failed to handle user creation/modification event")
 }
 
 func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSnapshot) error {
-	if err := u.r.UpdateTotalUsersCount(-1); err != nil {
+	if err := u.r.incrementOrDecrementTotalUsersCount(-1); err != nil {
 		return errors.Wrapf(err, "failed to update total_users counter")
 	}
 	if user.Before.ReferredBy != "" {
-		if err := u.r.UpdateT1ReferralsCount(ctx, user.Before.ReferredBy, -1); err != nil {
+		if err := u.r.updateT1ReferralsCount(ctx, user.Before.ReferredBy, -1); err != nil {
 			return errors.Wrapf(err, "failed to update t1 referrals counter")
 		}
 	}
-	if err := u.r.DeleteUserProgress(user.Before.ID); err != nil {
+	if err := u.r.deleteUserProgress(user.Before.ID); err != nil {
 		return errors.Wrapf(err, "failed to deleteUserAchievements")
 	}
 
@@ -63,13 +54,13 @@ func (u *userSource) handleUserDeletion(ctx context.Context, user *users.UserSna
 
 // nolint:gocognit // Processing "ErrNotFound" case here, so the complexity is high
 func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSnapshot) error {
-	_, err := u.r.GetUserProgress(user.ID)
+	_, err := u.r.getUserProgress(user.ID)
 	if errors.Is(err, storage.ErrNotFound) {
 		// User's achievements record does not exists, so it is a new user - increment counter.
-		if err = u.r.UpdateTotalUsersCount(1); err != nil {
+		if err = u.r.incrementOrDecrementTotalUsersCount(1); err != nil {
 			return errors.Wrapf(err, "failed to update total_users counter")
 		}
-		if err = u.r.InsertUserProgress(ctx, user.User); err != nil {
+		if err = u.r.insertUserProgress(ctx, user.User); err != nil {
 			return errors.Wrapf(err, "failed to insert user achievements record")
 		}
 	}
@@ -80,7 +71,7 @@ func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSna
 		}
 	}
 	if user.Before != nil && user.AgendaPhoneNumberHashes != "" { // In case of modification - update agenda hashes.
-		if err = u.r.UpdateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
+		if err = u.r.updateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
 			return errors.Wrapf(err, "progress/userSource: failed to update agenda phone number hashes")
 		}
 	}
@@ -93,24 +84,21 @@ func (u *userSource) updateUserReferrals(ctx context.Context, user *users.User) 
 		return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
 	}
 
-	if err := u.r.UpdateT1ReferralsCount(ctx, user.ReferredBy, 1); err != nil {
-		return errors.Wrapf(err, "progress/userSource: failed to update t1 referrals counter")
-	}
-
-	return nil
+	return errors.Wrapf(u.r.updateT1ReferralsCount(ctx, user.ReferredBy, 1), "progress/userSource: failed to update t1 referrals counter")
 }
 
 func (u *userSource) checkAndUpdateAgendaReferrals(ctx context.Context, referredByID users.UserID, user *users.User) error {
 	// Check here if user's phone number is in referredBy's agenda.
-	referredByUser, err := u.r.GetUserProgress(referredByID)
+	referredByUser, err := u.r.getUserProgress(referredByID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read referedBy user's progress (%v) for agenda update (%v user added)", referredByID, user.ID)
 	}
-	if strings.Contains(referredByUser.AgendaPhoneNumbersHashes, user.PhoneNumberHash) {
-		if err = u.r.InsertAgendaReferrals(ctx, referredByUser.UserID, user.ID); err != nil {
-			return errors.Wrapf(err, "failed to update agenda referrals for userID:%v (failed to add user %v)", referredByID, user.ID)
-		}
+	if !strings.Contains(referredByUser.AgendaPhoneNumbersHashes, user.PhoneNumberHash) {
+		// Maybe the user removed that contact from agenda.
+		return errors.Wrapf(u.r.deleteAgendaReferrals(ctx, referredByUser.UserID, user.ID),
+			"failed to delete agenda referrals for userID:%v (failed to remove user %v)", referredByID, user.ID)
 	}
 
-	return nil
+	return errors.Wrapf(u.r.insertAgendaReferrals(ctx, referredByUser.UserID, user.ID),
+		"failed to update agenda referrals for userID:%v (failed to add user %v)", referredByID, user.ID)
 }

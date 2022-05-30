@@ -69,13 +69,13 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 	return map[messagebroker.Topic]messagebroker.Processor{
 		// | users-events .
 		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessor(
-			progress.NewUserSource(db, mb),
+			progress.NewUsersProcessor(db, mb),
 			tasks.NewUsersProcessor(db, mb),
 			levels.NewUserSource(db, mb),
 		),
 		// | economy-mining .
 		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessor(
-			progress.NewEconomyMiningSource(db, mb),
+			progress.NewEconomyMiningProcessor(db, mb),
 			tasks.NewEconomyMiningProcessor(db, mb),
 		),
 		// | achievements-tasks .
