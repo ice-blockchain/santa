@@ -8,6 +8,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	wt "github.com/ice-blockchain/wintr/time"
 	"github.com/pkg/errors"
 )
 
@@ -16,16 +17,18 @@ type (
 	UserID       = string
 	Repository   interface{}
 	UserProgress struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack struct{} `msgpack:",asArray"`
 		// User's balance.
-		Balance *coin.ICEFlake `json:"balance"`
+		Balance *coin.ICEFlake
+		// Timestamp.
+		LastMiningStartedAt *wt.Time `json:"lastMiningStartedAt"`
 		// Primary key.
 		UserID UserID `json:"userId"`
 		// Agenda phone numbers hashes we store to see if users are in agenda for each other.
 		AgendaPhoneNumbersHashes string `json:"agendaPhoneNumbersHashes"`
 		// Count of user's referrals on Tier 1.
 		T1Referrals uint64 `json:"t1Referrals"`
-		// Timestamp.
-		LastMiningStartedAt uint64 `json:"lastMiningStartedAt"`
 		// Consecutive count (no more than 10 hours pause between the mining sessions).
 		MaxConsecutiveMiningSessionsCount uint32 `json:"maxConsecutiveMiningSessionsCount"`
 		TotalUserReferralPings            uint32 `json:"totalUserReferralPings"`
@@ -55,25 +58,6 @@ type (
 		_msgpack struct{} `msgpack:",asArray"`
 		Value    interface{}
 		Key      string
-	}
-
-	// | userProgress  is an internal type to store user current progress state in database (USER_PROGRESS space).
-	userProgress struct {
-		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
-		_msgpack struct{} `msgpack:",asArray"`
-		// User's balance.
-		*coin.Coin
-		// Primary key.
-		UserID UserID
-		// AgendaPhoneNumbersHashes we store to see if users are in agenda for each other.
-		AgendaPhoneNumbersHashes string
-		// Count of user's referrals on Tier 1.
-		T1Referrals uint64
-		// Timestamp.
-		LastMiningStartedAt uint64
-		// Consecutive count (no more than 10 hours pause between the mining sessions).
-		MaxConsecutiveMiningSessionsCount uint32
-		TotalUserReferalPings             uint32
 	}
 
 	// | agendaReferrals  is an internal type to store if users are in agenda for each other (agenda_referrals space).
@@ -112,9 +96,9 @@ const (
 	maxTimeBetweenConsecutiveMiningSessions = (24 + 10) * time.Hour
 
 	// Database fields for tarantool oprations, we   keep them in sync with DDL.
-	fieldAgendaPhoneNumbersHashes          = 2
-	fieldT1Referrals                       = 3
-	fieldLastMiningStartedAt               = 4
+	fieldAgendaPhoneNumbersHashes          = 3
+	fieldT1Referrals                       = 4
+	fieldLastMiningStartedAt               = 1
 	fieldMaxConsecutiveMiningSessionsCount = 5
 	fieldGlobalValue                       = 0
 )

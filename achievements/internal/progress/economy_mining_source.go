@@ -35,7 +35,7 @@ func (e *economyMiningSource) Process(ctx context.Context, message *messagebroke
 	}
 	// First we need to check if 10 hours passed from the previous session, if passed - reset counter to 0
 	// and if not - increment counter of consecutive sessions.
-	reset := time.Now().UTC().Sub(time.Unix(0, int64(userProgress.LastMiningStartedAt))) >= maxTimeBetweenConsecutiveMiningSessions
+	reset := time.Now().UTC().Sub(time.Unix(0, userProgress.LastMiningStartedAt.UTC().UnixNano())) >= maxTimeBetweenConsecutiveMiningSessions
 
 	return errors.Wrapf(e.r.updateConsecutiveMiningSessionsCount(ctx, userID, miningEvent.TS, reset),
 		"failed to update consecutive mining sessions for userID:%v", userID)

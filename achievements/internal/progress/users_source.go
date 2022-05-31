@@ -70,7 +70,7 @@ func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSna
 	}
 	// And insert a new record into user_progress for a new user.
 
-	return errors.Wrapf(u.r.insertUserProgress(ctx, user.User), "failed to insert user achievements record")
+	return errors.Wrapf(u.r.insertUserProgress(ctx, user.User), "failed to insert user progress record")
 }
 
 func (u *userSource) handleUserModification(ctx context.Context, user *users.UserSnapshot) error {

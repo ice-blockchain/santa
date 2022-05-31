@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"time"
+	stdlibtime "time"
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
@@ -15,6 +15,7 @@ import (
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
+	"github.com/ice-blockchain/wintr/time"
 	"github.com/pkg/errors"
 )
 
@@ -34,11 +35,11 @@ func (r *repository) deleteUserProgress(userID users.UserID) error {
 	}
 
 	return errors.Wrapf(storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)),
-		"failed to delete user achievements record for user.ID:%v", userID)
+		"failed to delete user progress record for user.ID:%v", userID)
 }
 
 func (r *repository) getUserProgress(userID users.UserID) (*UserProgress, error) {
-	res := new(userProgress)
+	res := new(UserProgress)
 	if err := r.db.GetTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", tarantool.StringKey{S: userID}, res); err != nil {
 		return nil, errors.Wrapf(err, "unable to get user_achievements record for userID:%v", userID)
 	}
@@ -46,22 +47,23 @@ func (r *repository) getUserProgress(userID users.UserID) (*UserProgress, error)
 		return nil, errors.Wrapf(storage.ErrNotFound, "no user achievements record for userID:%v", userID)
 	}
 
-	return res.UserProgress(), nil
+	return res, nil
 }
 
 func (r *repository) insertUserProgress(ctx context.Context, user *users.User) error {
-	ua := &userProgress{
+	ua := &UserProgress{
 		UserID:                   user.ID,
-		Coin:                     coin.UnsafeNew("0"),
+		Balance:                  coin.NewAmountUint64(0),
 		AgendaPhoneNumbersHashes: user.AgendaPhoneNumberHashes,
+		LastMiningStartedAt:      time.New(stdlibtime.Unix(0, 0)),
 	}
-	res := []*userProgress{}
+	res := []*UserProgress{}
 	if err := r.db.InsertTyped(userProgressSpace, ua, &res); err != nil {
 		return errors.Wrapf(err,
-			"failed to insert user achievements record for user.ID:%v", user.ID)
+			"failed to insert user progress record for user.ID:%v", user.ID)
 	}
 
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress: failed to send updated progress message for UserID:%v", user.ID)
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", user.ID)
 }
 
 func (r *repository) updateT1ReferralsCount(ctx context.Context, userID users.UserID, diff int64) error {
@@ -73,12 +75,12 @@ func (r *repository) updateT1ReferralsCount(ctx context.Context, userID users.Us
 	incrementOps := []tarantool.Op{
 		{Op: op, Field: fieldT1Referrals, Arg: diff},
 	}
-	res := []*userProgress{}
+	res := []*UserProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, incrementOps, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the new count of T1 referals for userID:%v", userProgressSpace, userID)
 	}
 
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()), "progress: failed to send updated progress message for UserID:%v", userID)
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", userID)
 }
 
 func (r *repository) incrementOrDecrementTotalUsersCount(diff int64) error {
@@ -94,7 +96,7 @@ func (r *repository) incrementOrDecrementTotalUsersCount(diff int64) error {
 		"failed to update global record the KEY = 'TOTAL_USERS'")
 }
 
-func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS time.Time, reset bool) error {
+func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, userID UserID, lastStartedTS stdlibtime.Time, reset bool) error {
 	key := tarantool.StringKey{S: userID}
 	var op string
 	if reset {
@@ -103,15 +105,15 @@ func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, u
 		op = "+"
 	}
 	ops := []tarantool.Op{
-		{Op: "=", Field: fieldLastMiningStartedAt, Arg: uint64(lastStartedTS.UTC().UnixNano())}, // | last_mining_started_at = lastStartedTS.
-		{Op: op, Field: fieldMaxConsecutiveMiningSessionsCount, Arg: 1},                         // | max_count +=1 or =1 (in case of reset).
+		{Op: "=", Field: fieldLastMiningStartedAt, Arg: time.New(lastStartedTS.UTC())}, // | last_mining_started_at = lastStartedTS.
+		{Op: op, Field: fieldMaxConsecutiveMiningSessionsCount, Arg: 1},                // | max_count +=1 or =1 (in case of reset).
 	}
-	res := []*userProgress{}
+	res := []*UserProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the new count consecutive mining sessions for userID:%v", userProgressSpace, userID)
 	}
 
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()),
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]),
 		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }
 
@@ -130,16 +132,4 @@ func (r *repository) sendUpdatedUserProgress(ctx context.Context, p *UserProgres
 	}, responder)
 
 	return errors.Wrapf(<-responder, "[user-progress] failed to send message to broker")
-}
-
-func (u *userProgress) UserProgress() *UserProgress {
-	return &UserProgress{
-		UserID:                            u.UserID,
-		Balance:                           u.Amount,
-		T1Referrals:                       u.T1Referrals,
-		AgendaPhoneNumbersHashes:          u.AgendaPhoneNumbersHashes,
-		LastMiningStartedAt:               u.LastMiningStartedAt,
-		MaxConsecutiveMiningSessionsCount: u.MaxConsecutiveMiningSessionsCount,
-		TotalUserReferralPings:            u.TotalUserReferalPings,
-	}
 }

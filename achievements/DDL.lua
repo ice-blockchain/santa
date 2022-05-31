@@ -7,10 +7,10 @@ box.execute([[CREATE TABLE IF NOT EXISTS global  (
 
 box.execute([[CREATE TABLE IF NOT EXISTS user_progress  (
                     balance STRING NOT NULL,
+                    last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
                     user_id STRING primary key,
                     agenda_phone_number_hashes STRING,
                     t1_referrals UNSIGNED NOT NULL DEFAULT 0,
-                    last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
                     max_consecutive_user_mining_sessions UNSIGNED NOT NULL DEFAULT 0,
                     total_user_referral_pings UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])

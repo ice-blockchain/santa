@@ -17,12 +17,12 @@ func (r *repository) updateAgendaPhoneNumbersHashes(ctx context.Context, userID 
 	ops := []tarantool.Op{
 		{Op: "=", Field: fieldAgendaPhoneNumbersHashes, Arg: agendaHashes}, // | agenda_phone_number_hashes = new value.
 	}
-	res := []*userProgress{}
+	res := []*UserProgress{}
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the agenda phone numbers hashes for userID:%v", userProgressSpace, userID)
 	}
 
-	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0].UserProgress()),
+	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]),
 		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }
 
