@@ -130,8 +130,8 @@ box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_tasks  (
 
 box.execute([[CREATE TABLE IF NOT EXISTS current_user_roles  (
                     user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
-                    role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR'),
-                    updated_at UNSIGNED NOT NULL
+                    updated_at UNSIGNED NOT NULL,
+                    role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR')
                     ) WITH ENGINE = 'vinyl';]])
 
 -- TODO will add indexes later on

@@ -6,7 +6,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	wt "github.com/ice-blockchain/wintr/time"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 // Public API.
@@ -15,12 +15,12 @@ type (
 	RoleName   = string
 	Repository interface{}
 
-	CurrentUserRole struct { //nolint:govet // SQL
+	CurrentUserRole struct {
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack  struct{}     `msgpack:",asArray"`
 		UserID    users.UserID `json:"userId"`
-		RoleName  RoleName     `json:"role_name"`
-		UpdatedAt *wt.Time     `json:"updatedAt"`
+		UpdatedAt *time.Time   `json:"updatedAt"`
+		RoleName  RoleName     `json:"roleName"`
 	}
 )
 

@@ -9,7 +9,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	wt "github.com/ice-blockchain/wintr/time"
+	"github.com/ice-blockchain/wintr/time"
 	"github.com/pkg/errors"
 )
 
@@ -18,16 +18,15 @@ func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 }
 
 func (r *repository) upsertCurrentUserRole(ctx context.Context, userID users.UserID, roleName RoleName) error {
-	updatedAt := wt.Now()
 	cur := &CurrentUserRole{
 		UserID:    userID,
 		RoleName:  roleName,
-		UpdatedAt: updatedAt,
+		UpdatedAt: time.Now(),
 	}
 
 	updateOp := []tarantool.Op{
 		{Op: "=", Field: 1, Arg: roleName},
-		{Op: "=", Field: 1 + 1, Arg: updatedAt.UnixNano()},
+		{Op: "=", Field: 1 + 1, Arg: cur.UpdatedAt},
 	}
 
 	if err := r.db.UpsertAsync("CURRENT_USER_ROLES", cur, updateOp).GetTyped(&[]CurrentUserRole{}); err != nil {
@@ -39,15 +38,9 @@ func (r *repository) upsertCurrentUserRole(ctx context.Context, userID users.Use
 }
 
 func (r *repository) sendCurrentUserRole(ctx context.Context, cur *CurrentUserRole) error {
-	m := CurrentUserRole{
-		UserID:    cur.UserID,
-		RoleName:  cur.RoleName,
-		UpdatedAt: cur.UpdatedAt,
-	}
-
-	b, err := json.Marshal(m)
+	b, err := json.Marshal(cur)
 	if err != nil {
-		return errors.Wrapf(err, "[achieve-roles] failed to marshal %#v", m)
+		return errors.Wrapf(err, "[achieve-roles] failed to marshal %#v", cur)
 	}
 
 	responder := make(chan error, 1)
