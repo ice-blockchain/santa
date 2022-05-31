@@ -8,12 +8,15 @@ import (
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/ice-blockchain/eskimo/users"
+	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/time"
 	"github.com/pkg/errors"
 )
 
 func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
+	appCfg.MustLoadFromKey("achievements", &cfg)
+
 	return &repository{db: db, mb: mb}
 }
 
@@ -25,8 +28,8 @@ func (r *repository) upsertCurrentUserRole(ctx context.Context, userID users.Use
 	}
 
 	updateOp := []tarantool.Op{
-		{Op: "=", Field: 1, Arg: roleName},
-		{Op: "=", Field: 1 + 1, Arg: cur.UpdatedAt},
+		{Op: "=", Field: fieldUpdatedAtSeq, Arg: cur.UpdatedAt},
+		{Op: "=", Field: fieldRoleNameSeq, Arg: roleName},
 	}
 
 	if err := r.db.UpsertAsync("CURRENT_USER_ROLES", cur, updateOp).GetTyped(&[]CurrentUserRole{}); err != nil {

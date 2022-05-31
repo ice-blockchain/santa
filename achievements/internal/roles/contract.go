@@ -28,6 +28,8 @@ type (
 
 const (
 	requiredReferralsForAmbassadorRole = 100
+	fieldUpdatedAtSeq                  = 1
+	fieldRoleNameSeq                   = 2
 )
 
 type (
