@@ -11,6 +11,7 @@ import (
 	"github.com/ice-blockchain/santa/achievements/internal/badges"
 	"github.com/ice-blockchain/santa/achievements/internal/levels"
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
+	"github.com/ice-blockchain/santa/achievements/internal/roles"
 	"github.com/ice-blockchain/santa/achievements/internal/tasks"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
@@ -92,6 +93,7 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 			tasks.NewProgressProcessor(db, mb),
 			levels.NewProgressProcessor(db, mb),
 			badges.NewProgressProcessor(db, mb),
+			roles.NewProgressProcessor(db, mb),
 			// Roles upcoming processor to be here.
 		),
 		// | achievements-agenda-referrals .
