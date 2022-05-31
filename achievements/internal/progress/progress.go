@@ -61,7 +61,9 @@ func (r *repository) insertUserProgress(ctx context.Context, user *users.User) e
 		return errors.Wrapf(err,
 			"failed to insert user progress record for user.ID:%v", user.ID)
 	}
-
+	if len(res) == 0 {
+		return nil
+	}
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", user.ID)
 }
 
@@ -78,7 +80,9 @@ func (r *repository) updateT1ReferralsCount(ctx context.Context, userID users.Us
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, incrementOps, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the new count of T1 referals for userID:%v", userProgressSpace, userID)
 	}
-
+	if len(res) == 0 {
+		return nil
+	}
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", userID)
 }
 
@@ -111,7 +115,9 @@ func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, u
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the new count consecutive mining sessions for userID:%v", userProgressSpace, userID)
 	}
-
+	if len(res) == 0 {
+		return nil
+	}
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]),
 		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }
