@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/ice-blockchain/wintr/server"
 	"github.com/pkg/errors"
+
+	"github.com/ice-blockchain/wintr/server"
 )
 
 func (s *service) setupAchievementRoutes(router *gin.Engine) {

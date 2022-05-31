@@ -4,6 +4,20 @@ package main
 
 import (
 	"github.com/ice-blockchain/santa/achievements"
+	"github.com/ice-blockchain/wintr/server"
+)
+
+// Public API.
+
+type (
+	RequestCompleteTask struct {
+		AuthenticatedUser server.AuthenticatedUser `json:"authenticatedUser" swaggerignore:"true"`
+		achievements.Task
+	}
+	RequestUnCompleteTask struct {
+		AuthenticatedUser server.AuthenticatedUser `json:"authenticatedUser" swaggerignore:"true"`
+		achievements.Task
+	}
 )
 
 // Private API.

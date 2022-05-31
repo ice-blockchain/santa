@@ -24,9 +24,9 @@
 6. 90 consecutive mining sessions
 7. Completed tasks from home screen ( each task 1 level )
 8. Confirm phone number
-9. 1 Friend from agenda joined ICE
-10. 5 Friends from agenda joined ICE
-11. 10 Friends from agenda joined ICE
+9. 1 Friend from agenda joined ice
+10. 5 Friends from agenda joined ice
+11. 10 Friends from agenda joined ice
 12. Opened the app 5 times
 13. Opened the app 10 times
 14. Opened the app more than 30 times in the last 30 days
@@ -39,7 +39,7 @@
 3. Level 10
 4. Level 15
 5. Level 20
-### Coins (ICE Balance):
+### Coins (ice Balance):
 1. 0-1000
 2. 1001-5000
 3. 5001-10000

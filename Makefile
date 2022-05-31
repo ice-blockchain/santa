@@ -54,7 +54,9 @@ checkIfAllDependenciesAreUpToDate: updateAllDependencies
 generate:
 	go install github.com/swaggo/swag/cmd/swag@latest
 	swag init --parseDependency --parseInternal -d cmd/santa -g santa.go -o cmd/santa/api
+	swag init --parseDependency --parseInternal -d cmd/santa-sleigh -g santa_sleigh.go -o cmd/santa-sleigh/api
 	swag fmt -d cmd/santa -g santa.go
+	swag fmt -d cmd/santa-sleigh -g santa_sleigh.go
 #	go install github.com/golang/mock/mockgen@latest
 #	mockgen -source=cmd/santa.go -destination=cmd/santa.go -package=main
 

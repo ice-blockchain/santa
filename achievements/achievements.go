@@ -5,10 +5,11 @@ package achievements
 import (
 	"context"
 
+	"github.com/pkg/errors"
+
 	appCfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 )
 
 func New(ctx context.Context, cancel context.CancelFunc) Repository {
@@ -50,4 +51,14 @@ func (p *processor) Close() error {
 func (p *processor) CheckHealth(ctx context.Context) error {
 	//nolint:nolintlint,godox // TODO implement me.
 	return nil
+}
+
+func (r *repository) CompleteTask(ctx context.Context, task *Task) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *repository) UnCompleteTask(ctx context.Context, task *Task) error {
+	//TODO implement me
+	panic("implement me")
 }

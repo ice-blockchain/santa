@@ -2,81 +2,35 @@
 
 basePath: /v1
 definitions:
-  achievements.BadgeInventory:
+  achievements.Task:
     properties:
-      achieved:
-        example: false
-        type: boolean
-      globalAchievementPercentage:
-        description: The percentage of all the users that have this badge.
-        example: 25.5
-        type: number
-      interval:
-        $ref: '#/definitions/achievements.ProgressInterval'
-      name:
-        example: ice Breaker
+      completedAt:
+        example: "2022-01-03T16:20:52.156534Z"
         type: string
-      type:
-        example: SOCIAL
-        type: string
-    type: object
-  achievements.BadgeOverview:
-    properties:
-      interval:
-        $ref: '#/definitions/achievements.ProgressInterval'
-      name:
-        example: ice Breaker
-        type: string
-      position:
-        properties:
-          outOf:
-            example: 10
-            type: integer
-          x:
-            example: 3
-            type: integer
-        type: object
-      type:
-        example: SOCIAL
-        type: string
-    type: object
-  achievements.ProgressInterval:
-    properties:
-      left:
-        example: 11
-        type: integer
-      right:
-        example: 22
-        type: integer
-    type: object
-  achievements.TaskTODO:
-    properties:
-      achieved:
-        example: false
-        type: boolean
       index:
         example: 0
         type: integer
       name:
-        example: CLAIM_USERNAME
+        example: TASK1
+        type: string
+      userId:
+        example: did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2
         type: string
     type: object
-  achievements.UserAchievements:
+  main.RequestCompleteTask:
     properties:
-      badges:
-        items:
-          $ref: '#/definitions/achievements.BadgeOverview'
-        type: array
-      level:
-        example: 11
-        type: integer
-      role:
-        example: AMBASSADOR
+      completedAt:
+        example: "2022-01-03T16:20:52.156534Z"
         type: string
-      tasks:
-        items:
-          $ref: '#/definitions/achievements.TaskTODO'
-        type: array
+      index:
+        example: 0
+        type: integer
+      name:
+        example: TASK1
+        type: string
+      userId:
+        example: did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2
+        type: string
     type: object
   server.ErrorResponse:
     properties:
@@ -91,16 +45,16 @@ info:
   contact:
     name: ice.io
     url: https://ice.io
-  description: API that handles everything related to read only operations for user's
+  description: API that handles everything related to write operations for user's
     achievements(badges, levels, roles, task completions, etc).
   title: User Achievements API
   version: latest
 paths:
-  /user-achievements/{userId}:
-    get:
+  /user-achievements/{userId}/tasks:
+    post:
       consumes:
       - application/json
-      description: Returns the achievements for an user
+      description: Completes a specific task for the user.
       parameters:
       - default: Bearer <Add access token here>
         description: Insert your access token
@@ -113,20 +67,19 @@ paths:
         name: userId
         required: true
         type: string
-      - collectionFormat: multi
-        description: You can include any of [`TASKS`,`BADGES`].
-        in: query
-        items:
-          type: string
-        name: includeCollectibles
-        type: array
+      - description: Request params
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.RequestCompleteTask'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
-            $ref: '#/definitions/achievements.UserAchievements'
+            $ref: '#/definitions/achievements.Task'
         "400":
           description: if validations fail
           schema:
@@ -135,8 +88,16 @@ paths:
           description: if not authorized
           schema:
             $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if not allowed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
         "404":
           description: if user not found
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "409":
+          description: if task already completed
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "422":
@@ -153,11 +114,11 @@ paths:
             $ref: '#/definitions/server.ErrorResponse'
       tags:
       - Achievements
-  /user-achievements/{userId}/badges:
-    get:
+  /user-achievements/{userId}/tasks/{taskName}:
+    delete:
       consumes:
       - application/json
-      description: Returns the badges for an user
+      description: Un-Completes a specific task for the user.
       parameters:
       - default: Bearer <Add access token here>
         description: Insert your access token
@@ -170,21 +131,18 @@ paths:
         name: userId
         required: true
         type: string
-      - description: The type of the badges you want. It can be `LEVEL`, `SOCIAL`
-          or `ICE`
-        in: query
-        name: badgeType
+      - description: The name of the task
+        in: path
+        name: taskName
         required: true
         type: string
       produces:
       - application/json
       responses:
         "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/achievements.BadgeInventory'
-            type: array
+          description: ok - uncompleted
+        "204":
+          description: already uncompleted
         "400":
           description: if validations fail
           schema:
@@ -194,11 +152,7 @@ paths:
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "403":
-          description: if user requests badges of the another user
-          schema:
-            $ref: '#/definitions/server.ErrorResponse'
-        "404":
-          description: if user not found
+          description: if not allowed
           schema:
             $ref: '#/definitions/server.ErrorResponse'
         "422":

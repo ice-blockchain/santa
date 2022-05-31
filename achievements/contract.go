@@ -8,22 +8,28 @@ import (
 	"io"
 
 	"github.com/framey-io/go-tarantool"
+
 	"github.com/ice-blockchain/wintr/connectors/storage"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 // Public API.
+
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
+	ErrNotFound         = storage.ErrNotFound
+	ErrDuplicate        = storage.ErrDuplicate
 )
 
 type (
+	TaskName         = string
 	BadgeName        = string
 	BadgeType        = string
 	UserID           = string
 	UserAchievements struct {
 		Role   string           `json:"role" example:"AMBASSADOR"`
 		Badges []*BadgeOverview `json:"badges,omitempty"`
-		Tasks  []*Task          `json:"tasks,omitempty"`
+		Tasks  []*TaskTODO      `json:"tasks,omitempty"`
 		Level  uint64           `json:"level" example:"11"`
 	}
 	BadgeInventory struct {
@@ -39,13 +45,19 @@ type (
 			OutOf uint64 `json:"outOf" example:"10"`
 		} `json:"position"`
 	}
-	Task struct {
+	TaskTODO struct {
 		Name     string `json:"name" example:"CLAIM_USERNAME"`
 		Index    uint64 `json:"index" example:"0"`
 		Achieved bool   `json:"achieved" example:"false"`
 	}
+	Task struct {
+		CompletedAt *time.Time `json:"completedAt" swaggertype:"string" example:"2022-01-03T16:20:52.156534Z"`
+		UserID      UserID     `json:"userId" uri:"-" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+		Name        TaskName   `uri:"taskName" json:"name" example:"TASK1"`
+		Index       uint64     `json:"index" example:"0"`
+	}
 	Badge struct {
-		Name     string           `json:"name" example:"ICE Breaker"`
+		Name     string           `json:"name" example:"ice Breaker"`
 		Type     BadgeType        `json:"type" example:"SOCIAL"`
 		Interval ProgressInterval `json:"interval"`
 	}
@@ -67,7 +79,9 @@ type (
 		GetUserBadges(ctx context.Context, userID UserID, badgeType BadgeType) ([]*BadgeInventory, error)
 	}
 	WriteRepository interface {
-		AchieveBadge(ctx context.Context, userID UserID, badge *Badge) error
+		AchieveBadge(context.Context, UserID, *Badge) error
+		CompleteTask(context.Context, *Task) error
+		UnCompleteTask(context.Context, *Task) error
 	}
 )
 

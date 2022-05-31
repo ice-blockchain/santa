@@ -6,12 +6,13 @@ import (
 	"context"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements"
 	"github.com/ice-blockchain/santa/cmd/santa/api"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/server"
-	"github.com/pkg/errors"
 )
 
 //nolint:godot // Because those are comments parsed by swagger
@@ -20,7 +21,7 @@ import (
 // @description              API that handles everything related to read only operations for user's achievements(badges, levels, roles, task completions, etc).
 // @query.collection.format  multi
 // @schemes                  https
-// @contact.name             ICE
+// @contact.name             ice.io
 // @contact.url              https://ice.io
 // @BasePath                 /v1
 func main() {

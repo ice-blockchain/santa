@@ -4,7 +4,7 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "API that handles everything related to read only operations for user's achievements(badges, levels, roles, task completions, etc).",
+        "description": "API that handles everything related to write operations for user's achievements(badges, levels, roles, task completions, etc).",
         "title": "User Achievements API",
         "contact": {
             "name": "ice.io",
@@ -14,9 +14,9 @@
     },
     "basePath": "/v1",
     "paths": {
-        "/user-achievements/{userId}": {
-            "get": {
-                "description": "Returns the achievements for an user",
+        "/user-achievements/{userId}/tasks": {
+            "post": {
+                "description": "Completes a specific task for the user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -43,21 +43,20 @@
                         "required": true
                     },
                     {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "collectionFormat": "multi",
-                        "description": "You can include any of [`TASKS`,`BADGES`].",
-                        "name": "includeCollectibles",
-                        "in": "query"
+                        "description": "Request params",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/main.RequestCompleteTask"
+                        }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/achievements.UserAchievements"
+                            "$ref": "#/definitions/achievements.Task"
                         }
                     },
                     "400": {
@@ -72,8 +71,20 @@
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
                     },
+                    "403": {
+                        "description": "if not allowed",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "if user not found",
+                        "schema": {
+                            "$ref": "#/definitions/server.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "if task already completed",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -99,9 +110,9 @@
                 }
             }
         },
-        "/user-achievements/{userId}/badges": {
-            "get": {
-                "description": "Returns the badges for an user",
+        "/user-achievements/{userId}/tasks/{taskName}": {
+            "delete": {
+                "description": "Un-Completes a specific task for the user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -129,21 +140,18 @@
                     },
                     {
                         "type": "string",
-                        "description": "The type of the badges you want. It can be `LEVEL`, `SOCIAL` or `ICE`",
-                        "name": "badgeType",
-                        "in": "query",
+                        "description": "The name of the task",
+                        "name": "taskName",
+                        "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/achievements.BadgeInventory"
-                            }
-                        }
+                        "description": "ok - uncompleted"
+                    },
+                    "204": {
+                        "description": "already uncompleted"
                     },
                     "400": {
                         "description": "if validations fail",
@@ -158,13 +166,7 @@
                         }
                     },
                     "403": {
-                        "description": "if user requests badges of the another user",
-                        "schema": {
-                            "$ref": "#/definitions/server.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "if user not found",
+                        "description": "if not allowed",
                         "schema": {
                             "$ref": "#/definitions/server.ErrorResponse"
                         }
@@ -192,79 +194,12 @@
         }
     },
     "definitions": {
-        "achievements.BadgeInventory": {
+        "achievements.Task": {
             "type": "object",
             "properties": {
-                "achieved": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "globalAchievementPercentage": {
-                    "description": "The percentage of all the users that have this badge.",
-                    "type": "number",
-                    "example": 25.5
-                },
-                "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
-                },
-                "name": {
+                "completedAt": {
                     "type": "string",
-                    "example": "ice Breaker"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "SOCIAL"
-                }
-            }
-        },
-        "achievements.BadgeOverview": {
-            "type": "object",
-            "properties": {
-                "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
-                },
-                "name": {
-                    "type": "string",
-                    "example": "ice Breaker"
-                },
-                "position": {
-                    "type": "object",
-                    "properties": {
-                        "outOf": {
-                            "type": "integer",
-                            "example": 10
-                        },
-                        "x": {
-                            "type": "integer",
-                            "example": 3
-                        }
-                    }
-                },
-                "type": {
-                    "type": "string",
-                    "example": "SOCIAL"
-                }
-            }
-        },
-        "achievements.ProgressInterval": {
-            "type": "object",
-            "properties": {
-                "left": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "right": {
-                    "type": "integer",
-                    "example": 22
-                }
-            }
-        },
-        "achievements.TaskTODO": {
-            "type": "object",
-            "properties": {
-                "achieved": {
-                    "type": "boolean",
-                    "example": false
+                    "example": "2022-01-03T16:20:52.156534Z"
                 },
                 "index": {
                     "type": "integer",
@@ -272,32 +207,32 @@
                 },
                 "name": {
                     "type": "string",
-                    "example": "CLAIM_USERNAME"
+                    "example": "TASK1"
+                },
+                "userId": {
+                    "type": "string",
+                    "example": "did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"
                 }
             }
         },
-        "achievements.UserAchievements": {
+        "main.RequestCompleteTask": {
             "type": "object",
             "properties": {
-                "badges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/achievements.BadgeOverview"
-                    }
-                },
-                "level": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "role": {
+                "completedAt": {
                     "type": "string",
-                    "example": "AMBASSADOR"
+                    "example": "2022-01-03T16:20:52.156534Z"
                 },
-                "tasks": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/achievements.TaskTODO"
-                    }
+                "index": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "name": {
+                    "type": "string",
+                    "example": "TASK1"
+                },
+                "userId": {
+                    "type": "string",
+                    "example": "did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"
                 }
             }
         },

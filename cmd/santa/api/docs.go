@@ -13,7 +13,7 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {
-            "name": "ICE",
+            "name": "ice.io",
             "url": "https://ice.io"
         },
         "version": "{{.Version}}"
@@ -216,7 +216,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "ICE Breaker"
+                    "example": "ice Breaker"
                 },
                 "type": {
                     "type": "string",
@@ -232,7 +232,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "ICE Breaker"
+                    "example": "ice Breaker"
                 },
                 "position": {
                     "type": "object",
@@ -266,7 +266,7 @@ const docTemplate = `{
                 }
             }
         },
-        "achievements.Task": {
+        "achievements.TaskTODO": {
             "type": "object",
             "properties": {
                 "achieved": {
@@ -303,7 +303,7 @@ const docTemplate = `{
                 "tasks": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/achievements.Task"
+                        "$ref": "#/definitions/achievements.TaskTODO"
                     }
                 }
             }
