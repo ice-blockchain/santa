@@ -55,7 +55,6 @@ func (r *repository) insertUserProgress(ctx context.Context, user *users.User) e
 		UserID:                   user.ID,
 		Balance:                  coin.NewAmountUint64(0),
 		AgendaPhoneNumbersHashes: user.AgendaPhoneNumberHashes,
-		LastMiningStartedAt:      time.New(stdlibtime.Unix(0, 0)),
 	}
 	res := []*UserProgress{}
 	if err := r.db.InsertTyped(userProgressSpace, ua, &res); err != nil {
