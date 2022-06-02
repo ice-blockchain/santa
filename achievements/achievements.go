@@ -42,9 +42,11 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
 	mbProducer := messagebroker.MustConnect(context.Background(), applicationYamlKey)
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(mbProducer, db))
+	tr := tasks.NewRepository(db, mbProducer)
 
 	return &processor{
-		close: closeAll(mbConsumer, mbProducer, db),
+		close:           closeAll(mbConsumer, mbProducer, db),
+		tasksRepository: tr,
 	}
 }
 
@@ -165,12 +167,10 @@ func (proxy *proxyProcessor) processSequential(ctx context.Context, message *mes
 	return errors.Wrapf(errs.ErrorOrNil(), "Failed processing message %v in sequential", string(message.Value))
 }
 
-func (r *repository) CompleteTask(ctx context.Context, task *Task) error {
-	//nolint:nolintlint,gocritic // TODO implement me.
-	panic("implement me")
+func (p *processor) CompleteTask(ctx context.Context, task *Task) error {
+	return errors.Wrapf(p.tasksRepository.CompleteTask(ctx, task.UserID, task.Name), "unable to complete task for userID:%v", task.UserID)
 }
 
-func (r *repository) UnCompleteTask(ctx context.Context, task *Task) error {
-	//nolint:nolintlint,gocritic // TODO implement me.
-	panic("implement me")
+func (p *processor) UnCompleteTask(ctx context.Context, task *Task) error {
+	return errors.Wrapf(p.tasksRepository.UnCompleteTask(ctx, task.UserID, task.Name), "unable to uncomplete task for userID:%v", task.UserID)
 }

@@ -16,7 +16,7 @@ cmd/santa:
     limit: 20
     maxLimit: 1000
 cmd/santa-sleigh:
-  host: localhost
+  host: localhost:2443
   version: local
   defaultEndpointTimeout: 30s
   httpServer:

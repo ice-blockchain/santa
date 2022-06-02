@@ -10,6 +10,7 @@ import (
 	"github.com/framey-io/go-tarantool"
 
 	"github.com/ice-blockchain/santa/achievements/internal/badges"
+	"github.com/ice-blockchain/santa/achievements/internal/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
@@ -108,6 +109,7 @@ type (
 	processor struct {
 		close func() error
 		WriteRepository
+		tasksRepository tasks.Repository
 	}
 
 	config struct {
