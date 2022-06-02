@@ -8,6 +8,7 @@ import (
 	"io"
 
 	"github.com/framey-io/go-tarantool"
+
 	"github.com/ice-blockchain/santa/achievements/internal/badges"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
@@ -142,6 +143,6 @@ type (
 	}
 	proxyProcessor struct {
 		internalProcessors []messagebroker.Processor
-		asyncProcessing    bool
+		parallelProcessing bool
 	}
 )

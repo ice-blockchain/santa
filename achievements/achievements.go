@@ -8,6 +8,8 @@ import (
 
 	"github.com/framey-io/go-tarantool"
 	"github.com/hashicorp/go-multierror"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/badges"
 	"github.com/ice-blockchain/santa/achievements/internal/levels"
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
@@ -17,7 +19,6 @@ import (
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/log"
-	"github.com/pkg/errors"
 )
 
 func New(ctx context.Context, cancel context.CancelFunc) Repository {
@@ -43,26 +44,23 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	mbConsumer := messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, processors(mbProducer, db))
 
 	return &processor{
-		close: func() error {
-			result := make([]error, 0, 1+1+1)
-			if err := db.Close(); err != nil {
-				result = append(result, err)
-			}
-			if err := mbConsumer.Close(); err != nil {
-				result = append(result, err)
-			}
-			if err := mbProducer.Close(); err != nil {
-				result = append(result, err)
-			}
-			switch len(result) {
-			case 1:
-				return result[0]
-			case 0:
-				return nil
-			default:
-				return multierror.Append(nil, result...)
-			}
-		},
+		close: closeAll(mbConsumer, mbProducer, db),
+	}
+}
+
+func closeAll(mbConsumer, mbProducer messagebroker.Client, db tarantool.Connector) func() error {
+	return func() error {
+		var result *multierror.Error
+		if err := mbConsumer.Close(); err != nil {
+			result = multierror.Append(result, err)
+		}
+		if err := mbProducer.Close(); err != nil {
+			result = multierror.Append(result, err)
+		}
+		if err := db.Close(); err != nil {
+			result = multierror.Append(result, err)
+		}
+		return result.ErrorOrNil()
 	}
 }
 
@@ -70,26 +68,26 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebroker.Topic]messagebroker.Processor {
 	return map[messagebroker.Topic]messagebroker.Processor{
 		// | users-events .
-		cfg.MessageBroker.ConsumingTopics[0]: newProxyProcessorWithAsync(false, // It is crucial to insert user_progress first.
+		cfg.MessageBroker.ConsumingTopics[0]: newSequentialProcessorGroup( // It is crucial to insert user_progress first.
 			progress.NewUsersProcessor(db, mb),
 			tasks.NewUsersProcessor(db, mb),
 			levels.NewUsersProcessor(db, mb),
 		),
 		// | economy-mining .
-		cfg.MessageBroker.ConsumingTopics[1]: newProxyProcessorWithAsync(true,
+		cfg.MessageBroker.ConsumingTopics[1]: newParallelProcessorGroup(
 			progress.NewEconomyMiningProcessor(db, mb),
 			tasks.NewEconomyMiningProcessor(db, mb),
 		),
 		// | achievements-tasks .
-		cfg.MessageBroker.ConsumingTopics[2]: newProxyProcessorWithAsync(false, // Only one processor, so we dont need async.
+		cfg.MessageBroker.ConsumingTopics[2]: newSequentialProcessorGroup( // Only one processor, so we dont need parallel.
 			levels.NewCompletedTaskProcessor(db, mb),
 		),
 		// | achievements-badges .
-		cfg.MessageBroker.ConsumingTopics[3]: newProxyProcessorWithAsync(false,
+		cfg.MessageBroker.ConsumingTopics[3]: newSequentialProcessorGroup(
 			badges.NewAchievedBadgesProcessor(db),
 		),
 		// | achievements-progress .
-		cfg.MessageBroker.ConsumingTopics[4]: newProxyProcessorWithAsync(true,
+		cfg.MessageBroker.ConsumingTopics[4]: newParallelProcessorGroup(
 			tasks.NewProgressProcessor(db, mb),
 			levels.NewProgressProcessor(db, mb),
 			badges.NewProgressProcessor(db, mb),
@@ -97,11 +95,11 @@ func processors(mb messagebroker.Client, db tarantool.Connector) map[messagebrok
 			// Roles upcoming processor to be here.
 		),
 		// | achievements-agenda-referrals .
-		cfg.MessageBroker.ConsumingTopics[5]: newProxyProcessorWithAsync(false,
+		cfg.MessageBroker.ConsumingTopics[5]: newSequentialProcessorGroup(
 			levels.NewAgendaReferralsProcessor(db, mb),
 		),
 		// | achievements-levels .
-		cfg.MessageBroker.ConsumingTopics[6]: newProxyProcessorWithAsync(false,
+		cfg.MessageBroker.ConsumingTopics[6]: newSequentialProcessorGroup(
 			badges.NewLevelProcessor(db, mb),
 		),
 	}
@@ -118,69 +116,61 @@ func (p *processor) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
-func newProxyProcessorWithAsync(async bool, processors ...messagebroker.Processor) messagebroker.Processor {
-	return &proxyProcessor{internalProcessors: processors, asyncProcessing: async}
+func newSequentialProcessorGroup(processors ...messagebroker.Processor) messagebroker.Processor {
+	return &proxyProcessor{internalProcessors: processors, parallelProcessing: false}
+}
+
+func newParallelProcessorGroup(processors ...messagebroker.Processor) messagebroker.Processor {
+	return &proxyProcessor{internalProcessors: processors, parallelProcessing: true}
 }
 
 func (proxy *proxyProcessor) Process(ctx context.Context, message *messagebroker.Message) error {
-	if proxy.asyncProcessing {
-		return proxy.processAsync(ctx, message)
+	if proxy.parallelProcessing {
+		return proxy.processParallel(ctx, message)
 	}
 
-	return proxy.process(ctx, message)
+	return proxy.processSequential(ctx, message)
 }
 
-func (proxy *proxyProcessor) processAsync(ctx context.Context, message *messagebroker.Message) error {
+func (proxy *proxyProcessor) processParallel(ctx context.Context, message *messagebroker.Message) error {
 	var wg sync.WaitGroup
-	errs := make([]error, 0, len(proxy.internalProcessors))
 	errsChan := make(chan error, len(proxy.internalProcessors))
 	wg.Add(len(proxy.internalProcessors))
 	for _, processor := range proxy.internalProcessors {
 		go func(p messagebroker.Processor) {
 			defer wg.Done()
-			err := p.Process(ctx, message)
-			if err != nil {
+			if err := p.Process(ctx, message); err != nil {
 				errsChan <- err
 			}
 		}(processor)
 	}
 	wg.Wait()
 	close(errsChan)
+	var errs *multierror.Error
 	for err := range errsChan {
-		errs = append(errs, err)
+		errs = multierror.Append(errs, err)
 	}
 
-	return proxy.handleError(errs)
+	return errors.Wrapf(errs.ErrorOrNil(), "Failed processing message %v in parallel", string(message.Value))
 }
 
-func (proxy *proxyProcessor) process(ctx context.Context, message *messagebroker.Message) error {
-	errs := make([]error, 0, len(proxy.internalProcessors))
+func (proxy *proxyProcessor) processSequential(ctx context.Context, message *messagebroker.Message) error {
+	var errs *multierror.Error
 	for _, processor := range proxy.internalProcessors {
 		if err := processor.Process(ctx, message); err != nil {
-			errs = append(errs, errors.Wrapf(err, "proxyProcessor: failed to process %v message on %T", string(message.Value), processor))
+			errs = multierror.Append(errs, errors.Wrapf(err, "proxyProcessor: failed to processSequential %v message on %T", string(message.Value), processor))
 		}
 	}
 
-	return proxy.handleError(errs)
-}
-
-func (proxy *proxyProcessor) handleError(errs []error) error {
-	switch len(errs) {
-	case 0:
-		return nil
-	case 1:
-		return errs[0]
-	default:
-		return multierror.Append(nil, errs...)
-	}
+	return errors.Wrapf(errs.ErrorOrNil(), "Failed processing message %v in sequential", string(message.Value))
 }
 
 func (r *repository) CompleteTask(ctx context.Context, task *Task) error {
-	//TODO implement me
+	//nolint:nolintlint,gocritic // TODO implement me.
 	panic("implement me")
 }
 
 func (r *repository) UnCompleteTask(ctx context.Context, task *Task) error {
-	//TODO implement me
+	//nolint:nolintlint,gocritic // TODO implement me.
 	panic("implement me")
 }
