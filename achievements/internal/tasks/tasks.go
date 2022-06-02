@@ -5,13 +5,15 @@ package tasks
 import (
 	"context"
 	"encoding/json"
-
-	"github.com/ice-blockchain/wintr/time"
+	"fmt"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
+	"github.com/ice-blockchain/wintr/connectors/storage"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
@@ -28,18 +30,23 @@ func (r *repository) CompleteTask(ctx context.Context, userID UserID, taskName T
 		return errors.Wrapf(ctx.Err(), "failed to achieve a task %v because context failed (for userID:%v)", taskName, userID)
 	}
 	now := time.Now()
+
+	sql := fmt.Sprintf("INSERT INTO %v (USER_ID, TASK_NAME, ACHIEVED_AT) VALUES (:userID, :taskName, :achievedAt)", achievedTasksSpace)
+	params := map[string]interface{}{
+		"userID":     userID,
+		"taskName":   taskName,
+		"achievedAt": now,
+	}
+
+	query, err := r.db.PrepareExecute(sql, params)
+	if err = storage.CheckSQLDMLErr(query, err); err != nil {
+		return errors.Wrapf(err, "failed to complete task for user %v", userID)
+	}
+
 	task := &AchievedTask{
 		AchievedAt: now,
 		UserID:     userID,
 		TaskName:   taskName,
-	}
-	if err := r.db.InsertTyped(achievedTasksSpace, task, &[]*AchievedTask{}); err != nil {
-		tErr := new(tarantool.Error)
-		if errors.As(err, tErr) && tErr.Code == tarantool.ER_TUPLE_FOUND {
-			return errors.Wrapf(errAlreadyAchieved, "task %v already achieved for userID %v", taskName, userID)
-		}
-
-		return errors.Wrapf(err, "failed to insert achieved user task %v user.ID:%v", taskName, userID)
 	}
 
 	return errors.Wrapf(r.sendCompletedTask(ctx, &CompletedTaskMessage{AchievedTask: *task}),
