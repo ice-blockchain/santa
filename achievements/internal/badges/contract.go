@@ -4,6 +4,7 @@ package badges
 
 import (
 	"github.com/framey-io/go-tarantool"
+
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
@@ -97,6 +98,12 @@ type (
 				Name string `yaml:"name" json:"name"`
 			} `yaml:"topics"`
 		} `yaml:"messageBroker"`
+	}
+	achievedBadgeKey struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack  struct{} `msgpack:",asArray"`
+		UserID    UserID
+		BadgeName BadgeName
 	}
 )
 

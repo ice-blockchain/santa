@@ -8,10 +8,11 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
 )
 
 func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -60,14 +61,10 @@ func (p *progressSource) achieveBadgesForUserProgress(ctx context.Context, userP
 
 func checkAndAchieveBadge(ctx context.Context, r *repository, userID UserID, badge *badgeWithAchieved, fitsBadge, lessThanBadge func(b *badge) bool) error {
 	if !badge.Achieved && fitsBadge(&badge.badge) {
-		if err := r.achieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, errAlreadyAchieved) {
-			return errors.Wrapf(err, "failed to achieve badge %v to userID %v", badge.Name, userID)
-		}
+		return errors.Wrapf(achieveBadgeAndHandleError(ctx, r, userID, badge.Name), "failed to achieve badge %v to userID %v", badge.Name, userID)
 	} else if badge.Achieved { // Already achieved - check if we need to unachieve it.
 		if lessThanBadge(&badge.badge) { // Dont compare for > badge.ToInclusive, cuz we store previously achieved badges.
-			if err := r.unachieveBadge(ctx, userID, badge.Name); err != nil && !errors.Is(err, errNotAchieved) {
-				return errors.Wrapf(err, "failed to unachieve badge %v to userID %v", badge.Name, userID)
-			}
+			return errors.Wrapf(unachieveBadgeAndHandleError(ctx, r, userID, badge.Name), "failed to unachieve badge %v to userID %v", badge.Name, userID)
 		}
 	}
 

@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
 )
 
 func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -51,18 +52,15 @@ func (p *progressSource) achieveLevelsForConsecutiveMiningSessions(
 	targetSessions, isMiningSessionLevel := cfg.Levels.ConsecutiveMiningSessions[level.Name]
 	if isMiningSessionLevel {
 		if (!level.Achieved) && userProgress.MaxConsecutiveMiningSessionsCount >= targetSessions {
-			if err := p.r.achieveUserLevel(ctx, userProgress.UserID, level.Name); err != nil && !errors.Is(err, errAlreadyAchieved) {
-				return errors.Wrapf(err,
-					"failed to increment user's level due to %v consecutive mining sessions for userID:%v",
-					userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)
-			}
+			return errors.Wrapf(achieveLevelAndHandleError(ctx, p.r, userProgress.UserID, level.Name),
+				"failed to increment user's level due to %v consecutive mining sessions for userID:%v",
+				userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)
 		} else if level.Achieved && userProgress.MaxConsecutiveMiningSessionsCount < targetSessions {
-			if err := p.r.unachieveUserLevel(ctx, userProgress.UserID, level.Name); err != nil && !errors.Is(err, errNotAchieved) {
-				return errors.Wrapf(err,
-					"failed to decrement user's level due to %v consecutive mining sessions for userID:%v",
-					userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)
-			}
+			return errors.Wrapf(unachieveLevelAndHandleError(ctx, p.r, userProgress.UserID, level.Name),
+				"failed to decrement user's level due to %v consecutive mining sessions for userID:%v",
+				userProgress.MaxConsecutiveMiningSessionsCount, userProgress.UserID)
 		}
 	}
+
 	return nil
 }

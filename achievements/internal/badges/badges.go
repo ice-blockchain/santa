@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/pkg/errors"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
@@ -21,6 +22,22 @@ func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 		db: db,
 		mb: mb,
 	}
+}
+
+func achieveBadgeAndHandleError(ctx context.Context, r *repository, userID UserID, badgeName BadgeName) error {
+	if err := r.achieveBadge(ctx, userID, badgeName); err != nil && !errors.Is(err, errAlreadyAchieved) {
+		return errors.Wrapf(err, "failed to achieve badge %v to userID %v", badgeName, userID)
+	}
+
+	return nil
+}
+
+func unachieveBadgeAndHandleError(ctx context.Context, r *repository, userID UserID, badgeName BadgeName) error {
+	if err := r.unachieveBadge(ctx, userID, badgeName); err != nil && !errors.Is(err, errNotAchieved) {
+		return errors.Wrapf(err, "failed to achieve badge %v to userID %v", badgeName, userID)
+	}
+
+	return nil
 }
 
 func (r *repository) achieveBadge(ctx context.Context, userID UserID, badgeName BadgeName) error {
@@ -51,11 +68,7 @@ func (r *repository) unachieveBadge(ctx context.Context, userID UserID, badgeNam
 		return errors.Wrap(ctx.Err(), "achieve badge failed because context failed")
 	}
 	now := time.Now()
-	key := struct {
-		_msgpack  struct{} `msgpack:",asArray"`
-		UserID    UserID
-		BadgeName BadgeName
-	}{
+	key := &achievedBadgeKey{
 		UserID:    userID,
 		BadgeName: badgeName,
 	}
@@ -67,9 +80,6 @@ func (r *repository) unachieveBadge(ctx context.Context, userID UserID, badgeNam
 		}
 
 		return errors.Wrapf(err, "Failed to delete achieved badge %v for userID %v", badgeName, userID)
-	}
-	if len(res) == 0 {
-		return errors.Wrapf(errNotAchieved, "badge %v unachieved for userID %v yet", badgeName, userID)
 	}
 	message := &AchievedBadgeMessage{
 		AchievedBadge: &AchievedBadge{

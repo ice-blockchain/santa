@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
 )
 
 func NewAgendaReferralsProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -53,14 +54,13 @@ func (a *agendaReferralsSource) achieveLevelsForReferralsFromAgenda(
 	targetReferralsCount, isReferralLevel := cfg.Levels.AgendaReferrals[level.Name]
 	if isReferralLevel {
 		if (!level.Achieved) && referralsCount >= targetReferralsCount {
-			if err := a.r.achieveUserLevel(ctx, userID, level.Name); err != nil && !errors.Is(err, errAlreadyAchieved) {
-				return errors.Wrapf(err, "failed to increment user's level due to %v referrals from agenda for userID:%v", referralsCount, userID)
-			}
+			return errors.Wrapf(achieveLevelAndHandleError(ctx, a.r, userID, level.Name),
+				"failed to increment user's level due to %v referrals from agenda for userID:%v", referralsCount, userID)
 		} else if level.Achieved && referralsCount < targetReferralsCount {
-			if err := a.r.unachieveUserLevel(ctx, userID, level.Name); err != nil && !errors.Is(err, errNotAchieved) {
-				return errors.Wrapf(err, "failed to decrement user's level due to %v referrals from agenda for userID:%v", referralsCount, userID)
-			}
+			return errors.Wrapf(unachieveLevelAndHandleError(ctx, a.r, userID, level.Name),
+				"failed to decrement user's level due to %v referrals from agenda for userID:%v", referralsCount, userID)
 		}
 	}
+
 	return nil
 }

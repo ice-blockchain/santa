@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/framey-io/go-tarantool"
+
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
@@ -71,6 +72,7 @@ type (
 	}
 
 	completedTaskKey struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack struct{} `msgpack:",asArray"`
 		UserID   UserID
 		TaskName TaskName

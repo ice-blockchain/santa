@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
+
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 )
 
 func (r *repository) updateAgendaPhoneNumbersHashes(ctx context.Context, userID UserID, agendaHashes string) error {
@@ -65,6 +66,7 @@ func (r *repository) deleteAgendaReferrals(ctx context.Context, agendaOwnerID, u
 		if errors.As(err, tErr) && tErr.Code == tarantool.ER_TUPLE_NOT_FOUND {
 			return nil
 		}
+
 		return errors.Wrapf(err, "failed to delete agenda referrals")
 	}
 	count, err := r.getCountOfAgendaReferrals(ctx, agendaOwnerID)

@@ -8,10 +8,11 @@ import (
 	"strings"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
-	"github.com/pkg/errors"
 )
 
 func NewUsersProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {

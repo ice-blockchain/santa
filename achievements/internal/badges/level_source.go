@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/levels"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
 )
 
 func NewLevelProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {

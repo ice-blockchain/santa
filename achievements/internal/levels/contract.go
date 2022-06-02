@@ -4,6 +4,7 @@ package levels
 
 import (
 	"github.com/framey-io/go-tarantool"
+
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
@@ -78,6 +79,15 @@ type (
 		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
 		_msgpack  struct{} `msgpack:",asArray"`
 		UpdatedAt *time.Time
+		// Part of primary key.
+		UserID UserID
+		// Part of primary key.
+		LevelName LevelName
+	}
+	// | achievedUserLevelKey is a primary key for ACHIEVED_USER_LEVELS space.
+	achievedUserLevelKey struct {
+		//nolint:unused // Because it is used by the msgpack library for marshalling/unmarshalling.
+		_msgpack  struct{} `msgpack:",asArray"`
 		UserID    UserID
 		LevelName LevelName
 	}
@@ -97,7 +107,6 @@ type (
 const (
 	currentUsersLevelsSpace = "CURRENT_USER_LEVELS"
 	achievedUserLevelsSpace = "ACHIEVED_USER_LEVELS"
-	levelsSpace             = "LEVELS"
 
 	levelForPhoneNumberConfirmation = "L13"
 	fieldCurrentUserLevelsLevel     = 2

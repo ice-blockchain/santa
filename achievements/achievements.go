@@ -62,7 +62,8 @@ func closeAll(mbConsumer, mbProducer messagebroker.Client, db tarantool.Connecto
 		if err := db.Close(); err != nil {
 			result = multierror.Append(result, err)
 		}
-		return result.ErrorOrNil()
+
+		return errors.Wrapf(result.ErrorOrNil(), "failed to close processor")
 	}
 }
 

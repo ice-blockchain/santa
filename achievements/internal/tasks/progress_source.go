@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/santa/achievements/internal/progress"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/pkg/errors"
 )
 
 func NewProgressProcessor(db tarantool.Connector, mb messagebroker.Client) messagebroker.Processor {
@@ -26,6 +27,11 @@ func (p *progressSource) Process(ctx context.Context, message *messagebroker.Mes
 	if err := json.Unmarshal(message.Value, userProgress); err != nil {
 		return errors.Wrapf(err, "tasks/progressSource: cannot unmarshall %v into %#v", string(message.Value), userProgress)
 	}
+
+	return errors.Wrapf(p.achieveTaskForT1Referrals(ctx, userProgress), "failed to achieve task for t1 referrals")
+}
+
+func (p *progressSource) achieveTaskForT1Referrals(ctx context.Context, userProgress *progress.UserProgress) error {
 	// Tasks -> #6 (Invite 5 friends).
 	if userProgress.T1Referrals >= cfg.Tasks.T1Referrals {
 		if err := p.r.CompleteTask(ctx, userProgress.UserID, taskGetFiveReferrals); err != nil && !errors.Is(err, errAlreadyAchieved) {

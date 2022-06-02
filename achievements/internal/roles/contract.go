@@ -4,6 +4,7 @@ package roles
 
 import (
 	"github.com/framey-io/go-tarantool"
+
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/time"

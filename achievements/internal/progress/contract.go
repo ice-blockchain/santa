@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/framey-io/go-tarantool"
+
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	wt "github.com/ice-blockchain/wintr/time"
-	"github.com/pkg/errors"
 )
 
 // Public API.
@@ -85,8 +85,7 @@ type (
 
 //nolint:gochecknoglobals // Because its loaded once, at runtime.
 var (
-	cfg       config
-	errNoData = errors.New("empty data")
+	cfg config
 )
 
 const (

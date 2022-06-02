@@ -7,11 +7,12 @@ import (
 	"encoding/json"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/eskimo/users"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/pkg/errors"
 )
 
 func NewRepository(db tarantool.Connector, mb messagebroker.Client) Repository {

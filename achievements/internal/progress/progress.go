@@ -10,13 +10,14 @@ import (
 	stdlibtime "time"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/wintr/coin"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/pkg/errors"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
@@ -64,6 +65,7 @@ func (r *repository) insertUserProgress(ctx context.Context, user *users.User) e
 	if len(res) == 0 {
 		return nil
 	}
+
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", user.ID)
 }
 
@@ -83,6 +85,7 @@ func (r *repository) updateT1ReferralsCount(ctx context.Context, userID users.Us
 	if len(res) == 0 {
 		return nil
 	}
+
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]), "progress: failed to send updated progress message for UserID:%v", userID)
 }
 
@@ -118,6 +121,7 @@ func (r *repository) updateConsecutiveMiningSessionsCount(ctx context.Context, u
 	if len(res) == 0 {
 		return nil
 	}
+
 	return errors.Wrapf(r.sendUpdatedUserProgress(ctx, res[0]),
 		"progress/mining sessions: failed to send updated progress message for UserID:%v", userID)
 }

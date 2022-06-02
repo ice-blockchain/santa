@@ -8,14 +8,41 @@ import (
 	"math"
 
 	"github.com/framey-io/go-tarantool"
+	"github.com/pkg/errors"
+
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 	"github.com/ice-blockchain/wintr/time"
-	"github.com/pkg/errors"
 )
 
 func newRepository(db tarantool.Connector, mb messagebroker.Client) Repository {
 	return &repository{db: db, mb: mb}
+}
+
+func achieveLevelAndHandleError(
+	ctx context.Context,
+	r *repository,
+	userID UserID,
+	levelName LevelName,
+) error {
+	if err := r.achieveUserLevel(ctx, userID, levelName); err != nil && !errors.Is(err, errAlreadyAchieved) {
+		return errors.Wrapf(err, "failed to achieve users level %v for userID:%v", levelName, userID)
+	}
+
+	return nil
+}
+
+func unachieveLevelAndHandleError(
+	ctx context.Context,
+	r *repository,
+	userID UserID,
+	levelName LevelName,
+) error {
+	if err := r.unachieveUserLevel(ctx, userID, levelName); err != nil && !errors.Is(err, errNotAchieved) {
+		return errors.Wrapf(err, "failed to achieve users level %v for userID:%v", levelName, userID)
+	}
+
+	return nil
 }
 
 func (r *repository) achieveUserLevel(ctx context.Context, userID UserID, levelName LevelName) error {
@@ -45,11 +72,7 @@ func (r *repository) unachieveUserLevel(ctx context.Context, userID UserID, leve
 		return errors.Wrap(ctx.Err(), "achieve level failed because context failed")
 	}
 	now := time.Now()
-	key := struct { // Cannot use achievedUserLevel here because of 3 fields (2 fields in key)
-		_msgpack  struct{} `msgpack:",asArray"`
-		UserID    UserID
-		LevelName LevelName
-	}{
+	key := &achievedUserLevelKey{ // Cannot use achievedUserLevel here because of 3 fields (2 fields in key).
 		UserID:    userID,
 		LevelName: levelName,
 	}
@@ -62,9 +85,6 @@ func (r *repository) unachieveUserLevel(ctx context.Context, userID UserID, leve
 
 		return errors.Wrapf(err, "failed to delete achieved record for user.ID:%v", userID)
 	}
-	//if len(res) == 0 {
-	//	return errors.Wrapf(errNotAchieved, "level %v unachieved for userID %v yet", levelName, userID)
-	//}
 
 	return errors.Wrapf(r.incrementOrDecrementCurrentLevel(ctx, userID, levelName, now, -1),
 		"failed to decrement user's level %v for userID:%v", levelName, userID)

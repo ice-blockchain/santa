@@ -8,8 +8,9 @@ import (
 	"math"
 
 	"github.com/framey-io/go-tarantool"
-	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/pkg/errors"
+
+	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 )
 
 func NewAchievedBadgesProcessor(db tarantool.Connector) messagebroker.Processor {
