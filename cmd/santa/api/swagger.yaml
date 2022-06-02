@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: BUSL-1.1
+
 basePath: /v1
 definitions:
   achievements.BadgeInventory:
@@ -10,9 +12,9 @@ definitions:
         example: 25.5
         type: number
       interval:
-        $ref: '#/definitions/achievements.ProgressInterval'
+        $ref: '#/definitions/badges.ProgressInterval'
       name:
-        example: ice Breaker
+        example: ICE Breaker
         type: string
       type:
         example: SOCIAL
@@ -21,9 +23,9 @@ definitions:
   achievements.BadgeOverview:
     properties:
       interval:
-        $ref: '#/definitions/achievements.ProgressInterval'
+        $ref: '#/definitions/badges.ProgressInterval'
       name:
-        example: ice Breaker
+        example: ICE Breaker
         type: string
       position:
         properties:
@@ -37,15 +39,6 @@ definitions:
       type:
         example: SOCIAL
         type: string
-    type: object
-  achievements.ProgressInterval:
-    properties:
-      left:
-        example: 11
-        type: integer
-      right:
-        example: 22
-        type: integer
     type: object
   achievements.TaskTODO:
     properties:
@@ -75,6 +68,15 @@ definitions:
         items:
           $ref: '#/definitions/achievements.TaskTODO'
         type: array
+    type: object
+  badges.ProgressInterval:
+    properties:
+      left:
+        example: 11
+        type: integer
+      right:
+        example: 22
+        type: integer
     type: object
   server.ErrorResponse:
     properties:

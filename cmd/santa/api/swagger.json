@@ -205,11 +205,11 @@
                     "example": 25.5
                 },
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
-                    "example": "ice Breaker"
+                    "example": "ICE Breaker"
                 },
                 "type": {
                     "type": "string",
@@ -221,11 +221,11 @@
             "type": "object",
             "properties": {
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
-                    "example": "ice Breaker"
+                    "example": "ICE Breaker"
                 },
                 "position": {
                     "type": "object",
@@ -243,19 +243,6 @@
                 "type": {
                     "type": "string",
                     "example": "SOCIAL"
-                }
-            }
-        },
-        "achievements.ProgressInterval": {
-            "type": "object",
-            "properties": {
-                "left": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "right": {
-                    "type": "integer",
-                    "example": 22
                 }
             }
         },
@@ -298,6 +285,19 @@
                     "items": {
                         "$ref": "#/definitions/achievements.TaskTODO"
                     }
+                }
+            }
+        },
+        "badges.ProgressInterval": {
+            "type": "object",
+            "properties": {
+                "left": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "right": {
+                    "type": "integer",
+                    "example": 22
                 }
             }
         },
