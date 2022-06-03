@@ -31,6 +31,8 @@ const (
 	requiredReferralsForAmbassadorRole = 100
 	fieldUpdatedAtSeq                  = 1
 	fieldRoleNameSeq                   = 2
+	roleNamePioneer                    = "PIONEER"
+	roleNameAmbassador                 = "AMBASSADOR"
 )
 
 type (

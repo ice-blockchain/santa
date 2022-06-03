@@ -37,10 +37,12 @@ func (u *userProgressSource) Process(ctx context.Context, message *messagebroker
 	var newRole string
 
 	switch {
-	case userProgress.T1Referrals >= requiredReferralsForAmbassadorRole && currentRole == "PIONEER":
-		newRole = "AMBASSADOR"
-	case userProgress.T1Referrals < requiredReferralsForAmbassadorRole && currentRole == "AMBASSADOR":
-		newRole = "PIONEER"
+	case currentRole == "":
+		newRole = roleNamePioneer
+	case userProgress.T1Referrals >= requiredReferralsForAmbassadorRole && currentRole == roleNamePioneer:
+		newRole = roleNameAmbassador
+	case userProgress.T1Referrals < requiredReferralsForAmbassadorRole && currentRole == roleNameAmbassador:
+		newRole = roleNamePioneer
 	default:
 		return nil
 	}
