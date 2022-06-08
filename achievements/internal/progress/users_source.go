@@ -69,40 +69,41 @@ func (u *userSource) handleUserCreation(ctx context.Context, user *users.UserSna
 	if err := u.r.incrementOrDecrementTotalUsersCount(1); err != nil {
 		return errors.Wrapf(err, "failed to update total_users counter")
 	}
+
 	// And insert a new record into user_progress for a new user.
-
-	return errors.Wrapf(u.r.insertUserProgress(ctx, user.User), "failed to insert user progress record")
-}
-
-func (u *userSource) handleUserModification(ctx context.Context, user *users.UserSnapshot) error {
-	// In case of modification - update agenda hashes.
-	if user.Before != nil && user.AgendaPhoneNumberHashes != "" {
-		if err := u.r.updateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
-			return errors.Wrapf(err, "progress/userSource: failed to update agenda phone number hashes")
-		}
+	if err := u.r.insertUserProgress(ctx, user.User); err != nil {
+		return errors.Wrapf(err, "failed to insert user progress record")
 	}
 
-	// Next we need to check if we need to update T1 referrals count (userID = referredBy, count +=1).
 	if user.ReferredBy != "" {
-		if err := u.updateUserReferrals(ctx, user.User); err != nil {
-			return errors.Wrapf(err, "failed to update user's referrals for userID:%v (referredBy=%v)", user.ID, user.ReferredBy)
+		if err := u.r.updateT1ReferralsCount(ctx, user.ReferredBy, 1); err != nil {
+			return errors.Wrapf(err, "progress/userSource: failed to update t1 referrals counter")
 		}
 	}
 
 	return nil
 }
 
-func (u *userSource) updateUserReferrals(ctx context.Context, user *users.User) error {
-	if user.PhoneNumberHash != "" {
-		if err := u.checkAndUpdateAgendaReferrals(ctx, user.ReferredBy, user); err != nil {
-			return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
-		}
+func (u *userSource) handleUserModification(ctx context.Context, user *users.UserSnapshot) error {
+	if user.Before == nil {
+		return nil
 	}
 
-	return errors.Wrapf(u.r.updateT1ReferralsCount(ctx, user.ReferredBy, 1), "progress/userSource: failed to update t1 referrals counter")
+	if err := u.r.updateAgendaPhoneNumbersHashes(ctx, user.ID, user.AgendaPhoneNumberHashes); err != nil {
+		return errors.Wrapf(err, "progress/userSource: failed to update agenda phone number hashes")
+	}
+
+	if err := u.checkAndUpdateAgendaReferrals(ctx, user.ReferredBy, user.User); err != nil {
+		return errors.Wrapf(err, "progress/userSource: failed to update agenda referrals")
+	}
+
+	return nil
 }
 
 func (u *userSource) checkAndUpdateAgendaReferrals(ctx context.Context, referredByID users.UserID, user *users.User) error {
+	if referredByID == "" || user.PhoneNumberHash == "" {
+		return nil
+	}
 	// Check here if user's phone number is in referredBy's agenda.
 	referredByUser, err := u.r.getUserProgress(referredByID)
 	if err != nil {

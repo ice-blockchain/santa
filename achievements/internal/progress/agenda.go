@@ -13,11 +13,17 @@ import (
 )
 
 func (r *repository) updateAgendaPhoneNumbersHashes(ctx context.Context, userID UserID, agendaHashes string) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "failed to update agenda phone number hashes because of context failed")
+	}
+	if agendaHashes == "" {
+		return nil
+	}
 	key := tarantool.StringKey{S: userID}
 	ops := []tarantool.Op{
 		{Op: "=", Field: fieldAgendaPhoneNumbersHashes, Arg: agendaHashes}, // | agenda_phone_number_hashes = new value.
 	}
-	res := []*UserProgress{}
+	var res []*UserProgress
 	if err := r.db.UpdateTyped(userProgressSpace, "pk_unnamed_USER_PROGRESS_1", key, ops, &res); err != nil {
 		return errors.Wrapf(err, "failed to update %v record with the agenda phone numbers hashes for userID:%v", userProgressSpace, userID)
 	}
@@ -28,7 +34,7 @@ func (r *repository) updateAgendaPhoneNumbersHashes(ctx context.Context, userID 
 
 func (r *repository) insertAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error {
 	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "failed to get insert agenda referrals because of context failed")
+		return errors.Wrap(ctx.Err(), "failed to insert agenda referrals because of context failed")
 	}
 	agendaReferral := &agendaReferrals{
 		UserID:       userIDInAgenda,
@@ -54,13 +60,13 @@ func (r *repository) insertAgendaReferrals(ctx context.Context, agendaOwnerID, u
 
 func (r *repository) deleteAgendaReferrals(ctx context.Context, agendaOwnerID, userIDInAgenda UserID) error {
 	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "failed to get insert agenda referrals because of context failed")
+		return errors.Wrap(ctx.Err(), "failed to delete referrals because of context failed")
 	}
 	agendaReferral := &agendaReferrals{
 		UserID:       userIDInAgenda,
 		AgendaUserID: agendaOwnerID,
 	}
-	res := []*agendaReferrals{}
+	var res []*agendaReferrals
 	if err := r.db.DeleteTyped(agendaReferralsSpace, "pk_unnamed_AGENDA_REFERRALS_1", agendaReferral, &res); err != nil {
 		tErr := new(tarantool.Error)
 		if errors.As(err, tErr) && tErr.Code == tarantool.ER_TUPLE_NOT_FOUND {
@@ -98,6 +104,9 @@ func (r *repository) getCountOfAgendaReferrals(ctx context.Context, userID UserI
 }
 
 func (r *repository) sendAgendaReferralsCountUpdate(ctx context.Context, userID UserID, countOfAgendaReferrals uint64) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "failed send agenda referrals count update because of context failed")
+	}
 	c := AgendaReferralsCount{
 		UserID:               userID,
 		AgendaReferralsCount: countOfAgendaReferrals,
