@@ -58,7 +58,16 @@ func (u *usersSource) isNicknameClaimed(user *users.UserSnapshot) bool {
 	return user.Username != "" && (user.Before == nil || user.Before.Username == "")
 }
 
+/*
+	We have some incorrect processing here
+	Eskimo doesn't fill user.ProfilePictureURL properly, it's better to add/use another field
+	Remove this comment after successful tests
+*/
 func (u *usersSource) isProfilePictureUploaded(user *users.UserSnapshot) bool {
+	if user.ProfilePictureURL == "" {
+		return false
+	}
+
 	defaultUserPictureName := cfg.Tasks.DefaultUserPictureName
 	hadDefaultPictureBefore := user.Before != nil && strings.HasSuffix(user.Before.ProfilePictureURL, defaultUserPictureName)
 
