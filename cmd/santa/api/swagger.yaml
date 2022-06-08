@@ -1,5 +1,3 @@
-# SPDX-License-Identifier: BUSL-1.1
-
 basePath: /v1
 definitions:
   achievements.BadgeInventory:
@@ -83,6 +81,9 @@ definitions:
       code:
         example: SOMETHING_NOT_FOUND
         type: string
+      data:
+        additionalProperties: true
+        type: object
       error:
         example: something is missing
         type: string
