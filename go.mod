@@ -4,11 +4,11 @@ go 1.18
 
 require (
 	cosmossdk.io/math v1.0.0-beta.2
-	github.com/framey-io/go-tarantool v0.0.0-20220317175443-747a509561d8
+	github.com/framey-io/go-tarantool v0.0.0-20220608172348-c90aee3317cb
 	github.com/gin-gonic/gin v1.8.1
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/ice-blockchain/eskimo v1.4.0
-	github.com/ice-blockchain/freezer v1.3.0
+	github.com/ice-blockchain/freezer v1.4.0
 	github.com/ice-blockchain/wintr v1.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/swag v1.8.2
@@ -46,7 +46,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/imroc/req/v3 v3.13.0 // indirect
+	github.com/imroc/req/v3 v3.13.1 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.6 // indirect
@@ -66,9 +66,9 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20211202183452-c5a74bcca799 // indirect
-	github.com/opencontainers/runc v1.1.2 // indirect
+	github.com/opencontainers/runc v1.1.3 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.1 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.14 // indirect
 	github.com/rs/zerolog v1.27.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
@@ -91,7 +91,7 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220607020251-c690dde0001d // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
+	golang.org/x/sys v0.0.0-20220608164250-635b8c9b7f68 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.10 // indirect
 	google.golang.org/genproto v0.0.0-20220608133413-ed9918b62aac // indirect

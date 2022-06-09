@@ -43,8 +43,12 @@ func (u *userSource) Process(ctx context.Context, message *messagebroker.Message
 }
 
 func (u *userSource) achieveLevelForPhoneNumberConfirmation(ctx context.Context, user *users.UserSnapshot) error {
+	beforeNumber := ""
+	if user.Before != nil {
+		beforeNumber = user.Before.PhoneNumber
+	}
 	// New level for user (Levels -> 8 Confirm phone number).
-	if user.PhoneNumber != "" && user.Before != nil && user.Before.PhoneNumber == "" {
+	if user.PhoneNumber != beforeNumber {
 		err := u.r.achieveUserLevel(ctx, user.ID, levelForPhoneNumberConfirmation)
 		if err != nil && !errors.Is(err, errAlreadyAchieved) {
 			return errors.Wrapf(err, "failed to increment user's level for the phone number confirmation userID:%v", user.ID)
