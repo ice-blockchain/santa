@@ -212,11 +212,11 @@ const docTemplate = `{
                     "example": 25.5
                 },
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
-                    "example": "ice Breaker"
+                    "example": "ICE Breaker"
                 },
                 "type": {
                     "type": "string",
@@ -228,11 +228,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "interval": {
-                    "$ref": "#/definitions/achievements.ProgressInterval"
+                    "$ref": "#/definitions/badges.ProgressInterval"
                 },
                 "name": {
                     "type": "string",
-                    "example": "ice Breaker"
+                    "example": "ICE Breaker"
                 },
                 "position": {
                     "type": "object",
@@ -250,19 +250,6 @@ const docTemplate = `{
                 "type": {
                     "type": "string",
                     "example": "SOCIAL"
-                }
-            }
-        },
-        "achievements.ProgressInterval": {
-            "type": "object",
-            "properties": {
-                "left": {
-                    "type": "integer",
-                    "example": 11
-                },
-                "right": {
-                    "type": "integer",
-                    "example": 22
                 }
             }
         },
@@ -308,12 +295,29 @@ const docTemplate = `{
                 }
             }
         },
+        "badges.ProgressInterval": {
+            "type": "object",
+            "properties": {
+                "left": {
+                    "type": "integer",
+                    "example": 11
+                },
+                "right": {
+                    "type": "integer",
+                    "example": 22
+                }
+            }
+        },
         "server.ErrorResponse": {
             "type": "object",
             "properties": {
                 "code": {
                     "type": "string",
                     "example": "SOMETHING_NOT_FOUND"
+                },
+                "data": {
+                    "type": "object",
+                    "additionalProperties": true
                 },
                 "error": {
                     "type": "string",

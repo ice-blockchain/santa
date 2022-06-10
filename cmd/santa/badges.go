@@ -61,9 +61,9 @@ func (req *RequestGetUserBadges) GetAuthenticatedUser() server.AuthenticatedUser
 
 func (req *RequestGetUserBadges) Validate() *server.Response {
 	b := strings.ToUpper(req.BadgeType)
-	if b != badgeTypeLevel && b != badgeTypeSocial && b != badgeTypeIce {
+	if b != achievements.BadgeTypeLevel && b != achievements.BadgeTypeSocial && b != achievements.BadgeTypeIce {
 		err := errors.Errorf("badgeType `%v` is not allowed, only one of %v are allowed",
-			req.BadgeType, []string{badgeTypeLevel, badgeTypeSocial, badgeTypeIce})
+			req.BadgeType, []string{achievements.BadgeTypeLevel, achievements.BadgeTypeSocial, achievements.BadgeTypeIce})
 
 		return server.BadRequest(err, invalidRequestProperties)
 	}

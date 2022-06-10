@@ -1,16 +1,16 @@
 -- SPDX-License-Identifier: BUSL-1.1
 
 box.execute([[CREATE TABLE IF NOT EXISTS global  (
-                    key STRING primary key,
-                    value SCALAR NOT NULL
+                    value SCALAR NOT NULL,
+                    key STRING primary key
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS user_progress  (
+                    balance STRING NOT NULL,
+                    last_mining_started_at UNSIGNED DEFAULT 0,
                     user_id STRING primary key,
-                    balance UNSIGNED NOT NULL DEFAULT 0,
-                    t1_referrals UNSIGNED NOT NULL DEFAULT 0,
                     agenda_phone_number_hashes STRING,
-                    last_mining_started_at UNSIGNED NOT NULL DEFAULT 0,
+                    t1_referrals UNSIGNED NOT NULL DEFAULT 0,
                     max_consecutive_user_mining_sessions UNSIGNED NOT NULL DEFAULT 0,
                     total_user_referral_pings UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
@@ -58,9 +58,9 @@ box.execute([[INSERT INTO badges (name, type, from_inclusive, to_inclusive)
           ]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_badges  (
+                    achieved_at UNSIGNED NOT NULL,
                     user_id STRING NOT NULL REFERENCES user_progress(user_id) ON DELETE CASCADE,
                     badge_name STRING NOT NULL REFERENCES badges(name) ON DELETE CASCADE,
-                    achieved_at UNSIGNED NOT NULL,
                     primary key(user_id, badge_name) ) WITH ENGINE = 'vinyl';]])
 
 -- LEVELS
@@ -91,22 +91,22 @@ box.execute([[INSERT INTO levels (name, description)
            ]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_levels  (
+                    achieved_at UNSIGNED NOT NULL,
                     user_id STRING NOT NULL REFERENCES user_progress(user_id) ON DELETE CASCADE,
                     level_name STRING NOT NULL REFERENCES levels(name) ON DELETE CASCADE,
-                    achieved_at UNSIGNED NOT NULL,
                     primary key(user_id, level_name)) WITH ENGINE = 'vinyl';]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS current_user_levels  (
+                    updated_at UNSIGNED DEFAULT 0,
                     user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
-                    level UNSIGNED NOT NULL DEFAULT 1,
-                    updated_at UNSIGNED NOT NULL
+                    level UNSIGNED NOT NULL DEFAULT 1
                     ) WITH ENGINE = 'vinyl';]])
 
 -- TASKS
 
 box.execute([[CREATE TABLE IF NOT EXISTS tasks  (
                     name STRING primary key,
-                    index UNSIGNED NOT NULL DEFAULT 0
+                    task_index UNSIGNED NOT NULL DEFAULT 0
                     ) WITH ENGINE = 'vinyl';]])
 
 box.execute([[INSERT INTO tasks (name, task_index)
@@ -121,17 +121,17 @@ box.execute([[INSERT INTO tasks (name, task_index)
            ]])
 
 box.execute([[CREATE TABLE IF NOT EXISTS achieved_user_tasks  (
+                    achieved_at UNSIGNED NOT NULL,
                     user_id STRING NOT NULL REFERENCES user_progress(user_id) ON DELETE CASCADE,
                     task_name STRING NOT NULL REFERENCES tasks(name) ON DELETE CASCADE,
-                    achieved_at UNSIGNED NOT NULL,
                     primary key(user_id, task_name)) WITH ENGINE = 'vinyl';]])
 
 -- ROLES
 
 box.execute([[CREATE TABLE IF NOT EXISTS current_user_roles  (
                     user_id STRING primary key REFERENCES user_progress(user_id) ON DELETE CASCADE,
-                    role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR'),
-                    updated_at UNSIGNED NOT NULL
+                    updated_at UNSIGNED NOT NULL,
+                    role_name STRING NOT NULL DEFAULT 'PIONEER' CHECK (role_name == 'PIONEER' OR role_name == 'AMBASSADOR')
                     ) WITH ENGINE = 'vinyl';]])
 
 -- TODO will add indexes later on
