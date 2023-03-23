@@ -1,0 +1,350 @@
+# SPDX-License-Identifier: ice License 1.0
+
+basePath: /v1r
+definitions:
+  badges.AchievingRange:
+    properties:
+      fromInclusive:
+        type: integer
+      toInclusive:
+        type: integer
+    type: object
+  badges.Badge:
+    properties:
+      achieved:
+        type: boolean
+      achievingRange:
+        $ref: '#/definitions/badges.AchievingRange'
+      name:
+        type: string
+      percentageOfUsersInProgress:
+        type: number
+      type:
+        $ref: '#/definitions/badges.GroupType'
+    type: object
+  badges.BadgeSummary:
+    properties:
+      index:
+        type: integer
+      lastIndex:
+        type: integer
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/badges.GroupType'
+    type: object
+  badges.GroupType:
+    enum:
+    - level
+    - coin
+    - social
+    type: string
+    x-enum-varnames:
+    - LevelGroupType
+    - CoinGroupType
+    - SocialGroupType
+  levelsandroles.Role:
+    properties:
+      enabled:
+        example: true
+        type: boolean
+      type:
+        allOf:
+        - $ref: '#/definitions/levelsandroles.RoleType'
+        example: snowman
+    type: object
+  levelsandroles.RoleType:
+    enum:
+    - snowman
+    - ambassador
+    type: string
+    x-enum-varnames:
+    - SnowmanRoleType
+    - AmbassadorRoleType
+  levelsandroles.Summary:
+    properties:
+      level:
+        example: 11
+        type: integer
+      roles:
+        items:
+          $ref: '#/definitions/levelsandroles.Role'
+        type: array
+    type: object
+  server.ErrorResponse:
+    properties:
+      code:
+        example: SOMETHING_NOT_FOUND
+        type: string
+      data:
+        additionalProperties: {}
+        type: object
+      error:
+        example: something is missing
+        type: string
+    type: object
+  tasks.Data:
+    properties:
+      requiredQuantity:
+        example: 3
+        type: integer
+      telegramUserHandle:
+        example: jdoe1
+        type: string
+      twitterUserHandle:
+        example: jdoe2
+        type: string
+    type: object
+  tasks.Task:
+    properties:
+      completed:
+        example: false
+        type: boolean
+      data:
+        $ref: '#/definitions/tasks.Data'
+      type:
+        allOf:
+        - $ref: '#/definitions/tasks.Type'
+        example: claim_username
+    type: object
+  tasks.Type:
+    enum:
+    - claim_username
+    - start_mining
+    - upload_profile_picture
+    - follow_us_on_twitter
+    - join_telegram
+    - invite_friends
+    type: string
+    x-enum-varnames:
+    - ClaimUsernameType
+    - StartMiningType
+    - UploadProfilePictureType
+    - FollowUsOnTwitterType
+    - JoinTelegramType
+    - InviteFriendsType
+info:
+  contact:
+    name: ice.io
+    url: https://ice.io
+  description: API that handles everything related to read-only operations for user's
+    achievements and gamification progress.
+  title: Achievements API
+  version: latest
+paths:
+  /achievement-summaries/badges/users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns user's summary about badges.
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: the id of the user you need summary for
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/badges.BadgeSummary'
+            type: array
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if not allowed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Badges
+  /achievement-summaries/levels-and-roles/users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns user's summary about levels & roles.
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: the id of the user you need summary for
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/levelsandroles.Summary'
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Levels & Roles
+  /badges/{badgeType}/users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns all badges of the specific type for the user, with the
+        progress for each of them.
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: the id of the user you need progress for
+        in: path
+        name: userId
+        required: true
+        type: string
+      - description: the type of the badges
+        enum:
+        - level
+        - coin
+        - social
+        in: path
+        name: badgeType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/badges.Badge'
+            type: array
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if not allowed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Badges
+  /tasks/x/users/{userId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns all the tasks and provided user's progress for each of
+        them.
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: the id of the user you need progress for
+        in: path
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/tasks.Task'
+            type: array
+        "400":
+          description: if validations fail
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "401":
+          description: if not authorized
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "403":
+          description: if not allowed
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "422":
+          description: if syntax fails
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+        "504":
+          description: if request times out
+          schema:
+            $ref: '#/definitions/server.ErrorResponse'
+      tags:
+      - Tasks
+schemes:
+- https
+swagger: "2.0"

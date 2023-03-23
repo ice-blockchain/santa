@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: false
+logger:
+  encoder: console
+  level: info
+cmd/santa-sleigh:
+  host: localhost
+  version: latest
+  defaultEndpointTimeout: 5s
+  httpServer:
+    port: 44443
+    certPath: .testdata/localhost.crt
+    keyPath: .testdata/localhost.key
