@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: true
+logger:
+  encoder: console
+  level: info
+levels-and-roles: &levels-and-roles
+  requiredInvitedFriendsToBecomeAmbassador: 3
+  miningStreakMilestones:
+    1: 1
+    2: 2
+    3: 3
+    4: 4
+    5: 5
+  completedTasksMilestones:
+    6: 1
+    7: 2
+    8: 3
+    9: 4
+    10: 5
+    11: 6
+  agendaContactsJoinedMilestones:
+    12: 0
+    13: 1
+    14: 2
+    15: 3
+  pingsSentMilestones:
+    16: 1
+    17: 2
+    18: 3
+    19: 4
+    20: 5
+    21: 6
+  db: &levels-and-rolesDatabase
+    urls:
+      - localhost:3303
+    user: admin
+    password: pass
+  messageBroker: &levels-and-rolesMessageBroker
+    consumerGroup: levels-and-roles-testing
+    createTopics: true
+    urls:
+      - localhost:9094
+    topics: &levels-and-rolesMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-complete-levels-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: enabled-roles
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: mining-sessions-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: started-days-off
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-tasks
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: user-pings
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-complete-levels-commands
+      - name: users-table
+      - name: mining-sessions-table
+      - name: started-days-off
+      - name: completed-tasks
+      - name: user-pings
+levels-and-roles_test:
+  <<: *levels-and-roles
+  messageBroker:
+    <<: *levels-and-rolesMessageBroker
+    consumingTopics: *levels-and-rolesMessageBrokerTopics
+    consumerGroup: santa-testing-levels-and-roles
+  db:
+    <<: *levels-and-rolesDatabase
+    schemaPath: levels-and-roles/DDL.lua

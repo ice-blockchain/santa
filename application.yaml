@@ -1,0 +1,296 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: true
+logger:
+  encoder: console
+  level: info
+cmd/santa:
+  host: localhost:6443
+  version: local
+  defaultEndpointTimeout: 30s
+  httpServer:
+    port: 6443
+    certPath: cmd/santa/.testdata/localhost.crt
+    keyPath: cmd/santa/.testdata/localhost.key
+  defaultPagination:
+    limit: 20
+    maxLimit: 1000
+cmd/santa-sleigh:
+  host: localhost:7443
+  version: local
+  defaultEndpointTimeout: 30s
+  httpServer:
+    port: 7443
+    certPath: cmd/santa-sleigh/.testdata/localhost.crt
+    keyPath: cmd/santa-sleigh/.testdata/localhost.key
+badges: &badges
+  milestones:
+    l1:
+      toInclusive: 1
+    l2:
+      fromInclusive: 2
+      toInclusive: 3
+    l3:
+      fromInclusive: 4
+      toInclusive: 5
+    l4:
+      fromInclusive: 6
+      toInclusive: 7
+    l5:
+      fromInclusive: 8
+      toInclusive: 9
+    l6:
+      fromInclusive: 10
+    c1:
+      toInclusive: 10
+    c2:
+      fromInclusive: 20
+      toInclusive: 30
+    c3:
+      fromInclusive: 40
+      toInclusive: 50
+    c4:
+      fromInclusive: 60
+      toInclusive: 70
+    c5:
+      fromInclusive: 80
+      toInclusive: 90
+    c6:
+      fromInclusive: 100
+      toInclusive: 110
+    c7:
+      fromInclusive: 120
+      toInclusive: 130
+    c8:
+      fromInclusive: 140
+      toInclusive: 150
+    c9:
+      fromInclusive: 160
+      toInclusive: 170
+    c10:
+      fromInclusive: 180
+    s1:
+      toInclusive: 1
+    s2:
+      fromInclusive: 2
+      toInclusive: 3
+    s3:
+      fromInclusive: 4
+      toInclusive: 5
+    s4:
+      fromInclusive: 6
+      toInclusive: 7
+    s5:
+      fromInclusive: 8
+      toInclusive: 9
+    s6:
+      fromInclusive: 10
+      toInclusive: 11
+    s7:
+      fromInclusive: 12
+      toInclusive: 13
+    s8:
+      fromInclusive: 14
+      toInclusive: 15
+    s9:
+      fromInclusive: 16
+      toInclusive: 17
+    s10:
+      fromInclusive: 18
+  db: &badgesDatabase
+    urls:
+      - localhost:3601
+    user: admin
+    password: pass
+  messageBroker: &badgesMessageBroker
+    consumerGroup: badges-testing
+    createTopics: true
+    urls:
+      - localhost:9092
+    topics: &badgesMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-achieve-badges-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achieved-badges
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: balances-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: global-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-achieve-badges-commands
+      - name: achieved-badges
+      - name: users-table
+      - name: completed-levels
+      - name: balances-table
+      - name: global-table
+badges_test:
+  <<: *badges
+  messageBroker:
+    <<: *badgesMessageBroker
+    consumingTopics: *badgesMessageBrokerTopics
+    consumerGroup: santa-local-badges-test
+  db:
+    <<: *badgesDatabase
+tasks: &tasks
+  requiredFriendsInvited: 5
+  db: &tasksDatabase
+    urls:
+      - localhost:3601
+    user: admin
+    password: pass
+  messageBroker: &tasksMessageBroker
+    consumerGroup: tasks-testing
+    createTopics: true
+    urls:
+      - localhost:9092
+    topics: &tasksMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-complete-tasks-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-tasks
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: mining-sessions-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: add-balance-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-complete-tasks-commands
+      - name: users-table
+      - name: mining-sessions-table
+    producingTopics:
+      - name: add-balance-commands
+tasks_test:
+  <<: *tasks
+  messageBroker:
+    <<: *tasksMessageBroker
+    consumingTopics: *tasksMessageBrokerTopics
+    consumerGroup: santa-local-tasks-test
+  db:
+    <<: *tasksDatabase
+levels-and-roles: &levels-and-roles
+  requiredInvitedFriendsToBecomeAmbassador: 3
+  miningStreakMilestones:
+    1: 1
+    2: 2
+    3: 3
+    4: 4
+    5: 5
+  completedTasksMilestones:
+    6: 1
+    7: 2
+    8: 3
+    9: 4
+    10: 5
+    11: 6
+  agendaContactsJoinedMilestones:
+    12: 0
+    13: 1
+    14: 2
+    15: 3
+  pingsSentMilestones:
+    16: 1
+    17: 2
+    18: 3
+    19: 4
+    20: 5
+    21: 6
+  db: &levels-and-rolesDatabase
+    urls:
+      - localhost:3601
+    user: admin
+    password: pass
+  messageBroker: &levels-and-rolesMessageBroker
+    consumerGroup: levels-and-roles-testing
+    createTopics: true
+    urls:
+      - localhost:9092
+    topics: &levels-and-rolesMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-complete-levels-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: enabled-roles
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: mining-sessions-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: started-days-off
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-tasks
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: user-pings
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-complete-levels-commands
+      - name: users-table
+      - name: mining-sessions-table
+      - name: started-days-off
+      - name: completed-tasks
+      - name: user-pings
+levels-and-roles_test:
+  <<: *levels-and-roles
+  messageBroker:
+    <<: *levels-and-rolesMessageBroker
+    consumingTopics: *levels-and-rolesMessageBrokerTopics
+    consumerGroup: santa-local-levels-and-roles-test
+  db:
+    <<: *levels-and-rolesDatabase

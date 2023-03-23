@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: true
+logger:
+  encoder: console
+  level: info
+tasks: &tasks
+  requiredFriendsInvited: 5
+  db: &tasksDatabase
+    urls:
+      - localhost:3302
+    user: admin
+    password: pass
+  messageBroker: &tasksMessageBroker
+    consumerGroup: tasks-testing
+    createTopics: true
+    urls:
+      - localhost:9093
+    topics: &tasksMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-complete-tasks-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-tasks
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: mining-sessions-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: add-balance-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-complete-tasks-commands
+      - name: users-table
+      - name: mining-sessions-table
+    producingTopics:
+      - name: add-balance-commands
+tasks_test:
+  <<: *tasks
+  messageBroker:
+    <<: *tasksMessageBroker
+    consumingTopics: *tasksMessageBrokerTopics
+    consumerGroup: santa-testing-tasks
+  db:
+    <<: *tasksDatabase
+    schemaPath: tasks/DDL.lua

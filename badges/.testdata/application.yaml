@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: true
+logger:
+  encoder: console
+  level: info
+badges: &badges
+  milestones:
+    l1:
+      toInclusive: 1
+    l2:
+      fromInclusive: 2
+      toInclusive: 3
+    l3:
+      fromInclusive: 4
+      toInclusive: 5
+    l4:
+      fromInclusive: 6
+      toInclusive: 7
+    l5:
+      fromInclusive: 8
+      toInclusive: 9
+    l6:
+      fromInclusive: 10
+    c1:
+      toInclusive: 10
+    c2:
+      fromInclusive: 20
+      toInclusive: 30
+    c3:
+      fromInclusive: 40
+      toInclusive: 50
+    c4:
+      fromInclusive: 60
+      toInclusive: 70
+    c5:
+      fromInclusive: 80
+      toInclusive: 90
+    c6:
+      fromInclusive: 100
+      toInclusive: 110
+    c7:
+      fromInclusive: 120
+      toInclusive: 130
+    c8:
+      fromInclusive: 140
+      toInclusive: 150
+    c9:
+      fromInclusive: 160
+      toInclusive: 170
+    c10:
+      fromInclusive: 180
+    s1:
+      toInclusive: 1
+    s2:
+      fromInclusive: 2
+      toInclusive: 3
+    s3:
+      fromInclusive: 4
+      toInclusive: 5
+    s4:
+      fromInclusive: 6
+      toInclusive: 7
+    s5:
+      fromInclusive: 8
+      toInclusive: 9
+    s6:
+      fromInclusive: 10
+      toInclusive: 11
+    s7:
+      fromInclusive: 12
+      toInclusive: 13
+    s8:
+      fromInclusive: 14
+      toInclusive: 15
+    s9:
+      fromInclusive: 16
+      toInclusive: 17
+    s10:
+      fromInclusive: 18
+  db: &badgesDatabase
+    urls:
+      - localhost:3304
+    user: admin
+    password: pass
+  messageBroker: &badgesMessageBroker
+    consumerGroup: badges-testing
+    createTopics: true
+    urls:
+      - localhost:9095
+    topics: &badgesMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+        retention: 1000h
+      - name: try-achieve-badges-commands
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: achieved-badges
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: completed-levels
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: balances-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: global-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: try-achieve-badges-commands
+      - name: achieved-badges
+      - name: users-table
+      - name: completed-levels
+      - name: balances-table
+      - name: global-table
+badges_test:
+  <<: *badges
+  messageBroker:
+    <<: *badgesMessageBroker
+    consumingTopics: *badgesMessageBrokerTopics
+    consumerGroup: santa-testing-badges
+  db:
+    <<: *badgesDatabase
+    schemaPath: badges/DDL.lua
