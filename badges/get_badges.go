@@ -4,6 +4,7 @@ package badges
 
 import (
 	"context"
+	"math"
 
 	"github.com/pkg/errors"
 
@@ -95,19 +96,19 @@ func (*repository) calculateUnachievedPercentages(groupType GroupType, res []*st
 		totalAchievedBy = totalUsers
 	}
 	for ind, currentBadgeType := range allTypes {
+		currentBadgeAchievedBy := math.Min(float64(achievedByForEachType[allTypes[ind]]), float64(totalUsers))
 		if currentBadgeType == allTypes[0] {
-			resp[currentBadgeType] = percent100 * (float64(totalAchievedBy-achievedByForEachType[currentBadgeType]) / float64(totalUsers))
+			resp[currentBadgeType] = percent100 * ((float64(totalAchievedBy) - currentBadgeAchievedBy) / float64(totalUsers))
 			if totalAchievedBy == 0 {
 				resp[currentBadgeType] = 100.0
 			}
 
 			continue
 		}
-		usersWhoOwnsPreviousBadge := achievedByForEachType[allTypes[ind-1]]
+		usersWhoOwnsPreviousBadge := math.Min(float64(achievedByForEachType[allTypes[ind-1]]), float64(totalUsers))
 		usersInProgressWithBadge := usersWhoOwnsPreviousBadge
-		currentBadgeAchievedBy := achievedByForEachType[allTypes[ind]]
 		usersInProgressWithBadge -= currentBadgeAchievedBy
-		resp[currentBadgeType] = percent100 * (float64(usersInProgressWithBadge) / float64(totalUsers))
+		resp[currentBadgeType] = percent100 * (usersInProgressWithBadge / float64(totalUsers))
 	}
 
 	return resp
@@ -140,7 +141,8 @@ func (p *progress) buildBadges(repo *repository, groupType GroupType, stats map[
 
 func (p *progress) buildBadgeSummaries() []*BadgeSummary { //nolint:gocognit,revive // .
 	resp := make([]*BadgeSummary, 0, len(AllGroups))
-	for groupType, types := range AllGroups {
+	for _, groupType := range &GroupsOrderSummaries {
+		types := AllGroups[groupType]
 		lastAchievedIndex := 0
 		if p != nil && p.AchievedBadges != nil {
 			for ix, badgeType := range types {

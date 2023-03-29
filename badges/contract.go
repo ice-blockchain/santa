@@ -226,6 +226,12 @@ var (
 		CoinGroupType:   append(make([]Type, 0, len(CoinTypeOrder)), Coin1Type, Coin2Type, Coin3Type, Coin4Type, Coin5Type, Coin6Type, Coin7Type, Coin8Type, Coin9Type, Coin10Type),                       //nolint:lll // .
 		SocialGroupType: append(make([]Type, 0, len(SocialTypeOrder)), Social1Type, Social2Type, Social3Type, Social4Type, Social5Type, Social6Type, Social7Type, Social8Type, Social9Type, Social10Type), //nolint:lll // .
 	}
+	//nolint:gochecknoglobals // .
+	GroupsOrderSummaries = [3]GroupType{
+		LevelGroupType,
+		CoinGroupType,
+		SocialGroupType,
+	}
 )
 
 type (

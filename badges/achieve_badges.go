@@ -198,7 +198,7 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 		return nil
 	}
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
-		return errors.Wrapf(s.deleteProgress(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
+		return errors.Wrapf(s.handleUserDeletion(ctx, snapshot), "failed to handle user deletionfor:%#v", snapshot)
 	}
 	if err := s.upsertProgress(ctx, snapshot); err != nil {
 		return errors.Wrapf(err, "failed to upsert progress for:%#v", snapshot)
@@ -265,6 +265,39 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 
 	return errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, us.User.ReferredBy),
 		"failed to sendTryAchieveBadgesCommandMessage, userID:%v,referredBy:%v", us.User.ID, us.User.ReferredBy)
+}
+
+func (s *userTableSource) handleUserDeletion(ctx context.Context, us *users.UserSnapshot) error {
+	pr, err := s.getProgress(ctx, us.Before.ID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get progress for userID:%v", us.Before.ID)
+	}
+
+	if err = s.deleteProgress(ctx, us); err != nil {
+		return errors.Wrapf(err, "failed to delete progress for:%#v", us)
+	}
+
+	if pr != nil && pr.AchievedBadges != nil {
+		if err = s.decrementAchievedBadgesOnUserDelete(ctx, us.Before.ID); err != nil {
+			return errors.Wrapf(err, "failed to decrement achieved badges counts, badges: %v", *pr.AchievedBadges)
+		}
+	}
+
+	return nil
+}
+
+func (s *userTableSource) decrementAchievedBadgesOnUserDelete(ctx context.Context, userID users.UserID) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
+	}
+	sql := `UPDATE BADGE_STATISTICS SET
+	ACHIEVED_BY = ACHIEVED_BY - 1
+	WHERE POSITION(BADGE_TYPE, (SELECT ACHIEVED_BADGES FROM BADGE_PROGRESS WHERE USER_ID = :userID)) > 0`
+	params := make(map[string]any, 1)
+	params["userID"] = userID
+
+	return errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)),
+		"failed to decrement achieved badges count due to user deletion, userID: %v", userID)
 }
 
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {

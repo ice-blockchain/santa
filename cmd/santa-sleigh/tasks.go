@@ -19,24 +19,24 @@ func (s *service) setupTasksRoutes(router *server.Router) {
 
 // PseudoCompleteTask godoc
 //
-//	@Schemes
-//	@Description	Completes the specific task (identified via task type) for the specified user.
-//	@Tags			Tasks
-//	@Accept			json
-//	@Produce		json
-//	@Param			Authorization	header	string					true	"Insert your access token"	default(Bearer <Add access token here>)
-//	@Param			taskType		path	string					true	"the type of the task"		enums(claim_username,start_mining,upload_profile_picture,follow_us_on_twitter,join_telegram,invite_friends)
-//	@Param			userId			path	string					true	"the id of the user that completed the task"
-//	@Param			request			body	CompleteTaskRequestBody	false	"Request params. Set it only if task completion requires additional data."
-//	@Success		200				"ok"
-//	@Failure		400				{object}	server.ErrorResponse	"if validations fail"
-//	@Failure		401				{object}	server.ErrorResponse	"if not authorized"
-//	@Failure		403				{object}	server.ErrorResponse	"if not allowed"
-//	@Failure		404				{object}	server.ErrorResponse	"if user not found"
-//	@Failure		422				{object}	server.ErrorResponse	"if syntax fails"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/tasks/{taskType}/users/{userId} [PUT].
+// @Schemes
+// @Description	Completes the specific task (identified via task type) for the specified user.
+// @Tags			Tasks
+// @Accept			json
+// @Produce		json
+// @Param			Authorization	header	string					true	"Insert your access token"	default(Bearer <Add access token here>)
+// @Param			taskType		path	string					true	"the type of the task"		enums(claim_username,start_mining,upload_profile_picture,follow_us_on_twitter,join_telegram,invite_friends)
+// @Param			userId			path	string					true	"the id of the user that completed the task"
+// @Param			request			body	CompleteTaskRequestBody	false	"Request params. Set it only if task completion requires additional data."
+// @Success		200				"ok"
+// @Failure		400				{object}	server.ErrorResponse	"if validations fail"
+// @Failure		401				{object}	server.ErrorResponse	"if not authorized"
+// @Failure		403				{object}	server.ErrorResponse	"if not allowed"
+// @Failure		404				{object}	server.ErrorResponse	"if user not found"
+// @Failure		422				{object}	server.ErrorResponse	"if syntax fails"
+// @Failure		500				{object}	server.ErrorResponse
+// @Failure		504				{object}	server.ErrorResponse	"if request times out"
+// @Router			/tasks/{taskType}/users/{userId} [PUT].
 func (s *service) PseudoCompleteTask( //nolint:gocritic,gocognit // False negative.
 	ctx context.Context,
 	req *server.Request[CompleteTaskRequestBody, any],

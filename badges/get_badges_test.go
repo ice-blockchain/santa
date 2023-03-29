@@ -149,6 +149,36 @@ func Test_Repository_calculateUnachievedPercentages(t *testing.T) {
 				Social9Type:  0,
 				Social10Type: 0,
 			}),
+		unachivedPercentageTestCase().
+			WithDesc("Achieved users greater than total due to any reason").
+			WithUsers(t, SocialGroupType, math.MaxInt, 110, 101, 90, 0, 0, 0, 0, 0, 0).
+			Expected(map[Type]float64{
+				Social1Type:  0,
+				Social2Type:  0,
+				Social3Type:  0,
+				Social4Type:  10,
+				Social5Type:  90,
+				Social6Type:  0,
+				Social7Type:  0,
+				Social8Type:  0,
+				Social9Type:  0,
+				Social10Type: 0,
+			}),
+		unachivedPercentageTestCase().
+			WithDesc("0.2+0.1 != 0.3000000000004").
+			WithUsers(t, SocialGroupType, 100, 20, 10, 0, 0, 0, 0, 0, 0, 0).
+			Expected(map[Type]float64{
+				Social1Type:  0,
+				Social2Type:  80,
+				Social3Type:  10,
+				Social4Type:  10,
+				Social5Type:  0,
+				Social6Type:  0,
+				Social7Type:  0,
+				Social8Type:  0,
+				Social9Type:  0,
+				Social10Type: 0,
+			}),
 	}
 
 	random := randomAchievedUsers(len(AllGroups[SocialGroupType]))
