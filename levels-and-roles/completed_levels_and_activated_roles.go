@@ -257,7 +257,7 @@ func (s *userTableSource) updateAgendaContactsJoined(ctx context.Context, us *us
 	}
 	sql = fmt.Sprintf(`UPDATE levels_and_roles_progress
 					   SET agenda_contacts_joined = (CASE %[2]v ELSE agenda_contacts_joined END)
-					   WHERE user_id IN (%[1]v)`, strings.Join(values, ","), strings.Join(conditions, ","))
+					   WHERE user_id IN (%[1]v)`, strings.Join(values, ","), strings.Join(conditions, "\n"))
 	if _, err := storage.CheckSQLDMLResponse(s.db.PrepareExecute(sql, params)); err != nil {
 		return errors.Wrapf(err, "failed to update levels_and_roles_progress.agenda_contacts_joined, params:%#v", params)
 	}
