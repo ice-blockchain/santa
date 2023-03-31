@@ -366,14 +366,22 @@ func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnap
 	}
 	params := map[string]any{"user_id": us.Before.ID}
 
-	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = :user_id`, params)),
-			"failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us),
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM AGENDA_PHONE_NUMBER_HASHES WHERE user_id = :user_id`, params)),
-			"failed to delete AGENDA_PHONE_NUMBER_HASHES for:%#v", us),
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM PINGS WHERE user_id = :user_id`, params)),
-			"failed to delete PINGS for:%#v", us),
-	).ErrorOrNil()
+	var mErr *multierror.Error
+	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = :user_id`, params)); err != nil {
+		mErr = multierror.Append(errors.Wrapf(err, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us))
+	}
+	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM AGENDA_PHONE_NUMBER_HASHES WHERE user_id = :user_id`, params)); err != nil {
+		if !errors.Is(err, storage.ErrNotFound) {
+			mErr = multierror.Append(errors.Wrapf(err, "failed to delete AGENDA_PHONE_NUMBER_HASHES for:%#v", us))
+		}
+	}
+	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM PINGS WHERE user_id = :user_id`, params)); err != nil {
+		if !errors.Is(err, storage.ErrNotFound) {
+			mErr = multierror.Append(errors.Wrapf(err, "failed to delete PINGS for:%#v", us))
+		}
+	}
+
+	return mErr.ErrorOrNil() //nolint:wrapcheck // Not needed.
 }
 
 func (r *repository) sendTryCompleteLevelsCommandMessage(ctx context.Context, userID string) error {
