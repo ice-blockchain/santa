@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS badge_progress (
 CREATE TABLE IF NOT EXISTS badge_statistics (
                      badge_type         TEXT NOT NULL PRIMARY KEY,
                      badge_group_type   TEXT NOT NULL,
-                     achieved_by        TIMESTAMP NOT NULL DEFAULT to_timestamp(0)
+                     achieved_by        BIGINT NOT NULL DEFAULT 0
                  );
 CREATE INDEX IF NOT EXISTS badge_statistics_badge_group_type_ix ON badge_statistics (badge_group_type);
 INSERT INTO badge_statistics (badge_group_type,badge_type)

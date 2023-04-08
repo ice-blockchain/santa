@@ -5,16 +5,14 @@ package badges
 import (
 	"context"
 	_ "embed"
-	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"io"
 
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 // Public API.
@@ -291,7 +289,6 @@ var (
 
 type (
 	progress struct {
-		_msgpack        struct{}          `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		AchievedBadges  *users.Enum[Type] `json:"achievedBadges,omitempty" example:"c1,l1,l2,c2"`
 		Balance         *coin.ICEFlake    `json:"balance,omitempty" example:"1232323232"`
 		UserID          string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
@@ -300,7 +297,6 @@ type (
 		HideBadges      bool              `json:"hideBadges,omitempty" example:"false"`
 	}
 	statistics struct {
-		_msgpack   struct{} `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		Type       Type
 		GroupType  GroupType
 		AchievedBy uint64
@@ -326,8 +322,7 @@ type (
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       tarantool.Connector
-		dbV2     *storagev2.DB
+		db       *storage.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

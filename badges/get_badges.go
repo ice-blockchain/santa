@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/go-tarantool-client"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func (r *repository) GetBadges(ctx context.Context, groupType GroupType, userID string) ([]*Badge, error) {
@@ -48,14 +48,19 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res = new(progress)
-	err = errors.Wrapf(r.db.GetTyped("BADGE_PROGRESS", "pk_unnamed_BADGE_PROGRESS_1", tarantool.StringKey{S: userID}, res),
-		"failed to get BADGE_PROGRESS for userID:%v", userID)
-	if res.UserID == "" {
+	sql := `SELECT achieved_badges,
+				   COALESCE(balance, '') AS balance,
+				   user_id,
+				   friends_invited,
+				   completed_levels,
+				   COALESCE(hide_badges, FALSE) AS hide_badges
+				FROM badge_progress WHERE user_id = $1`
+	res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	if res == nil {
 		return nil, ErrRelationNotFound
 	}
 
-	return
+	return res, errors.Wrapf(err, "can't get badge progress for userID:%v", userID)
 }
 
 func (r *repository) getStatistics(ctx context.Context, groupType GroupType) (map[Type]float64, error) {
@@ -63,10 +68,13 @@ func (r *repository) getStatistics(ctx context.Context, groupType GroupType) (ma
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	allTypes := AllGroups[groupType]
-	index := "BADGE_STATISTICS_BADGE_GROUP_TYPE_IX"
-	key := tarantool.StringKey{S: string(groupType)}
-	res := make([]*statistics, 0, len(allTypes)+1)
-	if err := r.db.SelectTyped("BADGE_STATISTICS", index, 0, uint32(cap(res)), tarantool.IterEq, key, &res); err != nil {
+	sql := `SELECT *
+			FROM badge_statistics
+				WHERE badge_group_type = $1
+				LIMIT $2 OFFSET $3`
+	offset := 0
+	res, err := storage.Select[statistics](ctx, r.db, sql, string(groupType), offset, uint32(len(allTypes)+1))
+	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get BADGE_STATISTICS for groupType:%v", groupType)
 	}
 
