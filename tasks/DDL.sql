@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS task_progress (
                         friends_invited             BIGINT NOT NULL DEFAULT 0,
                         username_set                BOOLEAN,
                         profile_picture_set         BOOLEAN,
-                        mining_started              BOOLEAN
+                        mining_started              BOOLEAN DEFAULT FALSE
                     );
 --************************************************************************************************************************************
 -- referrals

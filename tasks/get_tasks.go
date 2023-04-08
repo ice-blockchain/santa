@@ -4,10 +4,9 @@ package tasks
 
 import (
 	"context"
+	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 
 	"github.com/pkg/errors"
-
-	"github.com/ice-blockchain/go-tarantool-client"
 )
 
 func (r *repository) GetTasks(ctx context.Context, userID string) (resp []*Task, err error) {
@@ -30,10 +29,19 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res = new(progress)
-	err = errors.Wrapf(r.db.GetTyped("TASK_PROGRESS", "pk_unnamed_TASK_PROGRESS_1", tarantool.StringKey{S: userID}, res),
-		"failed to get TASK_PROGRESS for userID:%v", userID)
-	if res.UserID == "" {
+	res, err = storagev2.Get[progress](ctx, r.dbV2, `SELECT 
+        COALESCE(completed_tasks,'') AS completed_tasks,
+		COALESCE(pseudo_completed_tasks, '') AS pseudo_completed_tasks,
+		user_id,
+		COALESCE(twitter_user_handle, '') AS twitter_user_handle,
+		COALESCE(telegram_user_handle, '') AS telegram_user_handle,
+		COALESCE(friends_invited, 0) AS friends_invited,
+		username_set,
+		profile_picture_set,
+		COALESCE(mining_started, false) AS mining_started
+    FROM task_progress where user_id = $1`, userID)
+	err = errors.Wrapf(err, "failed to get TASK_PROGRESS for userID:%v", userID)
+	if errors.Is(err, storagev2.ErrNotFound) {
 		return nil, ErrRelationNotFound
 	}
 

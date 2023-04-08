@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/goccy/go-json v0.10.2
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/eskimo v1.107.0
+	github.com/ice-blockchain/eskimo v1.106.1-0.20230406152736-17df1068ab10
 	github.com/ice-blockchain/go-tarantool-client v0.0.0-20230327200757-4fc71fa3f7bb
 	github.com/ice-blockchain/wintr v1.108.0
 	github.com/pkg/errors v0.9.1
@@ -37,7 +37,7 @@ require (
 	github.com/containerd/continuity v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
-	github.com/docker/docker v23.0.1+incompatible // indirect
+	github.com/docker/docker v23.0.3+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect

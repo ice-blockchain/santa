@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/pkg/errors"
 	"io"
 
 	"github.com/ice-blockchain/eskimo/users"
@@ -27,6 +28,7 @@ const (
 
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
+	ErrRaceCondition    = errors.New("race condition")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllTypes = [6]Type{
 		ClaimUsernameType,
