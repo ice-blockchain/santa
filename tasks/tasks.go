@@ -4,6 +4,7 @@ package tasks
 
 import (
 	"context"
+	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"sync"
 
 	"github.com/goccy/go-json"
@@ -24,11 +25,12 @@ func New(ctx context.Context, cancel context.CancelFunc) Repository {
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
-
+	dbV2 := storagev2.MustConnect(ctx, ddlV2, applicationYamlKey)
 	return &repository{
 		cfg:      &cfg,
 		shutdown: db.Close,
 		db:       db,
+		dbV2:     dbV2,
 	}
 }
 
@@ -45,7 +47,8 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 			}
 			cancel()
 		}, ddl, applicationYamlKey),
-		mb: messagebroker.MustConnect(ctx, applicationYamlKey),
+		dbV2: storagev2.MustConnect(ctx, ddlV2, applicationYamlKey),
+		mb:   messagebroker.MustConnect(ctx, applicationYamlKey),
 	}}
 	//nolint:contextcheck // It's intended. Cuz we want to close everything gracefully.
 	mbConsumer = messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey,

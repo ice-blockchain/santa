@@ -15,6 +15,7 @@ import (
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
+	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
@@ -24,11 +25,12 @@ func New(ctx context.Context, cancel context.CancelFunc) Repository {
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
 	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
-
+	dbV2 := storagev2.MustConnect(ctx, ddlV2, applicationYamlKey)
 	return &repository{
 		cfg:      &cfg,
 		shutdown: db.Close,
 		db:       db,
+		dbV2:     dbV2,
 	}
 }
 
@@ -45,7 +47,8 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 			}
 			cancel()
 		}, ddl, applicationYamlKey),
-		mb: messagebroker.MustConnect(ctx, applicationYamlKey),
+		dbV2: storagev2.MustConnect(ctx, ddlV2, applicationYamlKey),
+		mb:   messagebroker.MustConnect(ctx, applicationYamlKey),
 	}}
 	mbConsumer = messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, //nolint:contextcheck // .
 		&tryAchievedBadgesCommandSource{processor: prc},
