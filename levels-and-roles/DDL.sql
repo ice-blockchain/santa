@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
                         agenda_contacts_joined      BIGINT NOT NULL DEFAULT 0,
                         friends_invited             BIGINT NOT NULL DEFAULT 0,
                         completed_tasks             BIGINT NOT NULL DEFAULT 0,
-                        hide_level                  BOOLEAN,
-                        hide_role                   BOOLEAN
+                        hide_level                  BOOLEAN DEFAULT false,
+                        hide_role                   BOOLEAN DEFAULT false
                     );
 CREATE INDEX IF NOT EXISTS levels_and_roles_progress_phone_number_hash_ix ON levels_and_roles_progress (phone_number_hash);
 --************************************************************************************************************************************

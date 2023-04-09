@@ -4,10 +4,10 @@ package levelsandroles
 
 import (
 	"context"
+	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/go-tarantool-client"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
@@ -26,10 +26,20 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res = new(progress)
-	err = errors.Wrapf(r.db.GetTyped("LEVELS_AND_ROLES_PROGRESS", "pk_unnamed_LEVELS_AND_ROLES_PROGRESS_1", tarantool.StringKey{S: userID}, res),
-		"failed to get LEVELS_AND_ROLES_PROGRESS for userID:%v", userID)
-	if res.UserID == "" {
+	res, err = storagev2.Get[progress](ctx, r.dbV2, `SELECT 
+        COALESCE(enabled_roles,'') AS enabled_roles,
+		COALESCE(completed_levels,'') AS completed_levels,
+		user_id,
+		COALESCE(phone_number_hash,'') AS phone_number_hash,
+		COALESCE(mining_streak,0) AS mining_streak,
+		COALESCE(pings_sent,0) AS pings_sent,
+		COALESCE(agenda_contacts_joined,0) AS agenda_contacts_joined,
+		COALESCE(friends_invited,0) AS friends_invited,
+		COALESCE(completed_tasks,0) completed_tasks,
+		COALESCE(hide_level,false) AS hide_level,
+		COALESCE(hide_role,false) AS hide_role
+    FROM levels_and_roles_progress WHERE user_id = $1`, userID)
+	if errors.Is(err, storagev2.ErrNotFound) {
 		return nil, storage.ErrRelationNotFound
 	}
 

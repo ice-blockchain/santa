@@ -6,6 +6,7 @@ import (
 	"context"
 	_ "embed"
 	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/pkg/errors"
 	"io"
 
 	"github.com/ice-blockchain/eskimo/users"
@@ -45,6 +46,8 @@ const (
 )
 
 var (
+	//nolint:gochecknoglobals // .
+	ErrRaceCondition = errors.New("race condition")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllLevelTypes = [21]LevelType{
 		Level1Type,
