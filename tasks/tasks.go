@@ -4,7 +4,6 @@ package tasks
 
 import (
 	"context"
-	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"sync"
 
 	"github.com/goccy/go-json"
@@ -14,14 +13,16 @@ import (
 	"github.com/ice-blockchain/eskimo/users"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func New(ctx context.Context, cancel context.CancelFunc) Repository {
+func New(ctx context.Context, _ context.CancelFunc) Repository {
 	var cfg config
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
-	db := storagev2.MustConnect(ctx, ddlV2, applicationYamlKey)
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+
 	return &repository{
 		cfg:      &cfg,
 		shutdown: db.Close,
@@ -36,7 +37,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	var mbConsumer messagebroker.Client
 	prc := &processor{repository: &repository{
 		cfg: &cfg,
-		db:  storagev2.MustConnect(ctx, ddlV2, applicationYamlKey),
+		db:  storage.MustConnect(ctx, ddl, applicationYamlKey),
 		mb:  messagebroker.MustConnect(ctx, applicationYamlKey),
 	}}
 	//nolint:contextcheck // It's intended. Cuz we want to close everything gracefully.
@@ -54,7 +55,7 @@ func (r *repository) Close() error {
 	return errors.Wrap(r.shutdown(), "closing repository failed")
 }
 
-func closeAll(mbConsumer, mbProducer messagebroker.Client, db *storagev2.DB, otherClosers ...func() error) func() error {
+func closeAll(mbConsumer, mbProducer messagebroker.Client, db *storage.DB, otherClosers ...func() error) func() error {
 	return func() error {
 		err1 := errors.Wrap(mbConsumer.Close(), "closing message broker consumer connection failed")
 		err2 := errors.Wrap(db.Close(), "closing db connection failed")

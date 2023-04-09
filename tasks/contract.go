@@ -5,13 +5,13 @@ package tasks
 import (
 	"context"
 	_ "embed"
-	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
-	"github.com/pkg/errors"
 	"io"
+
+	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 // Public API.
@@ -93,15 +93,12 @@ const (
 
 // .
 var (
-	//go:embed DDL.lua
-	ddl string
 	//go:embed DDL.sql
-	ddlV2 string
+	ddl string
 )
 
 type (
 	progress struct {
-		_msgpack             struct{}          `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		CompletedTasks       *users.Enum[Type] `json:"completedTasks,omitempty" example:"claim_username,start_mining"`
 		PseudoCompletedTasks *users.Enum[Type] `json:"pseudoCompletedTasks,omitempty" example:"claim_username,start_mining"`
 		UserID               string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
@@ -124,7 +121,7 @@ type (
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       *storagev2.DB
+		db       *storage.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

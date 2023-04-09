@@ -5,13 +5,13 @@ package levelsandroles
 import (
 	"context"
 	_ "embed"
-	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
-	"github.com/pkg/errors"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 // Public API.
@@ -46,7 +46,6 @@ const (
 )
 
 var (
-	//nolint:gochecknoglobals // .
 	ErrRaceCondition = errors.New("race condition")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllLevelTypes = [21]LevelType{
@@ -129,15 +128,12 @@ const (
 
 // .
 var (
-	//go:embed DDL.lua
-	ddl string
 	//go:embed DDL.sql
-	ddlV2 string
+	ddl string
 )
 
 type (
 	progress struct {
-		_msgpack             struct{}               `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		EnabledRoles         *users.Enum[RoleType]  `json:"enabledRoles,omitempty" example:"snowman,ambassador"`
 		CompletedLevels      *users.Enum[LevelType] `json:"completedLevels,omitempty" example:"1,2"`
 		UserID               string                 `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
@@ -171,8 +167,7 @@ type (
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       tarantool.Connector
-		dbV2     *storagev2.DB
+		db       *storage.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

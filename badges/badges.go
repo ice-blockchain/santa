@@ -17,11 +17,12 @@ import (
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func New(ctx context.Context, cancel context.CancelFunc) Repository {
+func New(ctx context.Context, _ context.CancelFunc) Repository {
 	var cfg config
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
-	db := storage.MustConnect(ctx, ddlV2, applicationYamlKey)
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
+
 	return &repository{
 		cfg:      &cfg,
 		shutdown: db.Close,
@@ -36,7 +37,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	var mbConsumer messagebroker.Client
 	prc := &processor{repository: &repository{
 		cfg: &cfg,
-		db:  storage.MustConnect(ctx, ddlV2, applicationYamlKey),
+		db:  storage.MustConnect(ctx, ddl, applicationYamlKey),
 		mb:  messagebroker.MustConnect(ctx, applicationYamlKey),
 	}}
 	mbConsumer = messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey, //nolint:contextcheck // .

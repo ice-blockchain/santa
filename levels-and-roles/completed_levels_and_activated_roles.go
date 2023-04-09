@@ -5,8 +5,6 @@ package levelsandroles
 import (
 	"context"
 	"fmt"
-	"github.com/ice-blockchain/santa/tasks"
-	storagev2 "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"math"
 	"strings"
 
@@ -15,8 +13,9 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
+	"github.com/ice-blockchain/santa/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func (s *miningSessionSource) Process(ctx context.Context, msg *messagebroker.Message) error {
@@ -54,9 +53,11 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, miningStreak u
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
 	insertTuple := &progress{UserID: userID, MiningStreak: miningStreak}
-	_, err := storagev2.Exec(ctx, s.dbV2, `
+	_, err := storage.Exec(ctx, s.db, `
 		INSERT INTO levels_and_roles_progress(user_id, mining_streak)
-		VALUES ($1,$2) ON CONFLICT (user_id) DO UPDATE 
+			VALUES ($1,$2)
+			ON CONFLICT (user_id)
+			DO UPDATE 
 			SET mining_streak = $2`, insertTuple.UserID, insertTuple.MiningStreak)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
@@ -96,10 +97,11 @@ func (s *completedTasksSource) upsertProgress(ctx context.Context, completedTask
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
 	insertTuple := &progress{UserID: userID, CompletedTasks: completedTasks}
-	_, err = storagev2.Exec(ctx, s.dbV2, `
+	_, err = storage.Exec(ctx, s.db, `
 		INSERT INTO levels_and_roles_progress(user_id, completed_tasks)
-		VALUES ($1,$2) ON CONFLICT(user_id) DO UPDATE 
-			SET completed_tasks = $2`, insertTuple.UserID, insertTuple.CompletedTasks)
+				VALUES ($1,$2)
+				ON CONFLICT(user_id) DO UPDATE 
+				SET completed_tasks = $2`, insertTuple.UserID, insertTuple.CompletedTasks)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
@@ -132,29 +134,29 @@ func (s *userPingsSource) Process(ctx context.Context, msg *messagebroker.Messag
 	return errors.Wrapf(s.upsertProgress(ctx, ping.UserID, ping.PingedBy), "failed to upsertProgress for ping:%#v", ping)
 }
 
-func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy string) error { //nolint:gocognit // .
+func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy string) error {
 	if pr, err := s.getProgress(ctx, userID); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedLevels != nil &&
 			(len(*pr.CompletedLevels) == len(&AllLevelTypes) ||
 				AreLevelsCompleted(pr.CompletedLevels, Level16Type, Level17Type, Level18Type, Level19Type, Level20Type, Level21Type))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	sql := `INSERT INTO pings(user_id,pinged_by) VALUES ($1,$2)
-			ON CONFLICT(user_id) DO UPDATE
-				 SET pinged_by = $2`
+	sql := `INSERT INTO pings(user_id, pinged_by) VALUES ($1,$2)
+				ON CONFLICT(user_id, pinged_by) DO UPDATE
+				SET pinged_by = $2`
 	params := []any{
 		userID,
 		pingedBy,
 	}
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, params...); err != nil {
-		return errors.Wrapf(err, "failed to REPLACE INTO pings, params:%#v", params)
+	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+		return errors.Wrapf(err, "failed to insert pings, params:%#v", params...)
 	}
 	sql = ` INSERT INTO levels_and_roles_progress (user_id, pings_sent)
-			VALUES ($1, (SELECT COUNT(*) FROM pings WHERE pinged_by = $1))
-			ON CONFLICT(user_id) DO UPDATE 
-		   		SET pings_sent = EXCLUDED.pings_sent`
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, pingedBy); err != nil {
-		return errors.Wrapf(err, "failed to set levels_and_roles_progress.pings_sent, params:%#v", params)
+				VALUES ($1, (SELECT COUNT(*) FROM pings WHERE pinged_by = $1))
+				ON CONFLICT(user_id) DO UPDATE 
+		   			SET pings_sent = EXCLUDED.pings_sent`
+	if _, err := storage.Exec(ctx, s.db, sql, pingedBy); err != nil {
+		return errors.Wrapf(err, "failed to set levels_and_roles_progress.pings_sent, params:%#v", params...)
 	}
 
 	return errors.Wrapf(s.sendTryCompleteLevelsCommandMessage(ctx, pingedBy),
@@ -209,15 +211,16 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 		HideLevel:       hideLevel,
 		HideRole:        hideRole,
 	}
-	_, err := storagev2.Exec(ctx, s.dbV2, `
+	_, err := storage.Exec(ctx, s.db, `
 		INSERT INTO levels_and_roles_progress(user_id, phone_number_hash, hide_level, hide_role)
-		VALUES ($1,$2, $3, $4) ON CONFLICT (user_id) DO UPDATE 
-			SET phone_number_hash = $2,
-			    hide_level = $3,
-			    hide_role = $4`, insertTuple.UserID, insertTuple.PhoneNumberHash, insertTuple.HideLevel, insertTuple.EnabledRoles)
+			VALUES ($1, $2, $3, $4)
+			ON CONFLICT (user_id) DO UPDATE 
+				SET phone_number_hash = $2,
+			    	hide_level = $3,
+			    	hide_role = $4`, insertTuple.UserID, insertTuple.PhoneNumberHash, insertTuple.HideLevel, insertTuple.HideRole)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple), //nolint:lll // .
+		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
 		errors.Wrapf(s.updateAgendaContactsJoined(ctx, us), "failed to updateAgendaContactsJoined for user:%#v", us),
 		errors.Wrapf(s.updateFriendsInvited(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
 		errors.Wrapf(s.insertAgendaPhoneNumberHashes(ctx, us), "failed to insertAgendaPhoneNumberHashes for user:%#v", us),
@@ -231,33 +234,33 @@ func (s *userTableSource) updateAgendaContactsJoined(ctx context.Context, us *us
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	sql := `SELECT user_id
-		   FROM agenda_phone_number_hashes
-		   WHERE agenda_phone_number_hash = $1`
-	type responseUserId struct {
+		   		FROM agenda_phone_number_hashes
+		   		WHERE agenda_phone_number_hash = $1`
+	type responseUserID struct {
 		UserID string
 	}
-	resp, err := storagev2.Select[responseUserId](ctx, s.dbV2, sql, us.User.PhoneNumberHash)
+	resp, err := storage.Select[responseUserID](ctx, s.db, sql, us.User.PhoneNumberHash)
 	if err != nil || len(resp) == 0 {
 		return errors.Wrapf(err, "failed to select for userID's that have this phone_number_hash in their phone's agenda, phoneHash:%v", us.User.PhoneNumberHash)
 	}
-	params := make([]any, len(resp))
+	params := make([]any, 0, len(resp))
 	userIDs, placeholders, conditions := make([]string, 0, len(resp)), make([]string, 0, len(resp)), make([]string, 0, len(resp))
 	for ix, row := range resp {
 		userIDs = append(userIDs, row.UserID)
 		params[ix] = row.UserID
 		placeholders = append(placeholders, fmt.Sprintf("$%[1]v", ix+1))
 		conditions = append(conditions, fmt.Sprintf(`WHEN user_id = $%[1]v 
-																THEN (SELECT COUNT(*) 
-																	  FROM agenda_phone_number_hashes h 
-																			JOIN levels_and_roles_progress p 
-																			  ON p.phone_number_hash = h.agenda_phone_number_hash
-																	  WHERE h.user_id = $%[1]v)`, ix+1))
+														THEN (SELECT COUNT(*) 
+																FROM agenda_phone_number_hashes h 
+																	JOIN levels_and_roles_progress p 
+																		ON p.phone_number_hash = h.agenda_phone_number_hash
+																WHERE h.user_id = $%[1]v)`, ix+1))
 	}
 	sql = fmt.Sprintf(`UPDATE levels_and_roles_progress
-					   SET agenda_contacts_joined = (CASE %[2]v ELSE agenda_contacts_joined END)
-					   WHERE user_id IN (%[1]v)`, strings.Join(placeholders, ","), strings.Join(conditions, "\n"))
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, params...); err != nil {
-		return errors.Wrapf(err, "failed to update levels_and_roles_progress.agenda_contacts_joined, params:%#v", params)
+					   		SET agenda_contacts_joined = (CASE %[2]v ELSE agenda_contacts_joined END)
+					   		WHERE user_id IN (%[1]v)`, strings.Join(placeholders, ","), strings.Join(conditions, "\n"))
+	if _, sErr := storage.Exec(ctx, s.db, sql, params...); sErr != nil {
+		return errors.Wrapf(sErr, "failed to update levels_and_roles_progress.agenda_contacts_joined, params:%#v", params...)
 	}
 
 	return errors.Wrapf(runConcurrently(ctx, s.sendTryCompleteLevelsCommandMessage, userIDs), "failed to runConcurrently[sendTryCompleteLevelsCommandMessage], userIDs:%#v", userIDs) //nolint:lll // .
@@ -269,27 +272,27 @@ func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.Us
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	sql := `INSERT INTO referrals(user_id,referred_by) VALUES ($1,$2)
- ON CONFLICT(user_id) DO UPDATE
- SET referred_by = $2`
+ 				ON CONFLICT(user_id) DO UPDATE
+ 				SET referred_by = $2`
 	params := []any{
 		us.User.ID,
 		us.User.ReferredBy,
 	}
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, params...); err != nil {
-		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params)
+	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params...)
 	}
 	sql = `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, (SELECT COUNT(*) FROM referrals WHERE referred_by = $1))
-		   ON CONFLICT(user_id) DO UPDATE  
+		   		ON CONFLICT(user_id) DO UPDATE  
 		   		SET friends_invited = EXCLUDED.friends_invited`
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, us.User.ReferredBy); err != nil {
-		return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", params)
+	if _, err := storage.Exec(ctx, s.db, sql, us.User.ReferredBy); err != nil {
+		return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", params...)
 	}
 
 	return errors.Wrapf(s.sendTryCompleteLevelsCommandMessage(ctx, us.User.ReferredBy),
 		"failed to sendTryCompleteLevelsCommandMessage, userID:%v,referredBy:%v", us.User.ID, us.User.ReferredBy)
 }
 
-func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us *users.UserSnapshot) error {
+func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us *users.UserSnapshot) error { //nolint:funlen // .
 	contacts := s.newlyAddedAgendaContacts(us)
 	if len(contacts) == 0 {
 		return nil
@@ -309,21 +312,19 @@ func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us 
 	}
 
 	return errors.Wrap(runConcurrently(ctx, func(ctx context.Context, contactsBatch []string) error {
+		const fields = 2
 		placeholders := make([]string, 0, len(contactsBatch))
-		params := make([]any, len(contactsBatch)+1)
+		params := make([]any, 0, len(contactsBatch)+1)
 		params[0] = us.ID
 		for ix, contact := range contactsBatch {
-			placeholders = append(placeholders, fmt.Sprintf("($1,$%v)", ix+2))
+			placeholders = append(placeholders, fmt.Sprintf("($1,$%v)", ix+fields))
 			params[ix+1] = contact
 		}
-		sql := fmt.Sprintf(`
-			INSERT INTO agenda_phone_number_hashes(user_id, agenda_phone_number_hash) VALUES %v
-			ON CONFLICT (user_id) DO UPDATE
-				SET agenda_phone_number_hash = EXCLUDED.agenda_phone_number_hash`, strings.Join(placeholders, ","))
-		_, err := storagev2.Exec(ctx, s.dbV2, sql, params...)
+		sql := fmt.Sprintf(`INSERT INTO agenda_phone_number_hashes(user_id, agenda_phone_number_hash) VALUES %v`, strings.Join(placeholders, ","))
+		_, err := storage.Exec(ctx, s.db, sql, params...)
 
-		return errors.Wrapf(err, "failed to REPLACE INTO agenda_phone_number_hashes, params:%#v", params)
-	}, allContactsBatches), "at least one REPLACE INTO agenda_phone_number_hashes batch failed")
+		return errors.Wrapf(err, "failed to INSERT agenda_phone_number_hashes, params:%#v", params...)
+	}, allContactsBatches), "at least one INSERT agenda_phone_number_hashes batch failed")
 }
 
 func (*userTableSource) newlyAddedAgendaContacts(us *users.UserSnapshot) map[string]struct{} { //nolint:gocognit,gocyclo,revive,cyclop // .
@@ -363,9 +364,10 @@ func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnap
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	_, delProgressErr := storagev2.Exec(ctx, s.dbV2, `DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = $1`, us.Before.ID)
-	_, delAgendaErr := storagev2.Exec(ctx, s.dbV2, `DELETE FROM AGENDA_PHONE_NUMBER_HASHES WHERE user_id = $1`, us.Before.ID)
-	_, delPingsErr := storagev2.Exec(ctx, s.dbV2, `DELETE FROM PINGS WHERE user_id = $1 OR pinged_by = $1`, us.Before.ID)
+	_, delProgressErr := storage.Exec(ctx, s.db, `DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = $1`, us.Before.ID)
+	_, delAgendaErr := storage.Exec(ctx, s.db, `DELETE FROM AGENDA_PHONE_NUMBER_HASHES WHERE user_id = $1`, us.Before.ID)
+	_, delPingsErr := storage.Exec(ctx, s.db, `DELETE FROM PINGS WHERE user_id = $1 OR pinged_by = $1`, us.Before.ID)
+
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(delProgressErr, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us),
 		errors.Wrapf(delAgendaErr, "failed to delete AGENDA_PHONE_NUMBER_HASHES for:%#v", us),
@@ -417,20 +419,21 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 		return nil
 	}
 	sql := `INSERT INTO levels_and_roles_progress(user_id, completed_levels) VALUES ($1, $2)
-			ON CONFLICT (user_id) DO UPDATE 
-				SET completed_levels = $2
-			WHERE COALESCE(completed_levels,'') = COALESCE($3,'')`
+				ON CONFLICT (user_id) DO UPDATE 
+					SET completed_levels = $2
+				WHERE COALESCE(levels_and_roles_progress.completed_levels,'') = COALESCE($3,'')`
 	params := []any{
 		pr.UserID,
 		completedLevels,
 		pr.CompletedLevels,
 	}
-	err = storagev2.DoInTransaction(ctx, r.dbV2, func(conn storagev2.QueryExecer) error {
-		if rowsUpdated, err := storagev2.Exec(ctx, conn, sql, params...); err != nil || rowsUpdated == 0 {
-			if errors.Is(err, storagev2.ErrNotFound) || rowsUpdated == 0 {
+	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
+		if rowsUpdated, uErr := storage.Exec(ctx, conn, sql, params...); uErr != nil || rowsUpdated == 0 {
+			if rowsUpdated == 0 || errors.Is(uErr, storage.ErrNotFound) {
 				return ErrRaceCondition
 			}
-			return errors.Wrapf(err, "failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels for params:%#v", params)
+
+			return errors.Wrapf(uErr, "failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels for params:%#v", params...)
 		}
 		if completedLevels != nil && len(*completedLevels) > 0 && (pr.CompletedLevels == nil || len(*pr.CompletedLevels) < len(*completedLevels)) {
 			newlyCompletedLevels := make([]*CompletedLevel, 0, len(&AllLevelTypes))
@@ -453,11 +456,13 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 				return errors.Wrapf(err, "failed to sendCompletedLevelMessages for userID:%v,completedLevels:%#v", userID, newlyCompletedLevels)
 			}
 		}
+
 		return nil
 	})
 	if errors.Is(err, ErrRaceCondition) {
 		return r.completeLevels(ctx, userID)
 	}
+
 	return nil
 }
 
@@ -546,21 +551,22 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 		return nil
 	}
 	sql := `INSERT INTO levels_and_roles_progress (user_id, enabled_roles) VALUES ($1, $2)
-ON CONFLICT (user_id) DO UPDATE 
-			SET enabled_roles = $2
-			WHERE COALESCE(enabled_roles,'') = COALESCE($3,'')`
+				ON CONFLICT (user_id) DO UPDATE 
+					SET enabled_roles = $2
+				WHERE COALESCE(levels_and_roles_progress.enabled_roles,'') = COALESCE($3,'')`
 	params := []any{
 		pr.UserID,
 		enabledRoles,
 		pr.EnabledRoles,
 	}
-	err = storagev2.DoInTransaction(ctx, r.dbV2, func(conn storagev2.QueryExecer) error {
+	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
 		var rowsUpdated uint64
-		if rowsUpdated, err = storagev2.Exec(ctx, conn, sql, params...); err != nil || rowsUpdated == 0 {
-			if errors.Is(err, storagev2.ErrNotFound) || rowsUpdated == 0 {
+		if rowsUpdated, err = storage.Exec(ctx, conn, sql, params...); err != nil || rowsUpdated == 0 {
+			if rowsUpdated == 0 || errors.Is(err, storage.ErrNotFound) {
 				return ErrRaceCondition
 			}
-			return errors.Wrapf(err, "failed to update LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params)
+
+			return errors.Wrapf(err, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
 		}
 		if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) {
 			newlyEnabledRoles := make([]*EnabledRole, 0, len(&AllRoleTypesThatCanBeEnabled))
@@ -582,11 +588,13 @@ ON CONFLICT (user_id) DO UPDATE
 				return errors.Wrapf(err, "failed to sendEnabledRoleMessages for userID:%v,enabledRoles:%#v", userID, newlyEnabledRoles)
 			}
 		}
+
 		return nil
 	})
 	if errors.Is(err, ErrRaceCondition) {
 		return r.enableRoles(ctx, userID)
 	}
+
 	return nil
 }
 

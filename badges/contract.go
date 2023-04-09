@@ -281,10 +281,8 @@ const (
 
 // .
 var (
-	//go:embed DDL.lua
-	ddl string
 	//go:embed DDL.sql
-	ddlV2 string
+	ddl string
 )
 
 type (

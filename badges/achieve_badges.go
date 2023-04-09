@@ -79,8 +79,8 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 			})
 		}
 
-		if err := runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); err != nil {
-			sErr := errors.Wrapf(err, "failed to sendAchievedBadgeMessages for userID:%v,achievedBadges:%#v", userID, newlyAchievedBadges)
+		if cErr := runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); cErr != nil {
+			sErr := errors.Wrapf(cErr, "failed to sendAchievedBadgeMessages for userID:%v,achievedBadges:%#v", userID, newlyAchievedBadges)
 			if _, err = storage.Exec(ctx, r.db, sqlUpd, pr.AchievedBadges, userID, achievedBadges); err != nil {
 				if storage.IsErr(err, storage.ErrNotFound) {
 					log.Error(errors.Wrapf(sErr, "[sendAchievedBadgeMessages]rollback race condition"))
@@ -90,7 +90,7 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 
 				return multierror.Append( //nolint:wrapcheck // Not needed.
 					sErr,
-					errors.Wrapf(err, "[sendAchievedBadgeMessages][rollback] failed to update badge_progress.achieved_badges for userID:%v, achievedBadges:%v", userID, achievedBadges),
+					errors.Wrapf(err, "[sendAchievedBadgeMessages][rollback] failed to update badge_progress.achieved_badges for userID:%v, achievedBadges:%v", userID, achievedBadges), //nolint:lll // .
 				).ErrorOrNil()
 			}
 
@@ -392,7 +392,7 @@ func (s *achievedBadgesSource) Process(ctx context.Context, msg *messagebroker.M
 	sql := `INSERT INTO badge_statistics(badge_type, badge_group_type, achieved_by) VALUES($1, $2, 1)
 				ON CONFLICT(badge_type)
 				DO UPDATE
-					SET achieved_by = badge_statistics.achieved_by+1` // TODO: recheck badge_statistics.achieved_by+1.
+					SET achieved_by = badge_statistics.achieved_by+1`
 	_, err := storage.Exec(ctx, s.db, sql, badge.Type, badge.GroupType)
 
 	return errors.Wrapf(err, "error increasing badge statistics for badge:%v", badge.Type)
