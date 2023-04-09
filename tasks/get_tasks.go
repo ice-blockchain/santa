@@ -29,7 +29,7 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res, err = storagev2.Get[progress](ctx, r.dbV2, `SELECT 
+	res, err = storagev2.Get[progress](ctx, r.db, `SELECT 
         COALESCE(completed_tasks,'') AS completed_tasks,
 		COALESCE(pseudo_completed_tasks, '') AS pseudo_completed_tasks,
 		user_id,

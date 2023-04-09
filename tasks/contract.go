@@ -10,7 +10,6 @@ import (
 	"io"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	"github.com/ice-blockchain/wintr/connectors/storage"
 )
@@ -125,8 +124,7 @@ type (
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       tarantool.Connector
-		dbV2     *storagev2.DB
+		db       *storagev2.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

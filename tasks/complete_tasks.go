@@ -15,7 +15,6 @@ import (
 
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
 )
 
 func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen // .
@@ -30,10 +29,10 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	if params == nil {
 		return nil
 	}
-	err = storagev2.DoInTransaction(ctx, r.dbV2, func(conn storagev2.QueryExecer) error {
+	err = storagev2.DoInTransaction(ctx, r.db, func(conn storagev2.QueryExecer) error {
 		var updatedRows uint64
-		if updatedRows, err = storagev2.Exec(ctx, r.dbV2, sql, params...); err != nil {
-			if errors.Is(err, storage.ErrNotFound) || updatedRows == 0 {
+		if updatedRows, err = storagev2.Exec(ctx, r.db, sql, params...); err != nil || updatedRows == 0 {
+			if errors.Is(err, storagev2.ErrNotFound) || updatedRows == 0 {
 				return ErrRaceCondition
 			}
 			return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params)
@@ -116,9 +115,9 @@ ON CONFLICT(user_id) DO UPDATE
 		completedTasks,
 		pr.CompletedTasks,
 	}
-	err = storagev2.DoInTransaction(ctx, r.dbV2, func(conn storagev2.QueryExecer) error {
-		if updatedRows, err := storagev2.Exec(ctx, conn, sql, params...); err != nil {
-			if errors.Is(err, storage.ErrNotFound) || updatedRows == 0 {
+	err = storagev2.DoInTransaction(ctx, r.db, func(conn storagev2.QueryExecer) error {
+		if updatedRows, err := storagev2.Exec(ctx, conn, sql, params...); err != nil || updatedRows == 0 {
+			if errors.Is(err, storagev2.ErrNotFound) || updatedRows == 0 {
 				return ErrRaceCondition
 			}
 			return errors.Wrapf(err, "failed to insert/update task_progress.completed_tasks for params:%#v", params)
@@ -313,7 +312,7 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, userID string)
 	}
 	sql := `INSERT INTO task_progress(user_id, mining_started) VALUES ($1, $2)
 			ON CONFLICT(user_id) DO UPDATE SET mining_started = true;`
-	_, err := storagev2.Exec(ctx, s.dbV2, sql, userID, true)
+	_, err := storagev2.Exec(ctx, s.db, sql, userID, true)
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %v %v", userID, true),
 		errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, userID),
@@ -356,7 +355,7 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 	}
 	sql := `INSERT INTO task_progress(user_id, username_set, profile_picture_set) VALUES ($1, $2, $3)
 			ON CONFLICT(user_id) DO UPDATE SET username_set = $2, profile_picture_set = $3;`
-	_, err := storagev2.Exec(ctx, s.dbV2, sql, insertTuple.UserID, insertTuple.UsernameSet, insertTuple.ProfilePictureSet)
+	_, err := storagev2.Exec(ctx, s.db, sql, insertTuple.UserID, insertTuple.UsernameSet, insertTuple.ProfilePictureSet)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", us),
@@ -377,13 +376,13 @@ func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.Us
 		us.User.ID,
 		us.User.ReferredBy,
 	}
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, params...); err != nil {
+	if _, err := storagev2.Exec(ctx, s.db, sql, params...); err != nil {
 		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params)
 	}
 	sql = `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, (SELECT COUNT(*) FROM referrals WHERE referred_by = $1))
 		   ON CONFLICT(user_id) DO UPDATE  
 		   		SET friends_invited = EXCLUDED.friends_invited`
-	if _, err := storagev2.Exec(ctx, s.dbV2, sql, us.User.ReferredBy); err != nil {
+	if _, err := storagev2.Exec(ctx, s.db, sql, us.User.ReferredBy); err != nil {
 		return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", params)
 	}
 
@@ -396,8 +395,8 @@ func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnap
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	params := []any{us.Before.ID}
-	_, errDelUser := storagev2.Exec(ctx, s.dbV2, `DELETE FROM task_progress WHERE user_id = $1`, params...)
-	_, errDelRefs := storagev2.Exec(ctx, s.dbV2, `DELETE FROM referrals WHERE user_id = $1 OR referred_by = $1`, params...)
+	_, errDelUser := storagev2.Exec(ctx, s.db, `DELETE FROM task_progress WHERE user_id = $1`, params...)
+	_, errDelRefs := storagev2.Exec(ctx, s.db, `DELETE FROM referrals WHERE user_id = $1 OR referred_by = $1`, params...)
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(errDelUser, "failed to delete task_progress for:%#v", us),
 		errors.Wrapf(errDelRefs, "failed to delete referrals for:%#v", us),
