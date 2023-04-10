@@ -5,6 +5,7 @@ package levelsandroles
 import (
 	"context"
 	"fmt"
+	"github.com/ice-blockchain/wintr/time"
 	"math"
 	"strings"
 
@@ -120,8 +121,9 @@ func (s *userPingsSource) Process(ctx context.Context, msg *messagebroker.Messag
 	}
 	type (
 		userPing struct {
-			UserID   string `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-			PingedBy string `json:"pingedBy,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
+			LastPingCooldownEndedAt *time.Time `json:"lastPingCooldownEndedAt,omitempty" example:"2022-01-03T16:20:52.156534Z"`
+			UserID                  string     `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
+			PingedBy                string     `json:"pingedBy,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
 		}
 	)
 	ping := new(userPing)
@@ -132,22 +134,21 @@ func (s *userPingsSource) Process(ctx context.Context, msg *messagebroker.Messag
 		return nil
 	}
 
-	return errors.Wrapf(s.upsertProgress(ctx, ping.UserID, ping.PingedBy), "failed to upsertProgress for ping:%#v", ping)
+	return errors.Wrapf(s.upsertProgress(ctx, ping.UserID, ping.PingedBy, ping.LastPingCooldownEndedAt), "failed to upsertProgress for ping:%#v", ping)
 }
 
-func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy string) error {
+func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy string, lastCooldown *time.Time) error {
 	if pr, err := s.getProgress(ctx, userID); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedLevels != nil &&
 			(len(*pr.CompletedLevels) == len(&AllLevelTypes) ||
 				AreLevelsCompleted(pr.CompletedLevels, Level16Type, Level17Type, Level18Type, Level19Type, Level20Type, Level21Type))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	sql := `INSERT INTO pings(user_id, pinged_by) VALUES ($1,$2)
-				ON CONFLICT(user_id, pinged_by) DO UPDATE
-				SET pinged_by = $2`
+	sql := `INSERT INTO pings(user_id, pinged_by,last_ping_cooldown_ended_at) VALUES ($1,$2, $3) ON CONFLICT (user_id, pinged_by, last_ping_cooldown_ended_at) DO NOTHING`
 	params := []any{
 		userID,
 		pingedBy,
+		lastCooldown.Time,
 	}
 	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
 		return errors.Wrapf(err, "failed to insert pings, params:%#v", params...)
