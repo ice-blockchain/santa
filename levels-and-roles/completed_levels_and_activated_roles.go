@@ -281,7 +281,7 @@ func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.Us
 	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
 		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params...)
 	}
-	sql = `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, (SELECT COUNT(*) FROM referrals WHERE referred_by = $1))
+	sql = `INSERT INTO levels_and_roles_progress(user_id, friends_invited) VALUES ($1, (SELECT COUNT(*) FROM referrals WHERE referred_by = $1))
 		   		ON CONFLICT(user_id) DO UPDATE  
 		   		SET friends_invited = EXCLUDED.friends_invited`
 	if _, err := storage.Exec(ctx, s.db, sql, us.User.ReferredBy); err != nil {
