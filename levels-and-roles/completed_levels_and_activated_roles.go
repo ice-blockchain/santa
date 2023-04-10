@@ -591,11 +591,11 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 
 		return nil
 	})
-	if errors.Is(err, ErrRaceCondition) {
+	if err != nil && errors.Is(err, ErrRaceCondition) {
 		return r.enableRoles(ctx, userID)
 	}
 
-	return nil
+	return errors.Wrapf(err, "failed to execute transaction to achieve new levels and roles for userID:%v", userID)
 }
 
 func (p *progress) reEvaluateEnabledRoles(repo *repository) *users.Enum[RoleType] {

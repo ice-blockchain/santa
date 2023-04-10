@@ -118,7 +118,7 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 	}
 	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
 		if updatedRows, uErr := storage.Exec(ctx, conn, sql, params...); uErr != nil || updatedRows == 0 {
-			if updatedRows == 0 || errors.Is(err, storage.ErrNotFound) {
+			if updatedRows == 0 || errors.Is(uErr, storage.ErrNotFound) {
 				return ErrRaceCondition
 			}
 
@@ -157,7 +157,7 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 		return r.completeTasks(ctx, userID)
 	}
 
-	return nil
+	return errors.Wrapf(err, "failed to execute transaction to complete new tasks for userID:%v", userID)
 }
 
 func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] { //nolint:revive,funlen,gocognit,gocyclo,cyclop // .

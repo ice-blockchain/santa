@@ -55,6 +55,8 @@ const (
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
 	ErrHidden           = errors.New("badges are hidden")
+	ErrRaceCondition    = errors.New("race condition")
+
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllTypes = [26]Type{
 		Level1Type,

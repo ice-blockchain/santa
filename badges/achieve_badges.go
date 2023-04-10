@@ -15,7 +15,6 @@ import (
 	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
-	"github.com/ice-blockchain/wintr/log"
 )
 
 func (r *repository) achieveBadges(ctx context.Context, userID string) error { //nolint:revive,funlen,gocognit,gocyclo,cyclop // .
@@ -37,68 +36,56 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 	if achievedBadges != nil && pr.AchievedBadges != nil && len(*pr.AchievedBadges) == len(*achievedBadges) {
 		return nil
 	}
-	sqlUpd := `UPDATE badge_progress
-					SET achieved_badges = $1
-					WHERE user_id = $2
-						  AND COALESCE(achieved_badges, '') = COALESCE($3, '')`
-	_, err = storage.Exec(ctx, r.db, sqlUpd, achievedBadges, userID, pr.AchievedBadges)
-	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			sql := `INSERT INTO badge_progress(achieved_badges, user_id)
-										VALUES($1, $2)`
-			if _, err = storage.Exec(ctx, r.db, sql, achievedBadges, userID); err != nil {
-				return errors.Wrapf(err, "failed to insert BADGE_PROGRESS userID:%v, achievedBadges:%v", userID, achievedBadges)
+	sqlUpd := `INSERT INTO badge_progress(achieved_badges, user_id) VALUES($1, $2) 
+				ON CONFLICT (user_id) DO UPDATE
+									SET achieved_badges = $1
+				WHERE COALESCE(badge_progress.achieved_badges, '') = COALESCE($3, '')`
+	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
+		var rowsUpdated uint64
+		rowsUpdated, err = storage.Exec(ctx, r.db, sqlUpd, achievedBadges, userID, pr.AchievedBadges)
+		if err != nil || rowsUpdated == 0 {
+			if rowsUpdated == 0 || errors.Is(err, storage.ErrNotFound) {
+				return ErrRaceCondition
 			}
 
-			return errors.Wrapf(err, "failed to update badge_progress.achieved_badges for userID:%v, achievedBadges:%v", userID, achievedBadges)
+			return errors.Wrapf(err, "failed to insert BADGE_PROGRESS userID:%v, achievedBadges:%v", userID, achievedBadges)
 		}
-	}
-	//nolint:nestif // .
-	if achievedBadges != nil && len(*achievedBadges) > 0 && (pr.AchievedBadges == nil || len(*pr.AchievedBadges) < len(*achievedBadges)) {
-		achievedBadgesCount := make(map[GroupType]uint64, len(AllGroups))
-		for _, achievedBadge := range *achievedBadges {
-			achievedBadgesCount[GroupTypeForEachType[achievedBadge]]++
-		}
-		newlyAchievedBadges := make([]*AchievedBadge, 0, len(&AllTypes))
-	outer:
-		for _, achievedBadge := range *achievedBadges {
-			if pr.AchievedBadges != nil {
-				for _, previouslyAchievedBadge := range *pr.AchievedBadges {
-					if achievedBadge == previouslyAchievedBadge {
-						continue outer
+		if achievedBadges != nil && len(*achievedBadges) > 0 && (pr.AchievedBadges == nil || len(*pr.AchievedBadges) < len(*achievedBadges)) {
+			achievedBadgesCount := make(map[GroupType]uint64, len(AllGroups))
+			for _, achievedBadge := range *achievedBadges {
+				achievedBadgesCount[GroupTypeForEachType[achievedBadge]]++
+			}
+			newlyAchievedBadges := make([]*AchievedBadge, 0, len(&AllTypes))
+		outer:
+			for _, achievedBadge := range *achievedBadges {
+				if pr.AchievedBadges != nil {
+					for _, previouslyAchievedBadge := range *pr.AchievedBadges {
+						if achievedBadge == previouslyAchievedBadge {
+							continue outer
+						}
 					}
 				}
+				groupType := GroupTypeForEachType[achievedBadge]
+				newlyAchievedBadges = append(newlyAchievedBadges, &AchievedBadge{
+					UserID:         userID,
+					Type:           achievedBadge,
+					Name:           AllNames[groupType][achievedBadge],
+					GroupType:      groupType,
+					AchievedBadges: achievedBadgesCount[groupType],
+				})
 			}
-			groupType := GroupTypeForEachType[achievedBadge]
-			newlyAchievedBadges = append(newlyAchievedBadges, &AchievedBadge{
-				UserID:         userID,
-				Type:           achievedBadge,
-				Name:           AllNames[groupType][achievedBadge],
-				GroupType:      groupType,
-				AchievedBadges: achievedBadgesCount[groupType],
-			})
+			if cErr := runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); cErr != nil {
+				return errors.Wrapf(cErr, "failed to sendAchievedBadgeMessages for userID:%v,achievedBadges:%#v", userID, newlyAchievedBadges)
+			}
 		}
 
-		if cErr := runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); cErr != nil {
-			sErr := errors.Wrapf(cErr, "failed to sendAchievedBadgeMessages for userID:%v,achievedBadges:%#v", userID, newlyAchievedBadges)
-			if _, err = storage.Exec(ctx, r.db, sqlUpd, pr.AchievedBadges, userID, achievedBadges); err != nil {
-				if storage.IsErr(err, storage.ErrNotFound) {
-					log.Error(errors.Wrapf(sErr, "[sendAchievedBadgeMessages]rollback race condition"))
-
-					return r.achieveBadges(ctx, userID)
-				}
-
-				return multierror.Append( //nolint:wrapcheck // Not needed.
-					sErr,
-					errors.Wrapf(err, "[sendAchievedBadgeMessages][rollback] failed to update badge_progress.achieved_badges for userID:%v, achievedBadges:%v", userID, achievedBadges), //nolint:lll // .
-				).ErrorOrNil()
-			}
-
-			return sErr
-		}
+		return nil
+	})
+	if err != nil && errors.Is(err, ErrRaceCondition) {
+		return r.achieveBadges(ctx, userID)
 	}
 
-	return nil
+	return errors.Wrapf(err, "failed to execute transaction to achieve new badges for userID:%v", userID)
 }
 
 func (p *progress) reEvaluateAchievedBadges(repo *repository) *users.Enum[Type] { //nolint:funlen,gocognit,revive // .
