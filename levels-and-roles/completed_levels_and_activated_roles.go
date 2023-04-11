@@ -5,7 +5,6 @@ package levelsandroles
 import (
 	"context"
 	"fmt"
-	"github.com/ice-blockchain/wintr/time"
 	"math"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 func (s *miningSessionSource) Process(ctx context.Context, msg *messagebroker.Message) error {
@@ -144,7 +144,8 @@ func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy s
 				AreLevelsCompleted(pr.CompletedLevels, Level16Type, Level17Type, Level18Type, Level19Type, Level20Type, Level21Type))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	sql := `INSERT INTO pings(user_id, pinged_by,last_ping_cooldown_ended_at) VALUES ($1,$2, $3) ON CONFLICT (user_id, pinged_by, last_ping_cooldown_ended_at) DO NOTHING`
+	sql := `INSERT INTO pings(user_id, pinged_by,last_ping_cooldown_ended_at) VALUES ($1,$2, $3)
+            ON CONFLICT (user_id, pinged_by, last_ping_cooldown_ended_at) DO NOTHING`
 	params := []any{
 		userID,
 		pingedBy,
