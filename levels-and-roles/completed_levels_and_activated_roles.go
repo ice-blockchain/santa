@@ -221,9 +221,9 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
-		errors.Wrapf(s.updateAgendaContactsJoined(ctx, us), "failed to updateAgendaContactsJoined for user:%#v", us),
 		errors.Wrapf(s.updateFriendsInvited(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
 		errors.Wrapf(s.insertAgendaPhoneNumberHashes(ctx, us), "failed to insertAgendaPhoneNumberHashes for user:%#v", us),
+		errors.Wrapf(s.updateAgendaContactsJoined(ctx, us), "failed to updateAgendaContactsJoined for user:%#v", us),
 		errors.Wrapf(s.sendTryCompleteLevelsCommandMessage(ctx, us.ID), "failed to sendTryCompleteLevelsCommandMessage for userID:%v", us.ID),
 	).ErrorOrNil()
 }
@@ -247,7 +247,7 @@ func (s *userTableSource) updateAgendaContactsJoined(ctx context.Context, us *us
 	userIDs, placeholders, conditions := make([]string, 0, len(resp)), make([]string, 0, len(resp)), make([]string, 0, len(resp))
 	for ix, row := range resp {
 		userIDs = append(userIDs, row.UserID)
-		params[ix] = row.UserID
+		params = append(params, row.UserID)
 		placeholders = append(placeholders, fmt.Sprintf("$%[1]v", ix+1))
 		conditions = append(conditions, fmt.Sprintf(`WHEN user_id = $%[1]v 
 														THEN (SELECT COUNT(*) 
@@ -300,31 +300,45 @@ func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us 
 	var (
 		jx                     = 0
 		allContactsBatches     = make([][]string, 0, (len(contacts)/agendaPhoneNumberHashesBatchSize)+1)
-		currentContactsBatches = make([]string, 0, int(math.Min(float64(len(contacts)), agendaPhoneNumberHashesBatchSize)))
+		currentContactsBatches = make([]string, int(math.Min(float64(len(contacts)), agendaPhoneNumberHashesBatchSize)))
 	)
 	for contact := range contacts {
 		if jx != 0 && jx%agendaPhoneNumberHashesBatchSize == 0 {
-			allContactsBatches = append(allContactsBatches, currentContactsBatches)
-			currentContactsBatches = currentContactsBatches[:0]
+			allContactsBatches = append(allContactsBatches, append([]string{}, currentContactsBatches...))
 		}
-		currentContactsBatches = append(currentContactsBatches, contact)
+		currentContactsBatches[jx%agendaPhoneNumberHashesBatchSize] = contact
 		jx++
 	}
+	allContactsBatches = append(allContactsBatches, currentContactsBatches)
 
-	return errors.Wrap(runConcurrently(ctx, func(ctx context.Context, contactsBatch []string) error {
+	err := errors.Wrap(runConcurrently(ctx, func(ctx context.Context, contactsBatch []string) error {
 		const fields = 2
 		placeholders := make([]string, 0, len(contactsBatch))
-		params := make([]any, 0, len(contactsBatch)+1)
+		params := make([]any, len(contactsBatch)+1) //nolint:makezero // We're sure about size
 		params[0] = us.ID
 		for ix, contact := range contactsBatch {
 			placeholders = append(placeholders, fmt.Sprintf("($1,$%v)", ix+fields))
 			params[ix+1] = contact
 		}
-		sql := fmt.Sprintf(`INSERT INTO agenda_phone_number_hashes(user_id, agenda_phone_number_hash) VALUES %v`, strings.Join(placeholders, ","))
+		sql := fmt.Sprintf(`INSERT INTO agenda_phone_number_hashes(user_id, agenda_phone_number_hash) VALUES %v
+                                                                          ON CONFLICT(user_id, agenda_phone_number_hash) DO NOTHING`,
+			strings.Join(placeholders, ","))
 		_, err := storage.Exec(ctx, s.db, sql, params...)
 
 		return errors.Wrapf(err, "failed to INSERT agenda_phone_number_hashes, params:%#v", params...)
 	}, allContactsBatches), "at least one INSERT agenda_phone_number_hashes batch failed")
+	if err != nil {
+		return err
+	}
+
+	sqlUpdateContactsInAgenda := `UPDATE levels_and_roles_progress
+									SET agenda_contacts_joined = (SELECT COUNT(*) from agenda_phone_number_hashes 
+									                                              join levels_and_roles_progress ON agenda_phone_number_hash = phone_number_hash
+									                                              where agenda_phone_number_hashes.user_id = $1)
+								  WHERE levels_and_roles_progress.user_id = $1`
+	_, err = storage.Exec(ctx, s.db, sqlUpdateContactsInAgenda, us.User.ID)
+
+	return errors.Wrapf(err, "failed to update count of agenda contacts joined for %#v", us)
 }
 
 func (*userTableSource) newlyAddedAgendaContacts(us *users.UserSnapshot) map[string]struct{} { //nolint:gocognit,gocyclo,revive,cyclop // .
