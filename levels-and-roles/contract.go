@@ -47,6 +47,7 @@ const (
 
 var (
 	ErrRaceCondition = errors.New("race condition")
+	ErrDuplicate     = errors.New("duplicate")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllLevelTypes = [21]LevelType{
 		Level1Type,
@@ -121,9 +122,8 @@ type (
 // Private API.
 
 const (
-	applicationYamlKey               = "levels-and-roles"
-	requestingUserIDCtxValueKey      = "requestingUserIDCtxValueKey"
-	agendaPhoneNumberHashesBatchSize = 500
+	applicationYamlKey          = "levels-and-roles"
+	requestingUserIDCtxValueKey = "requestingUserIDCtxValueKey"
 )
 
 // .
@@ -146,6 +146,10 @@ type (
 		HideLevel            bool                   `json:"hideLevel,omitempty" example:"true"`
 		HideRole             bool                   `json:"hideRole,omitempty" example:"true"`
 	}
+	contacts struct {
+		UserID         string `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+		ContactUserIDs string `json:"contactUserIds,omitempty" db:"contact_user_ids" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2,did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B3"` //nolint:lll // .
+	}
 	tryCompleteLevelsCommandSource struct {
 		*processor
 	}
@@ -165,6 +169,9 @@ type (
 		*processor
 	}
 	userPingsSource struct {
+		*processor
+	}
+	contactsTableSource struct {
 		*processor
 	}
 	repository struct {

@@ -16,12 +16,11 @@ CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
                     );
 CREATE INDEX IF NOT EXISTS levels_and_roles_progress_phone_number_hash_ix ON levels_and_roles_progress (phone_number_hash);
 --************************************************************************************************************************************
--- agenda_phone_number_hashes
-CREATE TABLE IF NOT EXISTS agenda_phone_number_hashes (
-                        user_id                     TEXT NOT NULL,
-                        agenda_phone_number_hash    TEXT NOT NULL,
-                        PRIMARY KEY(user_id, agenda_phone_number_hash)
-                    );
+-- contacts
+CREATE TABLE IF NOT EXISTS contacts  (
+                    user_id          text primary key,
+                    contact_user_ids text NOT NULL
+                  );
 --************************************************************************************************************************************
 -- pings
 CREATE TABLE IF NOT EXISTS pings (

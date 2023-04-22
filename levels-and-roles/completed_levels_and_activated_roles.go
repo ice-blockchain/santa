@@ -4,9 +4,6 @@ package levelsandroles
 
 import (
 	"context"
-	"fmt"
-	"math"
-	"strings"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
@@ -225,49 +222,9 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
-		errors.Wrapf(s.updateAgendaContactsJoined(ctx, us), "failed to updateAgendaContactsJoined for user:%#v", us),
 		errors.Wrapf(s.insertNewReferrals(ctx, us), "failed to insertNewReferrals for user:%#v", us),
-		errors.Wrapf(s.insertAgendaPhoneNumberHashes(ctx, us), "failed to insertAgendaPhoneNumberHashes for user:%#v", us),
 		errors.Wrapf(s.sendTryCompleteLevelsCommandMessage(ctx, us.ID), "failed to sendTryCompleteLevelsCommandMessage for userID:%v", us.ID),
 	).ErrorOrNil()
-}
-
-//nolint:gocognit,funlen // .
-func (s *userTableSource) updateAgendaContactsJoined(ctx context.Context, us *users.UserSnapshot) error {
-	if ctx.Err() != nil || us.User == nil || us.User.PhoneNumberHash == us.User.ID || us.User.PhoneNumberHash == "" || (us.Before != nil && us.Before.PhoneNumberHash == us.User.PhoneNumberHash) { //nolint:lll,revive // .
-		return errors.Wrap(ctx.Err(), "context failed")
-	}
-	sql := `SELECT user_id
-		   		FROM agenda_phone_number_hashes
-		   		WHERE agenda_phone_number_hash = $1`
-	type responseUserID struct {
-		UserID string
-	}
-	resp, err := storage.Select[responseUserID](ctx, s.db, sql, us.User.PhoneNumberHash)
-	if err != nil || len(resp) == 0 {
-		return errors.Wrapf(err, "failed to select for userID's that have this phone_number_hash in their phone's agenda, phoneHash:%v", us.User.PhoneNumberHash)
-	}
-	params := make([]any, 0, len(resp))
-	userIDs, placeholders, conditions := make([]string, 0, len(resp)), make([]string, 0, len(resp)), make([]string, 0, len(resp))
-	for ix, row := range resp {
-		userIDs = append(userIDs, row.UserID)
-		params[ix] = row.UserID
-		placeholders = append(placeholders, fmt.Sprintf("$%[1]v", ix+1))
-		conditions = append(conditions, fmt.Sprintf(`WHEN user_id = $%[1]v 
-														THEN (SELECT COUNT(*) 
-																FROM agenda_phone_number_hashes h 
-																	JOIN levels_and_roles_progress p 
-																		ON p.phone_number_hash = h.agenda_phone_number_hash
-																WHERE h.user_id = $%[1]v)`, ix+1))
-	}
-	sql = fmt.Sprintf(`UPDATE levels_and_roles_progress
-					   		SET agenda_contacts_joined = (CASE %[2]v ELSE agenda_contacts_joined END)
-					   		WHERE user_id IN (%[1]v)`, strings.Join(placeholders, ","), strings.Join(conditions, "\n"))
-	if _, sErr := storage.Exec(ctx, s.db, sql, params...); sErr != nil {
-		return errors.Wrapf(sErr, "failed to update levels_and_roles_progress.agenda_contacts_joined, params:%#v", params...)
-	}
-
-	return errors.Wrapf(runConcurrently(ctx, s.sendTryCompleteLevelsCommandMessage, userIDs), "failed to runConcurrently[sendTryCompleteLevelsCommandMessage], userIDs:%#v", userIDs) //nolint:lll // .
 }
 
 //nolint:gocognit // .
@@ -352,85 +309,17 @@ func (r *referralCountsSource) updateFriendsInvited(ctx context.Context, refCoun
 	return errors.Wrapf(err, "failed to set levels_and_roles_progress.friends_invited, params:%#v", refCount)
 }
 
-func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us *users.UserSnapshot) error { //nolint:funlen // .
-	contacts := s.newlyAddedAgendaContacts(us)
-	if len(contacts) == 0 {
-		return nil
-	}
-	var (
-		jx                     = 0
-		allContactsBatches     = make([][]string, 0, (len(contacts)/agendaPhoneNumberHashesBatchSize)+1)
-		currentContactsBatches = make([]string, 0, int(math.Min(float64(len(contacts)), agendaPhoneNumberHashesBatchSize)))
-	)
-	for contact := range contacts {
-		if jx != 0 && jx%agendaPhoneNumberHashesBatchSize == 0 {
-			allContactsBatches = append(allContactsBatches, currentContactsBatches)
-			currentContactsBatches = currentContactsBatches[:0]
-		}
-		currentContactsBatches = append(currentContactsBatches, contact)
-		jx++
-	}
-
-	return errors.Wrap(runConcurrently(ctx, func(ctx context.Context, contactsBatch []string) error {
-		const fields = 2
-		placeholders := make([]string, 0, len(contactsBatch))
-		params := make([]any, 0, len(contactsBatch)+1)
-		params[0] = us.ID
-		for ix, contact := range contactsBatch {
-			placeholders = append(placeholders, fmt.Sprintf("($1,$%v)", ix+fields))
-			params[ix+1] = contact
-		}
-		sql := fmt.Sprintf(`INSERT INTO agenda_phone_number_hashes(user_id, agenda_phone_number_hash) VALUES %v`, strings.Join(placeholders, ","))
-		_, err := storage.Exec(ctx, s.db, sql, params...)
-
-		return errors.Wrapf(err, "failed to INSERT agenda_phone_number_hashes, params:%#v", params...)
-	}, allContactsBatches), "at least one INSERT agenda_phone_number_hashes batch failed")
-}
-
-func (*userTableSource) newlyAddedAgendaContacts(us *users.UserSnapshot) map[string]struct{} { //nolint:gocognit,gocyclo,revive,cyclop // .
-	if us.User == nil || us.User.ID == "" || us.User.AgendaPhoneNumberHashes == nil || *us.User.AgendaPhoneNumberHashes == "" || *us.User.AgendaPhoneNumberHashes == us.User.ID {
-		return nil
-	}
-	after := strings.Split(*us.User.AgendaPhoneNumberHashes, ",")
-	newlyAdded := make(map[string]struct{}, len(after))
-	if us.Before == nil || us.Before.ID == "" || us.Before.AgendaPhoneNumberHashes == nil || *us.Before.AgendaPhoneNumberHashes == "" || *us.Before.AgendaPhoneNumberHashes == us.User.ID {
-		for _, agendaPhoneNumberHash := range after {
-			if agendaPhoneNumberHash == "" {
-				continue
-			}
-			newlyAdded[agendaPhoneNumberHash] = struct{}{}
-		}
-
-		return newlyAdded
-	}
-	before := strings.Split(*us.Before.AgendaPhoneNumberHashes, ",")
-outer:
-	for _, afterAgendaPhoneNumberHash := range after {
-		if afterAgendaPhoneNumberHash == "" || strings.EqualFold(afterAgendaPhoneNumberHash, us.User.PhoneNumberHash) {
-			continue
-		}
-		for _, beforeAgendaPhoneNumberHash := range before {
-			if strings.EqualFold(beforeAgendaPhoneNumberHash, afterAgendaPhoneNumberHash) {
-				continue outer
-			}
-		}
-		newlyAdded[afterAgendaPhoneNumberHash] = struct{}{}
-	}
-
-	return newlyAdded
-}
-
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	_, delProgressErr := storage.Exec(ctx, s.db, `DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = $1`, us.Before.ID)
-	_, delAgendaErr := storage.Exec(ctx, s.db, `DELETE FROM AGENDA_PHONE_NUMBER_HASHES WHERE user_id = $1`, us.Before.ID)
+	_, delContactsErr := storage.Exec(ctx, s.db, `DELETE FROM CONTACTS WHERE user_id = $1`, us.Before.ID)
 	_, delPingsErr := storage.Exec(ctx, s.db, `DELETE FROM PINGS WHERE user_id = $1 OR pinged_by = $1`, us.Before.ID)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(delProgressErr, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us),
-		errors.Wrapf(delAgendaErr, "failed to delete AGENDA_PHONE_NUMBER_HASHES for:%#v", us),
+		errors.Wrapf(delContactsErr, "failed to delete CONTACTS for:%#v", us),
 		errors.Wrapf(delPingsErr, "failed to delete PINGS for:%#v", us),
 	).ErrorOrNil()
 }

@@ -50,6 +50,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		&completedTasksSource{processor: prc},
 		&userPingsSource{processor: prc},
 		&referralCountsSource{processor: prc},
+		&contactsTableSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
 
