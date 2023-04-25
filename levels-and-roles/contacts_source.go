@@ -27,10 +27,11 @@ func (c *contactsTableSource) Process(ctx context.Context, msg *messagebroker.Me
 	}
 
 	return errors.Wrapf(storage.DoInTransaction(ctx, c.db, func(conn storage.QueryExecer) error {
-		if err := c.upsertContacts(ctx, contact); err != nil {
+		contactsCount, err := c.upsertContacts(ctx, contact)
+		if err != nil {
 			return errors.Wrapf(err, "can't upsert contacts for userID:%v", msg.Key)
 		}
-		if err := c.increaseAgendaContactsJoinedValue(ctx, contact.UserID); err != nil {
+		if err = c.increaseAgendaContactsJoinedValue(ctx, contact.UserID, contactsCount); err != nil {
 			return errors.Wrapf(err, "can't update agenda contacts joined for userID:%v", msg.Key)
 		}
 
@@ -38,17 +39,17 @@ func (c *contactsTableSource) Process(ctx context.Context, msg *messagebroker.Me
 	}), "transaction rollback")
 }
 
-func (c *contactsTableSource) upsertContacts(ctx context.Context, contact *users.Contact) error {
+func (c *contactsTableSource) upsertContacts(ctx context.Context, contact *users.Contact) (int, error) {
 	before, err := c.getContacts(ctx, contact.UserID)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
-		return errors.Wrapf(err, "can't get contacts for userID:%v", contact.UserID)
+		return 0, errors.Wrapf(err, "can't get contacts for userID:%v", contact.UserID)
 	}
 	var toUpsert []string
 	if before != nil {
 		ids := strings.Split(before.ContactUserIDs, ",")
 		for _, id := range ids {
 			if id == contact.ContactUserID {
-				return ErrDuplicate
+				return 0, ErrDuplicate
 			}
 		}
 		toUpsert = append(toUpsert, ids...)
@@ -61,7 +62,7 @@ func (c *contactsTableSource) upsertContacts(ctx context.Context, contact *users
 				WHERE contacts.contact_user_ids != EXCLUDED.contact_user_ids`
 	_, err = storage.Exec(ctx, c.db, sql, contact.UserID, strings.Join(toUpsert, ","))
 
-	return errors.Wrapf(err, "can't insert/update contact user ids:%#v for userID:%v", toUpsert, contact.UserID)
+	return len(toUpsert), errors.Wrapf(err, "can't insert/update contact user ids:%#v for userID:%v", toUpsert, contact.UserID)
 }
 
 func (c *contactsTableSource) getContacts(ctx context.Context, userID string) (*contacts, error) {
@@ -74,11 +75,11 @@ func (c *contactsTableSource) getContacts(ctx context.Context, userID string) (*
 	return res, nil
 }
 
-func (c *contactsTableSource) increaseAgendaContactsJoinedValue(ctx context.Context, userID string) error {
+func (c *contactsTableSource) increaseAgendaContactsJoinedValue(ctx context.Context, userID string, contactsCount int) error {
 	sql := `UPDATE levels_and_roles_progress
-				SET agenda_contacts_joined = agenda_contacts_joined + 1
+				SET agenda_contacts_joined = $2
 				WHERE user_id = $1`
-	_, err := storage.Exec(ctx, c.db, sql, userID)
+	_, err := storage.Exec(ctx, c.db, sql, userID, contactsCount)
 
 	return errors.Wrapf(err, "can't update levels_and_roles_progress by 1 for userID:%v", userID)
 }

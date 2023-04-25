@@ -148,7 +148,7 @@ type (
 	}
 	contacts struct {
 		UserID         string `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
-		ContactUserIDs string `json:"contactUserIds,omitempty" db:"contact_user_ids" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2,did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B3"` //nolint:lll // .
+		ContactUserIDs string `json:"contactUserIDs,omitempty" db:"contact_user_ids" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2,did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B3"` //nolint:lll // .
 	}
 	tryCompleteLevelsCommandSource struct {
 		*processor
