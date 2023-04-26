@@ -144,20 +144,21 @@ func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy s
 				AreLevelsCompleted(pr.CompletedLevels, Level16Type, Level17Type, Level18Type, Level19Type, Level20Type, Level21Type))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	sql := `INSERT INTO pings(user_id, pinged_by,last_ping_cooldown_ended_at) VALUES ($1,$2, $3)
-            ON CONFLICT (user_id, pinged_by, last_ping_cooldown_ended_at) DO NOTHING`
+	sql := `INSERT INTO pings(user_id, pinged_by,last_ping_cooldown_ended_at) VALUES ($1,$2, $3)`
 	params := []any{
 		userID,
 		pingedBy,
 		lastCooldown.Time,
 	}
-	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil && storage.IsErr(err, storage.ErrDuplicate) {
+		return nil
+	} else if err != nil {
 		return errors.Wrapf(err, "failed to insert pings, params:%#v", params...)
 	}
-	sql = ` INSERT INTO levels_and_roles_progress (user_id, pings_sent)
-				VALUES ($1, (SELECT COUNT(*) FROM pings WHERE pinged_by = $1))
+	sql = `INSERT INTO levels_and_roles_progress (user_id, pings_sent)
+				VALUES ($1, 1)
 				ON CONFLICT(user_id) DO UPDATE 
-		   			SET pings_sent = EXCLUDED.pings_sent`
+		   			SET pings_sent = levels_and_roles_progress.pings_sent +1`
 	if _, err := storage.Exec(ctx, s.db, sql, pingedBy); err != nil {
 		return errors.Wrapf(err, "failed to set levels_and_roles_progress.pings_sent, params:%#v", params...)
 	}
