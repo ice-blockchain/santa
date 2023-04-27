@@ -49,6 +49,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		&startedDaysOffSource{miningSessionSource: mss},
 		&completedTasksSource{processor: prc},
 		&userPingsSource{processor: prc},
+		&referralCountsSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
 

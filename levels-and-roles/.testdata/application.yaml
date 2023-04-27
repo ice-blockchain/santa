@@ -58,6 +58,10 @@ levels-and-roles: &levels-and-roles
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: referral-counts
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
       ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
       - name: users-table
         partitions: 10
@@ -86,6 +90,7 @@ levels-and-roles: &levels-and-roles
       - name: started-days-off
       - name: completed-tasks
       - name: user-pings
+      - name: referral-counts
 levels-and-roles_test:
   <<: *levels-and-roles
   messageBroker:

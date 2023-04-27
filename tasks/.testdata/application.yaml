@@ -29,6 +29,10 @@ tasks: &tasks
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: referral-counts
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
       ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
       - name: users-table
         partitions: 10
@@ -46,6 +50,7 @@ tasks: &tasks
       - name: try-complete-tasks-commands
       - name: users-table
       - name: mining-sessions-table
+      - name: referral-counts
     producingTopics:
       - name: add-balance-commands
 tasks_test:

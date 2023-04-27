@@ -152,6 +152,9 @@ type (
 	userTableSource struct {
 		*processor
 	}
+	referralCountsSource struct {
+		*processor
+	}
 	miningSessionSource struct {
 		*processor
 	}

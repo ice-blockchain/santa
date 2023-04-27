@@ -47,6 +47,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		&completedLevelsSource{processor: prc},
 		&balancesTableSource{processor: prc},
 		&globalTableSource{processor: prc},
+		&referralCountsSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
 

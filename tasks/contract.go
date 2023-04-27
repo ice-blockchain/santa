@@ -82,6 +82,10 @@ type (
 		Repository
 		CheckHealth(context.Context) error
 	}
+	ReferralsCount struct {
+		UserID    string `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
+		Referrals uint64
+	}
 )
 
 // Private API.
@@ -116,6 +120,10 @@ type (
 		*processor
 	}
 	userTableSource struct {
+		*processor
+	}
+
+	referralCountsSource struct {
 		*processor
 	}
 	repository struct {
