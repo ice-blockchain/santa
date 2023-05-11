@@ -2,8 +2,8 @@
 --************************************************************************************************************************************
 -- levels_and_roles_progress
 CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
-                        enabled_roles               TEXT,
-                        completed_levels            TEXT,
+                        enabled_roles               TEXT[],
+                        completed_levels            TEXT[],
                         user_id                     TEXT NOT NULL PRIMARY KEY,
                         phone_number_hash           TEXT,
                         mining_streak               BIGINT NOT NULL DEFAULT 0,

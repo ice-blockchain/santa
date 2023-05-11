@@ -39,7 +39,7 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 	sqlUpd := `INSERT INTO badge_progress(achieved_badges, user_id) VALUES($1, $2) 
 				ON CONFLICT (user_id) DO UPDATE
 									SET achieved_badges = $1
-				WHERE COALESCE(badge_progress.achieved_badges, '') = COALESCE($3, '')`
+				WHERE COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) = COALESCE($3, ARRAY[]::TEXT[])`
 	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
 		var rowsUpdated uint64
 		rowsUpdated, err = storage.Exec(ctx, r.db, sqlUpd, achievedBadges, userID, pr.AchievedBadges)

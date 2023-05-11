@@ -26,8 +26,8 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	sql := `SELECT 
-				COALESCE(enabled_roles,'') 		   AS enabled_roles,
-				COALESCE(completed_levels,'') 	   AS completed_levels,
+				COALESCE(enabled_roles,ARRAY[]::TEXT[]) 		   AS enabled_roles,
+				COALESCE(completed_levels,ARRAY[]::TEXT[]) 	   AS completed_levels,
 				user_id,
 				COALESCE(phone_number_hash,'') 	   AS phone_number_hash,
 				COALESCE(mining_streak,0) 		   AS mining_streak,

@@ -5,12 +5,11 @@ package levelsandroles
 import (
 	"context"
 	"fmt"
-	"math"
-	"strings"
-
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
+	"math"
+	"strings"
 
 	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/santa/tasks"
@@ -328,12 +327,12 @@ func (s *userTableSource) insertAgendaPhoneNumberHashes(ctx context.Context, us 
 }
 
 func (*userTableSource) newlyAddedAgendaContacts(us *users.UserSnapshot) map[string]struct{} { //nolint:gocognit,gocyclo,revive,cyclop // .
-	if us.User == nil || us.User.ID == "" || us.User.AgendaPhoneNumberHashes == "" || us.User.AgendaPhoneNumberHashes == us.User.ID {
+	if us.User == nil || us.User.ID == "" || us.User.AgendaPhoneNumberHashes == nil || *us.User.AgendaPhoneNumberHashes == "" || *us.User.AgendaPhoneNumberHashes == us.User.ID {
 		return nil
 	}
-	after := strings.Split(us.User.AgendaPhoneNumberHashes, ",")
+	after := strings.Split(*us.User.AgendaPhoneNumberHashes, ",")
 	newlyAdded := make(map[string]struct{}, len(after))
-	if us.Before == nil || us.Before.ID == "" || us.Before.AgendaPhoneNumberHashes == "" || us.Before.AgendaPhoneNumberHashes == us.User.ID {
+	if us.Before == nil || us.Before.ID == "" || us.Before.AgendaPhoneNumberHashes == nil || *us.Before.AgendaPhoneNumberHashes == "" || *us.Before.AgendaPhoneNumberHashes == us.User.ID {
 		for _, agendaPhoneNumberHash := range after {
 			if agendaPhoneNumberHash == "" {
 				continue
@@ -343,7 +342,7 @@ func (*userTableSource) newlyAddedAgendaContacts(us *users.UserSnapshot) map[str
 
 		return newlyAdded
 	}
-	before := strings.Split(us.Before.AgendaPhoneNumberHashes, ",")
+	before := strings.Split(*us.Before.AgendaPhoneNumberHashes, ",")
 outer:
 	for _, afterAgendaPhoneNumberHash := range after {
 		if afterAgendaPhoneNumberHash == "" || strings.EqualFold(afterAgendaPhoneNumberHash, us.User.PhoneNumberHash) {
@@ -421,7 +420,7 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 	sql := `INSERT INTO levels_and_roles_progress(user_id, completed_levels) VALUES ($1, $2)
 				ON CONFLICT (user_id) DO UPDATE 
 					SET completed_levels = $2
-				WHERE COALESCE(levels_and_roles_progress.completed_levels,'') = COALESCE($3,'')`
+				WHERE COALESCE(levels_and_roles_progress.completed_levels,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 	params := []any{
 		pr.UserID,
 		completedLevels,
@@ -553,7 +552,7 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 	sql := `INSERT INTO levels_and_roles_progress (user_id, enabled_roles) VALUES ($1, $2)
 				ON CONFLICT (user_id) DO UPDATE 
 					SET enabled_roles = $2
-				WHERE COALESCE(levels_and_roles_progress.enabled_roles,'') = COALESCE($3,'')`
+				WHERE COALESCE(levels_and_roles_progress.enabled_roles,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 	params := []any{
 		pr.UserID,
 		enabledRoles,

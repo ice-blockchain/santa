@@ -82,7 +82,7 @@ func (p *progress) buildUpdatePseudoCompletedTasksSQL(task *Task, repo *reposito
 	sql = fmt.Sprintf(`UPDATE task_progress
 						SET %v
 						WHERE user_id = $1
-						  AND COALESCE(pseudo_completed_tasks,'') = COALESCE($2,'')`, strings.Join(fields, ","))
+						  AND COALESCE(pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($2,ARRAY[]::TEXT[])`, strings.Join(fields, ","))
 
 	return params, sql
 }
@@ -110,7 +110,7 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 		INSERT INTO task_progress(user_id, completed_tasks) VALUES ($1, $2)
 			ON CONFLICT(user_id) DO UPDATE
 				SET completed_tasks = EXCLUDED.completed_tasks
-			WHERE COALESCE(task_progress.completed_tasks,'') = COALESCE($3,'')`
+			WHERE COALESCE(task_progress.completed_tasks,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 	params := []any{
 		pr.UserID,
 		completedTasks,

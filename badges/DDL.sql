@@ -2,7 +2,7 @@
 --************************************************************************************************************************************
 -- badge_progress
 CREATE TABLE IF NOT EXISTS badge_progress (
-                        achieved_badges  TEXT,
+                        achieved_badges  TEXT[],
                         balance          TEXT,
                         user_id          TEXT NOT NULL PRIMARY KEY,
                         friends_invited  BIGINT NOT NULL DEFAULT 0,

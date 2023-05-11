@@ -2,8 +2,8 @@
 --************************************************************************************************************************************
 -- task_progress
 CREATE TABLE IF NOT EXISTS task_progress (
-                        completed_tasks             TEXT,
-                        pseudo_completed_tasks      TEXT,
+                        completed_tasks             TEXT[],
+                        pseudo_completed_tasks      TEXT[],
                         user_id                     TEXT NOT NULL PRIMARY KEY,
                         twitter_user_handle         TEXT,
                         telegram_user_handle        TEXT,
