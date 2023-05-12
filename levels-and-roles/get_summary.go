@@ -25,18 +25,7 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	sql := `SELECT 
-				COALESCE(enabled_roles,ARRAY[]::TEXT[]) 		   AS enabled_roles,
-				COALESCE(completed_levels,ARRAY[]::TEXT[]) 	   AS completed_levels,
-				user_id,
-				COALESCE(phone_number_hash,'') 	   AS phone_number_hash,
-				COALESCE(mining_streak,0) 		   AS mining_streak,
-				COALESCE(pings_sent,0) 			   AS pings_sent,
-				COALESCE(agenda_contacts_joined,0) AS agenda_contacts_joined,
-				COALESCE(friends_invited,0) 	   AS friends_invited,
-				COALESCE(completed_tasks,0) 	   AS completed_tasks,
-				COALESCE(hide_level,FALSE) 		   AS hide_level,
-				COALESCE(hide_role,FALSE) 		   AS hide_role
+	sql := `SELECT *
 			FROM levels_and_roles_progress
 			WHERE user_id = $1`
 	res, err = storage.Get[progress](ctx, r.db, sql, userID)

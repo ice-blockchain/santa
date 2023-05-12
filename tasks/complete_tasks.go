@@ -38,7 +38,7 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	}
 	if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
 		sErr := errors.Wrapf(err, "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
-		pseudoCompletedTasks := params[2].(*users.Enum[Type]) // nolint:errcheck // We're sure.
+		pseudoCompletedTasks := params[2].(*users.Enum[Type]) //nolint:errcheck,forcetypeassert // We're sure.
 		sql = `UPDATE task_progress
 			   SET pseudo_completed_tasks = $2
 			   WHERE user_id = $1
