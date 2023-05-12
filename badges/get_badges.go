@@ -48,13 +48,7 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	sql := `SELECT achieved_badges,
-				   COALESCE(balance, '') AS balance,
-				   user_id,
-				   friends_invited,
-				   completed_levels,
-				   COALESCE(hide_badges, FALSE) AS hide_badges
-				FROM badge_progress WHERE user_id = $1`
+	sql := `SELECT * FROM badge_progress WHERE user_id = $1`
 	res, err = storage.Get[progress](ctx, r.db, sql, userID)
 	if res == nil {
 		return nil, ErrRelationNotFound
@@ -69,7 +63,7 @@ func (r *repository) getStatistics(ctx context.Context, groupType GroupType) (ma
 	}
 	allTypes := AllGroups[groupType]
 	sql := `SELECT *
-			FROM badge_statistics
+				FROM badge_statistics
 				WHERE badge_group_type = $1
 				LIMIT $2 OFFSET $3`
 	offset := 0

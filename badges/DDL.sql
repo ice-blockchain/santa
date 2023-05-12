@@ -2,19 +2,19 @@
 --************************************************************************************************************************************
 -- badge_progress
 CREATE TABLE IF NOT EXISTS badge_progress (
-                        achieved_badges  TEXT[],
-                        balance          TEXT,
-                        user_id          TEXT NOT NULL PRIMARY KEY,
                         friends_invited  BIGINT NOT NULL DEFAULT 0,
                         completed_levels BIGINT NOT NULL DEFAULT 0,
-                        hide_badges      BOOLEAN
+                        hide_badges      BOOLEAN,
+                        achieved_badges  TEXT[],
+                        user_id          TEXT NOT NULL PRIMARY KEY,
+                        balance          TEXT
                     );
 --************************************************************************************************************************************
 -- badge_statistics
 CREATE TABLE IF NOT EXISTS badge_statistics (
-                     badge_type         TEXT NOT NULL PRIMARY KEY,
-                     badge_group_type   TEXT NOT NULL,
-                     achieved_by        BIGINT NOT NULL DEFAULT 0
+                        achieved_by        BIGINT NOT NULL DEFAULT 0,
+                        badge_type         TEXT NOT NULL PRIMARY KEY,
+                        badge_group_type   TEXT NOT NULL
                  );
 CREATE INDEX IF NOT EXISTS badge_statistics_badge_group_type_ix ON badge_statistics (badge_group_type);
 INSERT INTO badge_statistics (badge_group_type,badge_type)

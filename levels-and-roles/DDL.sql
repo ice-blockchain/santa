@@ -2,17 +2,17 @@
 --************************************************************************************************************************************
 -- levels_and_roles_progress
 CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
-                        enabled_roles               TEXT[],
-                        completed_levels            TEXT[],
-                        user_id                     TEXT NOT NULL PRIMARY KEY,
-                        phone_number_hash           TEXT,
                         mining_streak               BIGINT NOT NULL DEFAULT 0,
                         pings_sent                  BIGINT NOT NULL DEFAULT 0,
                         agenda_contacts_joined      BIGINT NOT NULL DEFAULT 0,
                         friends_invited             BIGINT NOT NULL DEFAULT 0,
                         completed_tasks             BIGINT NOT NULL DEFAULT 0,
                         hide_level                  BOOLEAN DEFAULT false,
-                        hide_role                   BOOLEAN DEFAULT false
+                        hide_role                   BOOLEAN DEFAULT false,
+                        enabled_roles               TEXT[],
+                        completed_levels            TEXT[],
+                        user_id                     TEXT NOT NULL PRIMARY KEY,
+                        phone_number_hash           TEXT
                     );
 CREATE INDEX IF NOT EXISTS levels_and_roles_progress_phone_number_hash_ix ON levels_and_roles_progress (phone_number_hash);
 --************************************************************************************************************************************
@@ -29,5 +29,3 @@ CREATE TABLE IF NOT EXISTS pings (
                         pinged_by  TEXT NOT NULL,
                         PRIMARY KEY(user_id, pinged_by)
                     );
-
-
