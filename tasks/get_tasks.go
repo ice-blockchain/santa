@@ -30,39 +30,29 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res, err = storage.Get[progress](ctx, r.db, `SELECT 
-        COALESCE(completed_tasks,ARRAY[]::TEXT[]) 		 AS completed_tasks,
-		COALESCE(pseudo_completed_tasks, ARRAY[]::TEXT[]) AS pseudo_completed_tasks,
-		user_id,
-		COALESCE(twitter_user_handle, '') 	 AS twitter_user_handle,
-		COALESCE(telegram_user_handle, '') 	 AS telegram_user_handle,
-		COALESCE(friends_invited, 0) 		 AS friends_invited,
-		COALESCE(username_set, false) 		 AS username_set,
-		COALESCE(profile_picture_set, false) AS profile_picture_set,
-		COALESCE(mining_started, false) 	 AS mining_started
-    FROM task_progress where user_id = $1`, userID)
+	res, err = storage.Get[progress](ctx, r.db, `SELECT * FROM task_progress WHERE user_id = $1`, userID)
 	err = errors.Wrapf(err, "failed to get TASK_PROGRESS for userID:%v", userID)
-	if errors.Is(err, storage.ErrNotFound) {
+	if storage.IsErr(err, storage.ErrNotFound) {
 		return nil, ErrRelationNotFound
 	}
 
 	return
 }
 
-func (p *progress) buildTasks(repo *repository) []*Task { //nolint:gocognit,funlen,revive // Wrong.
+func (p *progress) buildTasks(repo *repository) []*Task { //nolint:gocognit,funlen,revive,gocyclo,cyclop // Wrong.
 	resp := repo.defaultTasks()
 	for ix, task := range resp {
 		switch task.Type { //nolint:exhaustive // Only those 2 have specific data persisted.
 		case FollowUsOnTwitterType:
-			if p.TwitterUserHandle != "" {
+			if p.TwitterUserHandle != nil && *p.TwitterUserHandle != "" {
 				task.Data = &Data{
-					TwitterUserHandle: p.TwitterUserHandle,
+					TwitterUserHandle: *p.TwitterUserHandle,
 				}
 			}
 		case JoinTelegramType:
-			if p.TelegramUserHandle != "" {
+			if p.TelegramUserHandle != nil && *p.TelegramUserHandle != "" {
 				task.Data = &Data{
-					TelegramUserHandle: p.TelegramUserHandle,
+					TelegramUserHandle: *p.TelegramUserHandle,
 				}
 			}
 		}

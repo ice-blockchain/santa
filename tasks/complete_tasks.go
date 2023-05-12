@@ -218,11 +218,11 @@ func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] 
 		case UploadProfilePictureType:
 			completed = p.ProfilePictureSet
 		case FollowUsOnTwitterType:
-			if p.TwitterUserHandle != "" {
+			if p.TwitterUserHandle != nil && *p.TwitterUserHandle != "" {
 				completed = true
 			}
 		case JoinTelegramType:
-			if p.TelegramUserHandle != "" {
+			if p.TelegramUserHandle != nil && *p.TelegramUserHandle != "" {
 				completed = true
 			}
 		case InviteFriendsType:

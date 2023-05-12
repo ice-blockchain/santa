@@ -101,9 +101,9 @@ type (
 	progress struct {
 		CompletedTasks       *users.Enum[Type] `json:"completedTasks,omitempty" example:"claim_username,start_mining"`
 		PseudoCompletedTasks *users.Enum[Type] `json:"pseudoCompletedTasks,omitempty" example:"claim_username,start_mining"`
+		TwitterUserHandle    *string           `json:"twitterUserHandle,omitempty" example:"jdoe2"`
+		TelegramUserHandle   *string           `json:"telegramUserHandle,omitempty" example:"jdoe1"`
 		UserID               string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-		TwitterUserHandle    string            `json:"twitterUserHandle,omitempty" example:"jdoe2"`
-		TelegramUserHandle   string            `json:"telegramUserHandle,omitempty" example:"jdoe1"`
 		FriendsInvited       uint64            `json:"friendsInvited,omitempty" example:"3"`
 		UsernameSet          bool              `json:"usernameSet,omitempty" example:"true"`
 		ProfilePictureSet    bool              `json:"profilePictureSet,omitempty" example:"true"`
