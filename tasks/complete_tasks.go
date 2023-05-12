@@ -15,9 +15,10 @@ import (
 	"github.com/ice-blockchain/eskimo/users"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 )
 
-func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen,gocognit // .
+func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen // .
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
@@ -29,23 +30,31 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	if params == nil {
 		return nil
 	}
-	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
-		var updatedRows uint64
-		if updatedRows, err = storage.Exec(ctx, r.db, sql, params...); err != nil || updatedRows == 0 {
-			if updatedRows == 0 || errors.Is(err, storage.ErrNotFound) {
-				return ErrRaceCondition
-			}
-
-			return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params...)
-		}
-		if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
-			return errors.Wrapf(err, "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
-		}
-
-		return nil
-	})
-	if err != nil && errors.Is(err, ErrRaceCondition) {
+	var updatedRows uint64
+	if updatedRows, err = storage.Exec(ctx, r.db, sql, params...); updatedRows == 0 && err == nil {
 		return r.PseudoCompleteTask(ctx, task)
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params...)
+	}
+	if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
+		sErr := errors.Wrapf(err, "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
+		pseudoCompletedTasks := params[2].(*users.Enum[Type]) // nolint:errcheck // We're sure.
+		sql = `UPDATE task_progress
+			   SET pseudo_completed_tasks = $2
+			   WHERE user_id = $1
+				 AND IFNULL(pseudo_completed_tasks,ARRAY[]::TEXT[]) = IFNULL($3,ARRAY[]::TEXT[])`
+		if updatedRows, err = storage.Exec(ctx, r.db, sql, task.UserID, userProgress.PseudoCompletedTasks, pseudoCompletedTasks); err == nil && updatedRows == 0 {
+			log.Error(errors.Wrapf(sErr, "race condition while rolling back the update request"))
+
+			return r.PseudoCompleteTask(ctx, task)
+		} else if err != nil {
+			return multierror.Append( //nolint:wrapcheck // Not needed.
+				sErr,
+				errors.Wrapf(err, "[rollback] failed to update task_progress.pseudo_completed_tasks for params:%#v", params...),
+			).ErrorOrNil()
+		}
+
+		return sErr
 	}
 
 	return nil
@@ -116,48 +125,68 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 		completedTasks,
 		pr.CompletedTasks,
 	}
-	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
-		if updatedRows, uErr := storage.Exec(ctx, conn, sql, params...); uErr != nil || updatedRows == 0 {
-			if updatedRows == 0 || errors.Is(uErr, storage.ErrNotFound) {
-				return ErrRaceCondition
-			}
-
-			return errors.Wrapf(uErr, "failed to insert/update task_progress.completed_tasks for params:%#v", params...)
-		}
-		if completedTasks != nil && len(*completedTasks) > 0 && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
-			newlyCompletedTasks := make([]*CompletedTask, 0, len(&AllTypes))
-		outer:
-			for _, completedTask := range *completedTasks {
-				if pr.CompletedTasks != nil {
-					for _, previouslyCompletedTask := range *pr.CompletedTasks {
-						if completedTask == previouslyCompletedTask {
-							continue outer
-						}
+	if updatedRows, uErr := storage.Exec(ctx, r.db, sql, params...); uErr == nil && updatedRows == 0 {
+		return r.completeTasks(ctx, userID)
+	} else if uErr != nil {
+		return errors.Wrapf(uErr, "failed to insert/update task_progress.completed_tasks for params:%#v", params...)
+	}
+	//nolint:nestif // .
+	if completedTasks != nil && len(*completedTasks) > 0 && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
+		newlyCompletedTasks := make([]*CompletedTask, 0, len(&AllTypes))
+	outer:
+		for _, completedTask := range *completedTasks {
+			if pr.CompletedTasks != nil {
+				for _, previouslyCompletedTask := range *pr.CompletedTasks {
+					if completedTask == previouslyCompletedTask {
+						continue outer
 					}
 				}
-				newlyCompletedTasks = append(newlyCompletedTasks, &CompletedTask{
-					UserID:         userID,
-					Type:           completedTask,
-					CompletedTasks: uint64(len(*completedTasks)),
-				})
 			}
-			if err = runConcurrently(ctx, r.sendCompletedTaskMessage, newlyCompletedTasks); err != nil {
-				return errors.Wrapf(err, "failed to sendCompletedTaskMessages for userID:%v,completedTasks:%#v", userID, newlyCompletedTasks)
-			}
+			newlyCompletedTasks = append(newlyCompletedTasks, &CompletedTask{
+				UserID:         userID,
+				Type:           completedTask,
+				CompletedTasks: uint64(len(*completedTasks)),
+			})
 		}
-		if completedTasks != nil && len(*completedTasks) == len(&AllTypes) && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
-			if err = r.awardAllTasksCompletionICECoinsBonus(ctx, userID); err != nil {
-				return errors.Wrapf(err, "failed to awardAllTasksCompletionICECoinsBonus for userID:%v", userID)
-			}
-		}
+		if err = runConcurrently(ctx, r.sendCompletedTaskMessage, newlyCompletedTasks); err != nil {
+			sErr := errors.Wrapf(err, "failed to sendCompletedTaskMessages for userID:%v,completedTasks:%#v", userID, newlyCompletedTasks)
+			params[1] = pr.CompletedTasks
+			params[2] = completedTasks
+			if updatedRows, rErr := storage.Exec(ctx, r.db, sql, params...); rErr == nil && updatedRows == 0 {
+				log.Error(errors.Wrapf(sErr, "[sendCompletedTaskMessages]rollback race condition"))
 
-		return nil
-	})
-	if err != nil && errors.Is(err, ErrRaceCondition) {
-		return r.completeTasks(ctx, userID)
+				return r.completeTasks(ctx, userID)
+			} else if rErr != nil {
+				return multierror.Append( //nolint:wrapcheck // Not needed.
+					sErr,
+					errors.Wrapf(rErr, "[sendCompletedTaskMessages][rollback] failed to update task_progress.completed_tasks for params:%#v", params...),
+				).ErrorOrNil()
+			}
+
+			return sErr
+		}
+	}
+	if completedTasks != nil && len(*completedTasks) == len(&AllTypes) && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
+		if err = r.awardAllTasksCompletionICECoinsBonus(ctx, userID); err != nil {
+			sErr := errors.Wrapf(err, "failed to awardAllTasksCompletionICECoinsBonus for userID:%v", userID)
+			params[1] = pr.CompletedTasks
+			params[2] = completedTasks
+			if updatedRows, rErr := storage.Exec(ctx, r.db, sql, params...); rErr == nil && updatedRows == 0 {
+				log.Error(errors.Wrapf(sErr, "[sendCompletedTaskMessages]rollback race condition"))
+
+				return r.completeTasks(ctx, userID)
+			} else if rErr != nil {
+				return multierror.Append( //nolint:wrapcheck // Not needed.
+					sErr,
+					errors.Wrapf(rErr, "[awardAllTasksCompletionICECoinsBonus][rollback] failed to update task_progress.completed_tasks for params:%#v", params...),
+				).ErrorOrNil()
+			}
+
+			return sErr
+		}
 	}
 
-	return errors.Wrapf(err, "failed to execute transaction to complete new tasks for userID:%v", userID)
+	return nil
 }
 
 func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] { //nolint:revive,funlen,gocognit,gocyclo,cyclop // .

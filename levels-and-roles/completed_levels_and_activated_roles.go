@@ -5,16 +5,18 @@ package levelsandroles
 import (
 	"context"
 	"fmt"
+	"math"
+	"strings"
+
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
-	"math"
-	"strings"
 
 	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/santa/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 )
 
 func (s *miningSessionSource) Process(ctx context.Context, msg *messagebroker.Message) error {
@@ -426,40 +428,43 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 		completedLevels,
 		pr.CompletedLevels,
 	}
-	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
-		if rowsUpdated, uErr := storage.Exec(ctx, conn, sql, params...); uErr != nil || rowsUpdated == 0 {
-			if rowsUpdated == 0 || errors.Is(uErr, storage.ErrNotFound) {
-				return ErrRaceCondition
-			}
-
-			return errors.Wrapf(uErr, "failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels for params:%#v", params...)
-		}
-		if completedLevels != nil && len(*completedLevels) > 0 && (pr.CompletedLevels == nil || len(*pr.CompletedLevels) < len(*completedLevels)) {
-			newlyCompletedLevels := make([]*CompletedLevel, 0, len(&AllLevelTypes))
-		outer:
-			for _, completedLevel := range *completedLevels {
-				if pr.CompletedLevels != nil {
-					for _, previouslyCompletedLevel := range *pr.CompletedLevels {
-						if completedLevel == previouslyCompletedLevel {
-							continue outer
-						}
+	if rowsUpdated, uErr := storage.Exec(ctx, r.db, sql, params...); uErr == nil && rowsUpdated == 0 {
+		return r.completeLevels(ctx, userID)
+	} else if uErr != nil {
+		return errors.Wrapf(uErr, "failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels for params:%#v", params...)
+	}
+	if completedLevels != nil && len(*completedLevels) > 0 && (pr.CompletedLevels == nil || len(*pr.CompletedLevels) < len(*completedLevels)) {
+		newlyCompletedLevels := make([]*CompletedLevel, 0, len(&AllLevelTypes))
+	outer:
+		for _, completedLevel := range *completedLevels {
+			if pr.CompletedLevels != nil {
+				for _, previouslyCompletedLevel := range *pr.CompletedLevels {
+					if completedLevel == previouslyCompletedLevel {
+						continue outer
 					}
 				}
-				newlyCompletedLevels = append(newlyCompletedLevels, &CompletedLevel{
-					UserID:          userID,
-					Type:            completedLevel,
-					CompletedLevels: uint64(len(*completedLevels)),
-				})
 			}
-			if err = runConcurrently(ctx, r.sendCompletedLevelMessage, newlyCompletedLevels); err != nil {
-				return errors.Wrapf(err, "failed to sendCompletedLevelMessages for userID:%v,completedLevels:%#v", userID, newlyCompletedLevels)
-			}
+			newlyCompletedLevels = append(newlyCompletedLevels, &CompletedLevel{
+				UserID:          userID,
+				Type:            completedLevel,
+				CompletedLevels: uint64(len(*completedLevels)),
+			})
 		}
+		if err = runConcurrently(ctx, r.sendCompletedLevelMessage, newlyCompletedLevels); err != nil {
+			sErr := errors.Wrapf(err, "failed to sendCompletedLevelMessages for userID:%v,completedLevels:%#v", userID, newlyCompletedLevels)
+			params[1] = pr.CompletedLevels
+			params[2] = completedLevels
+			if rowsUpdated, rErr := storage.Exec(ctx, r.db, sql, params...); rowsUpdated == 0 && rErr == nil {
+				return r.completeLevels(ctx, userID)
+			} else if rErr != nil {
+				return multierror.Append( //nolint:wrapcheck // Not needed.
+					sErr,
+					errors.Wrapf(err, "[sendCompletedLevelMessages][rollback]failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels, params:%#v", params...),
+				).ErrorOrNil()
+			}
 
-		return nil
-	})
-	if errors.Is(err, ErrRaceCondition) {
-		return r.completeLevels(ctx, userID)
+			return sErr
+		}
 	}
 
 	return nil
@@ -558,43 +563,48 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 		enabledRoles,
 		pr.EnabledRoles,
 	}
-	err = storage.DoInTransaction(ctx, r.db, func(conn storage.QueryExecer) error {
-		var rowsUpdated uint64
-		if rowsUpdated, err = storage.Exec(ctx, conn, sql, params...); err != nil || rowsUpdated == 0 {
-			if rowsUpdated == 0 || errors.Is(err, storage.ErrNotFound) {
-				return ErrRaceCondition
-			}
-
-			return errors.Wrapf(err, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
-		}
-		if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) {
-			newlyEnabledRoles := make([]*EnabledRole, 0, len(&AllRoleTypesThatCanBeEnabled))
-		outer:
-			for _, enabledRole := range *enabledRoles {
-				if pr.EnabledRoles != nil {
-					for _, previouslyEnabledRole := range *pr.EnabledRoles {
-						if enabledRole == previouslyEnabledRole {
-							continue outer
-						}
+	var rowsUpdated uint64
+	if rowsUpdated, err = storage.Exec(ctx, r.db, sql, params...); err == nil && rowsUpdated == 0 {
+		return r.enableRoles(ctx, userID)
+	} else if err != nil {
+		return errors.Wrapf(err, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
+	}
+	if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) {
+		newlyEnabledRoles := make([]*EnabledRole, 0, len(&AllRoleTypesThatCanBeEnabled))
+	outer:
+		for _, enabledRole := range *enabledRoles {
+			if pr.EnabledRoles != nil {
+				for _, previouslyEnabledRole := range *pr.EnabledRoles {
+					if enabledRole == previouslyEnabledRole {
+						continue outer
 					}
 				}
-				newlyEnabledRoles = append(newlyEnabledRoles, &EnabledRole{
-					UserID: userID,
-					Type:   enabledRole,
-				})
 			}
-			if err = runConcurrently(ctx, r.sendEnabledRoleMessage, newlyEnabledRoles); err != nil {
-				return errors.Wrapf(err, "failed to sendEnabledRoleMessages for userID:%v,enabledRoles:%#v", userID, newlyEnabledRoles)
-			}
+			newlyEnabledRoles = append(newlyEnabledRoles, &EnabledRole{
+				UserID: userID,
+				Type:   enabledRole,
+			})
 		}
+		if err = runConcurrently(ctx, r.sendEnabledRoleMessage, newlyEnabledRoles); err != nil {
+			sErr := errors.Wrapf(err, "failed to sendEnabledRoleMessages for userID:%v,enabledRoles:%#v", userID, newlyEnabledRoles)
+			params[1] = pr.EnabledRoles
+			params[2] = enabledRoles
+			if rowsUpdated, err = storage.Exec(ctx, r.db, sql, params...); rowsUpdated == 0 && err == nil {
+				log.Error(errors.Wrapf(sErr, "[sendEnabledRoleMessages]rollback race condition"))
 
-		return nil
-	})
-	if err != nil && errors.Is(err, ErrRaceCondition) {
-		return r.enableRoles(ctx, userID)
+				return r.enableRoles(ctx, userID)
+			} else if err != nil {
+				return multierror.Append( //nolint:wrapcheck // Not needed.
+					sErr,
+					errors.Wrapf(err, "[sendEnabledRoleMessages][rollback]failed to update LEVELS_AND_ROLES_PROGRESS.enabled_roles, params:%#v", params...),
+				).ErrorOrNil()
+			}
+
+			return sErr
+		}
 	}
 
-	return errors.Wrapf(err, "failed to execute transaction to achieve new levels and roles for userID:%v", userID)
+	return nil
 }
 
 func (p *progress) reEvaluateEnabledRoles(repo *repository) *users.Enum[RoleType] {
