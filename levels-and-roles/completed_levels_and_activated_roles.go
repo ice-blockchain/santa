@@ -208,7 +208,7 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 	}
 	insertTuple := &progress{
 		UserID:          us.ID,
-		PhoneNumberHash: us.PhoneNumberHash,
+		PhoneNumberHash: &us.PhoneNumberHash,
 		HideLevel:       hideLevel,
 		HideRole:        hideRole,
 	}
@@ -381,7 +381,7 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 	} else if uErr != nil {
 		return errors.Wrapf(uErr, "failed to update LEVELS_AND_ROLES_PROGRESS.completed_levels for params:%#v", params...)
 	}
-	if completedLevels != nil && len(*completedLevels) > 0 && (pr.CompletedLevels == nil || len(*pr.CompletedLevels) < len(*completedLevels)) {
+	if completedLevels != nil && len(*completedLevels) > 0 && (pr.CompletedLevels == nil || len(*pr.CompletedLevels) < len(*completedLevels)) { //nolint:nestif,lll // .
 		newlyCompletedLevels := make([]*CompletedLevel, 0, len(&AllLevelTypes))
 	outer:
 		for _, completedLevel := range *completedLevels {
@@ -446,7 +446,7 @@ func (p *progress) reEvaluateCompletedLevels(repo *repository) *users.Enum[Level
 				completed = true
 			}
 		} else if milestone, found = repo.cfg.AgendaContactsJoinedMilestones[levelType]; found {
-			if p.PhoneNumberHash != "" && p.AgendaContactsJoined >= milestone {
+			if p.PhoneNumberHash != nil && *p.PhoneNumberHash != "" && p.AgendaContactsJoined >= milestone {
 				completed = true
 			}
 		} else if milestone, found = repo.cfg.CompletedTasksMilestones[levelType]; found {
@@ -517,7 +517,7 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 	} else if err != nil {
 		return errors.Wrapf(err, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
 	}
-	if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) {
+	if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) { //nolint:nestif // .
 		newlyEnabledRoles := make([]*EnabledRole, 0, len(&AllRoleTypesThatCanBeEnabled))
 	outer:
 		for _, enabledRole := range *enabledRoles {

@@ -17,6 +17,7 @@ func TestReEvaluateCompletedLevels(t *testing.T) { //nolint:funlen // It's a tes
 	for _, levelType := range &AllLevelTypes {
 		completedLevels = append(completedLevels, levelType)
 	}
+	phoneNumberHash := "bogus"
 	testCases := []struct {
 		p        *progress
 		repo     *repository
@@ -61,7 +62,7 @@ func TestReEvaluateCompletedLevels(t *testing.T) { //nolint:funlen // It's a tes
 		{
 			name: "agenda contacts joined milestone is completed, level is completed as well",
 			p: &progress{
-				PhoneNumberHash:      "bogus",
+				PhoneNumberHash:      &phoneNumberHash,
 				AgendaContactsJoined: 10,
 			},
 			repo: &repository{cfg: &config{

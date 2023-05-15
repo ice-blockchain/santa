@@ -136,8 +136,9 @@ type (
 	progress struct {
 		EnabledRoles         *users.Enum[RoleType]  `json:"enabledRoles,omitempty" example:"snowman,ambassador"`
 		CompletedLevels      *users.Enum[LevelType] `json:"completedLevels,omitempty" example:"1,2"`
+		ContactUserIDs       *users.Enum[string]    `json:"contactUserIDs,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4,edfd8c02-75e0-4687-9ac2-1ce4723865c5" db:"contact_user_ids"` //nolint:lll // .
+		PhoneNumberHash      *string                `json:"phoneNumberHash,omitempty" example:"some hash"`
 		UserID               string                 `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-		PhoneNumberHash      string                 `json:"phoneNumberHash,omitempty" example:"some hash"`
 		MiningStreak         uint64                 `json:"miningStreak,omitempty" example:"3"`
 		PingsSent            uint64                 `json:"pingsSent,omitempty" example:"3"`
 		AgendaContactsJoined uint64                 `json:"agendaContactsJoined,omitempty" example:"3"`
@@ -145,10 +146,6 @@ type (
 		CompletedTasks       uint64                 `json:"completedTasks,omitempty" example:"3"`
 		HideLevel            bool                   `json:"hideLevel,omitempty" example:"true"`
 		HideRole             bool                   `json:"hideRole,omitempty" example:"true"`
-	}
-	contacts struct {
-		UserID         string `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
-		ContactUserIDs string `json:"contactUserIDs,omitempty" db:"contact_user_ids" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2,did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B3"` //nolint:lll // .
 	}
 	tryCompleteLevelsCommandSource struct {
 		*processor
@@ -171,7 +168,7 @@ type (
 	userPingsSource struct {
 		*processor
 	}
-	contactsTableSource struct {
+	agendaContactsSource struct {
 		*processor
 	}
 	repository struct {

@@ -105,7 +105,7 @@ require (
 	github.com/rs/zerolog v1.29.1 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
-	github.com/spf13/cast v1.5.0 // indirect
+	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.15.0 // indirect
@@ -146,6 +146,5 @@ require (
 replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.6.19
 	github.com/docker/docker => github.com/docker/docker v20.10.3+incompatible
-	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.33.0
 	github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.15.0
 )
