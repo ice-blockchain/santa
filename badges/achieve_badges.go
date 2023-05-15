@@ -278,7 +278,7 @@ func (s *userTableSource) handleUserDeletion(ctx context.Context, us *users.User
 	}
 
 	if pr != nil && pr.AchievedBadges != nil {
-		if err = s.decrementAchievedBadgesOnUserDelete(ctx, us.Before.ID); err != nil {
+		if err = s.decrementAchievedBadgesOnUserDelete(ctx, us.Before.ID, pr.AchievedBadges); err != nil {
 			return errors.Wrapf(err, "failed to decrement achieved badges counts, badges: %v", *pr.AchievedBadges)
 		}
 	}
@@ -286,18 +286,17 @@ func (s *userTableSource) handleUserDeletion(ctx context.Context, us *users.User
 	return nil
 }
 
-func (s *userTableSource) decrementAchievedBadgesOnUserDelete(ctx context.Context, userID users.UserID) error {
+func (s *userTableSource) decrementAchievedBadgesOnUserDelete(ctx context.Context, userID users.UserID, achievedBadges *users.Enum[Type]) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}
 	sql := `UPDATE BADGE_STATISTICS SET
-	ACHIEVED_BY = ACHIEVED_BY - 1
-	WHERE POSITION(BADGE_TYPE, (SELECT ACHIEVED_BADGES FROM BADGE_PROGRESS WHERE USER_ID = :userID)) > 0`
-	params := make(map[string]any, 1)
-	params["userID"] = userID
+	ACHIEVED_BY = GREATEST(ACHIEVED_BY - 1, 0)
+	WHERE BADGE_TYPE = ANY($1)`
+	_, err := storage.Exec(ctx, s.db, sql, achievedBadges)
 
-	return errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)),
-		"failed to decrement achieved badges count due to user deletion, userID: %v", userID)
+	return errors.Wrapf(err,
+		"failed to decrement achieved badges count due to user deletion, userID: %v, badges: %#v", userID, achievedBadges)
 }
 
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {
