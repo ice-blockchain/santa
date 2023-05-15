@@ -18,13 +18,17 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen // .
+func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen,gocognit,revive // .
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	userProgress, err := r.getProgress(ctx, task.UserID)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", task.UserID)
+	}
+	if userProgress == nil {
+		userProgress = new(progress)
+		userProgress.UserID = task.UserID
 	}
 	params, sql := userProgress.buildUpdatePseudoCompletedTasksSQL(task, r)
 	if params == nil {
@@ -42,7 +46,7 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 		sql = `UPDATE task_progress
 			   SET pseudo_completed_tasks = $2
 			   WHERE user_id = $1
-				 AND IFNULL(pseudo_completed_tasks,ARRAY[]::TEXT[]) = IFNULL($3,ARRAY[]::TEXT[])`
+				 AND COALESCE(pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 		if updatedRows, err = storage.Exec(ctx, r.db, sql, task.UserID, userProgress.PseudoCompletedTasks, pseudoCompletedTasks); err == nil && updatedRows == 0 {
 			log.Error(errors.Wrapf(sErr, "race condition while rolling back the update request"))
 
@@ -78,22 +82,40 @@ func (p *progress) buildUpdatePseudoCompletedTasksSQL(task *Task, repo *reposito
 	})
 	params = make([]any, 0)
 	params = append(params, task.UserID, p.PseudoCompletedTasks, &pseudoCompletedTasks)
-	fields := append(make([]string, 0, 1+1), "pseudo_completed_tasks = $3 ")
+	fieldIndexes := append(make([]string, 0, 1+1), "$3")
+	fieldNames := append(make([]string, 0, 1+1), "pseudo_completed_tasks")
 	nextIndex := 4
 	switch task.Type { //nolint:exhaustive // We only care to treat those differently.
 	case FollowUsOnTwitterType:
 		params = append(params, task.Data.TwitterUserHandle)
-		fields = append(fields, fmt.Sprintf("twitter_user_handle = $%v ", nextIndex))
+		fieldNames = append(fieldNames, "twitter_user_handle")
+		fieldIndexes = append(fieldIndexes, fmt.Sprintf("$%v ", nextIndex))
 	case JoinTelegramType:
 		params = append(params, task.Data.TelegramUserHandle)
-		fields = append(fields, fmt.Sprintf("telegram_user_handle = $%v ", nextIndex))
+		fieldNames = append(fieldNames, "telegram_user_handle")
+		fieldIndexes = append(fieldIndexes, fmt.Sprintf("$%v ", nextIndex))
 	}
-	sql = fmt.Sprintf(`UPDATE task_progress
-						SET %v
-						WHERE user_id = $1
-						  AND COALESCE(pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($2,ARRAY[]::TEXT[])`, strings.Join(fields, ","))
+	sql = fmt.Sprintf(`
+			INSERT INTO task_progress(user_id, %[2]v)
+			VALUES ($1, %[3]v)
+			ON CONFLICT(user_id) DO UPDATE
+									SET %[1]v
+									WHERE COALESCE(task_progress.pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($2,ARRAY[]::TEXT[])`,
+		strings.Join(formatFields(fieldNames, fieldIndexes), ","),
+		strings.Join(fieldNames, ","),
+		strings.Join(fieldIndexes, ","),
+	)
 
 	return params, sql
+}
+
+func formatFields(names, indexes []string) []string {
+	res := make([]string, len(names)) //nolint:makezero // We're know for sure.
+	for ind, name := range names {
+		res[ind] = fmt.Sprintf("%v = %v", name, indexes[ind])
+	}
+
+	return res
 }
 
 func (r *repository) completeTasks(ctx context.Context, userID string) error { //nolint:revive,funlen,gocognit,gocyclo,cyclop // .
