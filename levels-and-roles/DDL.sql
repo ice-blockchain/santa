@@ -19,8 +19,8 @@ CREATE INDEX IF NOT EXISTS levels_and_roles_progress_phone_number_hash_ix ON lev
 --************************************************************************************************************************************
 -- pings
 CREATE TABLE IF NOT EXISTS pings (
-                        user_id    TEXT NOT NULL,
-                        pinged_by  TEXT NOT NULL,
                         last_ping_cooldown_ended_at  TIMESTAMP NOT NULL,
+                        user_id                      TEXT NOT NULL,
+                        pinged_by                    TEXT NOT NULL,
                         PRIMARY KEY(user_id, pinged_by, last_ping_cooldown_ended_at)
                     );
