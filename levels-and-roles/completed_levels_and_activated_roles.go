@@ -314,12 +314,10 @@ func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnap
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	_, delProgressErr := storage.Exec(ctx, s.db, `DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = $1`, us.Before.ID)
-	_, delContactsErr := storage.Exec(ctx, s.db, `DELETE FROM CONTACTS WHERE user_id = $1`, us.Before.ID)
 	_, delPingsErr := storage.Exec(ctx, s.db, `DELETE FROM PINGS WHERE user_id = $1 OR pinged_by = $1`, us.Before.ID)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(delProgressErr, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us),
-		errors.Wrapf(delContactsErr, "failed to delete CONTACTS for:%#v", us),
 		errors.Wrapf(delPingsErr, "failed to delete PINGS for:%#v", us),
 	).ErrorOrNil()
 }
