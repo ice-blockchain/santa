@@ -9,7 +9,7 @@ require (
 	github.com/ice-blockchain/go-tarantool-client v0.0.0-20230327200757-4fc71fa3f7bb
 	github.com/ice-blockchain/wintr v1.113.0
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.8.3
+	github.com/stretchr/testify v1.8.4
 	github.com/swaggo/swag v1.16.1
 	github.com/testcontainers/testcontainers-go v0.20.1
 )
@@ -22,7 +22,6 @@ require (
 	cloud.google.com/go/iam v1.0.1 // indirect
 	cloud.google.com/go/longrunning v0.4.2 // indirect
 	cloud.google.com/go/storage v1.30.1 // indirect
-	cosmossdk.io/math v1.0.1 // indirect
 	firebase.google.com/go/v4 v4.11.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -37,7 +36,7 @@ require (
 	github.com/containerd/continuity v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
-	github.com/docker/docker v24.0.1+incompatible // indirect
+	github.com/docker/docker v24.0.2+incompatible // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
@@ -69,7 +68,7 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
-	github.com/imroc/req/v3 v3.35.0 // indirect
+	github.com/imroc/req/v3 v3.35.1 // indirect
 	github.com/ip2location/ip2location-go/v9 v9.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
@@ -109,7 +108,7 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.15.0 // indirect
+	github.com/spf13/viper v1.16.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/swaggo/files v1.0.1 // indirect
 	github.com/swaggo/gin-swagger v1.6.0 // indirect
@@ -149,6 +148,5 @@ require (
 replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.6.19
 	github.com/docker/docker => github.com/docker/docker v20.10.3+incompatible
-	github.com/quic-go/quic-go => github.com/quic-go/quic-go v0.34.0 // https://github.com/imroc/req/issues/241
 	github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.15.0
 )

@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
@@ -296,7 +295,7 @@ var (
 type (
 	progress struct {
 		AchievedBadges  *users.Enum[Type] `json:"achievedBadges,omitempty" example:"c1,l1,l2,c2"`
-		Balance         *coin.ICEFlake    `json:"balance,omitempty" example:"1232323232"`
+		Balance         *float64          `json:"balance,omitempty" example:"1232323232.56"`
 		UserID          string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
 		FriendsInvited  uint64            `json:"friendsInvited,omitempty" example:"3"`
 		CompletedLevels uint64            `json:"completedLevels,omitempty" example:"3"`

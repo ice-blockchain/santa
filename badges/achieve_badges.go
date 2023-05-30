@@ -13,7 +13,6 @@ import (
 	"github.com/ice-blockchain/eskimo/users"
 	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
 	"github.com/ice-blockchain/santa/tasks"
-	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -124,8 +123,8 @@ func (p *progress) reEvaluateAchievedBadges(repo *repository) *users.Enum[Type] 
 		case LevelGroupType:
 			achieved = p.CompletedLevels >= repo.cfg.Milestones[badgeType].FromInclusive
 		case CoinGroupType:
-			if !p.Balance.IsZero() {
-				achieved = p.Balance.GTE(coin.NewAmountUint64(repo.cfg.Milestones[badgeType].FromInclusive).MultiplyUint64(uint64(coin.Denomination)).Uint)
+			if p.Balance != nil && *p.Balance > 0 {
+				achieved = *p.Balance > float64(repo.cfg.Milestones[badgeType].FromInclusive)
 			}
 		case SocialGroupType:
 			achieved = p.FriendsInvited >= repo.cfg.Milestones[badgeType].FromInclusive
@@ -410,9 +409,9 @@ func (s *balancesTableSource) Process(ctx context.Context, msg *messagebroker.Me
 	}
 	type (
 		Balances struct {
-			Standard   *coin.ICEFlake `json:"standard,omitempty" example:"124302"`
-			PreStaking *coin.ICEFlake `json:"preStaking,omitempty" example:"124302"`
-			UserID     string         `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+			UserID     string  `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+			Standard   float64 `json:"standard,omitempty" example:"124302.55"`
+			PreStaking float64 `json:"preStaking,omitempty" example:"124302.65"`
 		}
 	)
 	var bal Balances
@@ -423,10 +422,10 @@ func (s *balancesTableSource) Process(ctx context.Context, msg *messagebroker.Me
 		return nil
 	}
 
-	return errors.Wrapf(s.upsertProgress(ctx, bal.Standard.Add(bal.PreStaking), bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
+	return errors.Wrapf(s.upsertProgress(ctx, bal.Standard+bal.PreStaking, bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
 }
 
-func (s *balancesTableSource) upsertProgress(ctx context.Context, balance *coin.ICEFlake, userID string) error {
+func (s *balancesTableSource) upsertProgress(ctx context.Context, balance float64, userID string) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
@@ -439,7 +438,7 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance *coin.
 				ON CONFLICT(user_id)
 				DO UPDATE
 					SET balance = $2
-				WHERE COALESCE(badge_progress.balance, '') != COALESCE(EXCLUDED.balance, '')`
+				WHERE COALESCE(badge_progress.balance, 0) != COALESCE(EXCLUDED.balance, 0)`
 	_, err = storage.Exec(ctx, s.db, sql, userID, balance)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
