@@ -19,21 +19,21 @@ func (s *service) setupTasksRoutes(router *server.Router) {
 
 // GetTasks godoc
 //
-//	@Schemes
-//	@Description	Returns all the tasks and provided user's progress for each of them.
-//	@Tags			Tasks
-//	@Accept			json
-//	@Produce		json
-//	@Param			Authorization	header		string	true	"Insert your access token"	default(Bearer <Add access token here>)
-//	@Param			userId			path		string	true	"the id of the user you need progress for"
-//	@Success		200				{array}		tasks.Task
-//	@Failure		400				{object}	server.ErrorResponse	"if validations fail"
-//	@Failure		401				{object}	server.ErrorResponse	"if not authorized"
-//	@Failure		403				{object}	server.ErrorResponse	"if not allowed"
-//	@Failure		422				{object}	server.ErrorResponse	"if syntax fails"
-//	@Failure		500				{object}	server.ErrorResponse
-//	@Failure		504				{object}	server.ErrorResponse	"if request times out"
-//	@Router			/tasks/x/users/{userId} [GET].
+// @Schemes
+// @Description	Returns all the tasks and provided user's progress for each of them.
+// @Tags			Tasks
+// @Accept			json
+// @Produce		json
+// @Param			Authorization	header		string	true	"Insert your access token"	default(Bearer <Add access token here>)
+// @Param			userId			path		string	true	"the id of the user you need progress for"
+// @Success		200				{array}		tasks.Task
+// @Failure		400				{object}	server.ErrorResponse	"if validations fail"
+// @Failure		401				{object}	server.ErrorResponse	"if not authorized"
+// @Failure		403				{object}	server.ErrorResponse	"if not allowed"
+// @Failure		422				{object}	server.ErrorResponse	"if syntax fails"
+// @Failure		500				{object}	server.ErrorResponse
+// @Failure		504				{object}	server.ErrorResponse	"if request times out"
+// @Router			/tasks/x/users/{userId} [GET].
 func (s *service) GetTasks( //nolint:gocritic // False negative.
 	ctx context.Context,
 	req *server.Request[GetTasksArg, []*tasks.Task],
