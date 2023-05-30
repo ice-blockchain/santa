@@ -413,35 +413,91 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", us),
-		errors.Wrapf(s.updateFriendsInvited(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
+		errors.Wrapf(s.insertReferrals(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
 		errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, us.ID), "failed to sendTryCompleteTasksCommandMessage for userID:%v", us.ID),
 	).ErrorOrNil()
 }
 
 //nolint:gocognit // .
-func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.UserSnapshot) error {
+func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && us.User.ReferredBy == us.Before.ReferredBy) { //nolint:lll,revive // .
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	sql := `INSERT INTO referrals(user_id,referred_by) VALUES ($1,$2)
-				ON CONFLICT(user_id) DO UPDATE
-				SET referred_by = $2`
+	sql := `INSERT INTO referrals(user_id,referred_by) VALUES ($1,$2)`
 	params := []any{
 		us.User.ID,
 		us.User.ReferredBy,
 	}
 	if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
-		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params...)
+		if storage.IsErr(err, storage.ErrDuplicate) {
+			return nil
+		}
+
+		return errors.Wrapf(err, "failed to insert referrals, params:%#v", params...)
 	}
-	sql = `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, (SELECT COUNT(*) FROM referrals WHERE referred_by = $1))
-		   ON CONFLICT(user_id) DO UPDATE  
-		   		SET friends_invited = EXCLUDED.friends_invited`
-	if _, err := storage.Exec(ctx, s.db, sql, us.User.ReferredBy); err != nil {
-		return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", params...)
+	if sErr := s.sendReferralsCountUpdate(ctx, us.User.ReferredBy); sErr != nil {
+		sErr = errors.Wrapf(sErr, "failed to send referrals counts update")
+		sql = `DELETE FROM referrals WHERE user_id = $1 AND referred_by = $2`
+		if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+			return multierror.Append(sErr, //nolint:wrapcheck // Not needed.
+				errors.Wrapf(err, "failed to delete referrals, pararms:%#v", params...)).ErrorOrNil()
+		}
+
+		return sErr
 	}
 
 	return errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, us.User.ReferredBy),
-		"failed to sendTryCompleteTasksCommandMessage, userID:%v,referredBy:%v", us.User.ID, us.User.ReferredBy)
+		"failed to sendTryCompleteTasksCommandMessage, params:%#v", params...)
+}
+
+func (r *referralCountsSource) Process(ctx context.Context, msg *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
+	}
+	if len(msg.Value) == 0 {
+		return nil
+	}
+	refCount := new(ReferralsCount)
+	if err := json.UnmarshalContext(ctx, msg.Value, refCount); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), refCount)
+	}
+
+	return errors.Wrapf(r.updateFriendsInvited(ctx, refCount), "failed to update")
+}
+
+func (r *referralCountsSource) updateFriendsInvited(ctx context.Context, refCount *ReferralsCount) error {
+	sql := `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, $2)
+		   ON CONFLICT(user_id) DO UPDATE  
+		   		SET friends_invited = $2`
+	_, err := storage.Exec(ctx, r.db, sql, refCount.UserID, refCount.Referrals)
+
+	return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", refCount)
+}
+
+func (r *repository) sendReferralsCountUpdate(ctx context.Context, userID string) error {
+	pr, err := r.getProgress(ctx, userID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get progress while sending referrals count update")
+	}
+	refCount := &ReferralsCount{
+		UserID:    userID,
+		Referrals: pr.FriendsInvited + 1,
+	}
+	valueBytes, err := json.MarshalContext(ctx, refCount)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal %#v", refCount)
+	}
+	msg := &messagebroker.Message{
+		Headers: map[string]string{"producer": "santa"},
+		Key:     userID,
+		Topic:   r.cfg.MessageBroker.Topics[3].Name,
+		Value:   valueBytes,
+	}
+	responder := make(chan error, 1)
+	defer close(responder)
+	r.mb.SendMessage(ctx, msg, responder)
+
+	return errors.Wrapf(<-responder, "failed to send `%v` message to broker", msg.Topic)
 }
 
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {

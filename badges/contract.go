@@ -310,6 +310,11 @@ type (
 	userTableSource struct {
 		*processor
 	}
+
+	referralCountsSource struct {
+		*processor
+	}
+
 	completedLevelsSource struct {
 		*processor
 	}
