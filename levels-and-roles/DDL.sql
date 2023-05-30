@@ -27,5 +27,6 @@ CREATE TABLE IF NOT EXISTS agenda_phone_number_hashes (
 CREATE TABLE IF NOT EXISTS pings (
                         user_id    TEXT NOT NULL,
                         pinged_by  TEXT NOT NULL,
-                        PRIMARY KEY(user_id, pinged_by)
+                        last_ping_cooldown_ended_at  TIMESTAMP NOT NULL,
+                        PRIMARY KEY(user_id, pinged_by, last_ping_cooldown_ended_at)
                     );
