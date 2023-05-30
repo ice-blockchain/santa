@@ -47,6 +47,7 @@ const (
 
 var (
 	ErrRaceCondition = errors.New("race condition")
+	ErrDuplicate     = errors.New("duplicate")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllLevelTypes = [21]LevelType{
 		Level1Type,
@@ -121,9 +122,8 @@ type (
 // Private API.
 
 const (
-	applicationYamlKey               = "levels-and-roles"
-	requestingUserIDCtxValueKey      = "requestingUserIDCtxValueKey"
-	agendaPhoneNumberHashesBatchSize = 500
+	applicationYamlKey          = "levels-and-roles"
+	requestingUserIDCtxValueKey = "requestingUserIDCtxValueKey"
 )
 
 // .
@@ -136,8 +136,9 @@ type (
 	progress struct {
 		EnabledRoles         *users.Enum[RoleType]  `json:"enabledRoles,omitempty" example:"snowman,ambassador"`
 		CompletedLevels      *users.Enum[LevelType] `json:"completedLevels,omitempty" example:"1,2"`
+		ContactUserIDs       *users.Enum[string]    `json:"contactUserIDs,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4,edfd8c02-75e0-4687-9ac2-1ce4723865c5" db:"contact_user_ids"` //nolint:lll // .
+		PhoneNumberHash      *string                `json:"phoneNumberHash,omitempty" example:"some hash"`
 		UserID               string                 `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-		PhoneNumberHash      string                 `json:"phoneNumberHash,omitempty" example:"some hash"`
 		MiningStreak         uint64                 `json:"miningStreak,omitempty" example:"3"`
 		PingsSent            uint64                 `json:"pingsSent,omitempty" example:"3"`
 		AgendaContactsJoined uint64                 `json:"agendaContactsJoined,omitempty" example:"3"`
@@ -165,6 +166,9 @@ type (
 		*processor
 	}
 	userPingsSource struct {
+		*processor
+	}
+	agendaContactsSource struct {
 		*processor
 	}
 	repository struct {

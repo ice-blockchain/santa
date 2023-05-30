@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS badge_progress (
                         friends_invited  BIGINT NOT NULL DEFAULT 0,
                         completed_levels BIGINT NOT NULL DEFAULT 0,
-                        hide_badges      BOOLEAN,
+                        hide_badges      BOOLEAN DEFAULT FALSE,
                         achieved_badges  TEXT[],
                         user_id          TEXT NOT NULL PRIMARY KEY,
                         balance          TEXT
