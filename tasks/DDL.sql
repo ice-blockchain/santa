@@ -12,10 +12,3 @@ CREATE TABLE IF NOT EXISTS task_progress (
                         twitter_user_handle         TEXT,
                         telegram_user_handle        TEXT
                     );
---************************************************************************************************************************************
--- referrals
-CREATE TABLE IF NOT EXISTS referrals (
-                     user_id        TEXT NOT NULL PRIMARY KEY,
-                     referred_by    TEXT NOT NULL
-                 );
-CREATE INDEX IF NOT EXISTS referrals_referred_by_ix ON referrals (referred_by);

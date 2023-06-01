@@ -316,7 +316,7 @@ type (
 		*processor
 	}
 
-	referralCountsSource struct {
+	friendsInvitedSource struct {
 		*processor
 	}
 

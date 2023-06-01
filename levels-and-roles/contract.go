@@ -153,7 +153,7 @@ type (
 	userTableSource struct {
 		*processor
 	}
-	referralCountsSource struct {
+	friendsInvitedSource struct {
 		*processor
 	}
 	miningSessionSource struct {
