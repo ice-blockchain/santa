@@ -11,4 +11,4 @@ CREATE INDEX IF NOT EXISTS referrals_processed_at_ix ON referrals (processed_at)
 CREATE TABLE IF NOT EXISTS friends_invited (
                                          invited_count  BIGINT NOT NULL DEFAULT 0,
                                          user_id        TEXT NOT NULL PRIMARY KEY
-);
+) WITH (fillfactor = 70);

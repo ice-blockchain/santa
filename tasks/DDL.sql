@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS task_progress (
                         user_id                     TEXT NOT NULL PRIMARY KEY,
                         twitter_user_handle         TEXT,
                         telegram_user_handle        TEXT
-                    );
+                    ) WITH (fillfactor = 70);

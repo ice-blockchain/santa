@@ -9,13 +9,12 @@ CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
                         completed_tasks             BIGINT NOT NULL DEFAULT 0,
                         hide_level                  BOOLEAN DEFAULT false,
                         hide_role                   BOOLEAN DEFAULT false,
-                        contact_user_ids            TEXT[],
+                        agenda_contact_user_ids     TEXT[],
                         enabled_roles               TEXT[],
                         completed_levels            TEXT[],
                         user_id                     TEXT NOT NULL PRIMARY KEY,
                         phone_number_hash           TEXT
-                    );
-CREATE INDEX IF NOT EXISTS levels_and_roles_progress_phone_number_hash_ix ON levels_and_roles_progress (phone_number_hash);
+                    ) WITH (fillfactor = 70);
 --************************************************************************************************************************************
 -- pings
 CREATE TABLE IF NOT EXISTS pings (
@@ -24,3 +23,4 @@ CREATE TABLE IF NOT EXISTS pings (
                         pinged_by                    TEXT NOT NULL,
                         PRIMARY KEY(user_id, pinged_by, last_ping_cooldown_ended_at)
                     );
+CREATE INDEX IF NOT EXISTS pings_last_ping_cooldown_ended_at_ix ON pings (last_ping_cooldown_ended_at);

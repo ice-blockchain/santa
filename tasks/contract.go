@@ -87,8 +87,7 @@ type (
 // Private API.
 
 const (
-	applicationYamlKey                          = "tasks"
-	allTasksCompletionBaseMiningRatePrizeFactor = 150
+	applicationYamlKey = "tasks"
 )
 
 // .

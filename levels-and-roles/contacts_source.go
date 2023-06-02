@@ -4,7 +4,6 @@ package levelsandroles
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
@@ -30,44 +29,39 @@ func (c *agendaContactsSource) Process(ctx context.Context, msg *messagebroker.M
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return errors.Wrapf(err, "can't get contacts for userID:%v", contact.UserID)
 	}
-	if before != nil && before.ContactUserIDs != nil {
-		for _, id := range *before.ContactUserIDs {
+	if before != nil && before.AgendaContactUserIDs != nil {
+		for _, id := range *before.AgendaContactUserIDs {
 			if id == contact.ContactUserID {
 				return ErrDuplicate
 			}
 		}
 	}
 	toUpsert := make(users.Enum[users.UserID], 0)
-	if before.ContactUserIDs != nil {
-		toUpsert = append(toUpsert, *before.ContactUserIDs...)
+	if before.AgendaContactUserIDs != nil {
+		toUpsert = append(toUpsert, *before.AgendaContactUserIDs...)
 	}
 	toUpsert = append(toUpsert, contact.ContactUserID)
-	sign := "+"
-	if uErr := c.upsertAgendaContacts(ctx, contact.UserID, sign, &toUpsert); uErr != nil {
+	if uErr := c.upsertAgendaContacts(ctx, contact.UserID, &toUpsert); uErr != nil {
 		return errors.Wrapf(uErr, "can't upsert agenda contacts for userID:%v", contact.UserID)
 	}
 	if sErr := c.sendTryCompleteLevelsCommandMessage(ctx, contact.UserID); sErr != nil {
-		sign = "-"
-
 		//nolint:wrapcheck // Not needed.
 		return multierror.Append(errors.Wrapf(sErr, "failed to sendTryCompleteLevelsCommandMessage, userID:%v", contact.UserID),
-			errors.Wrapf(c.upsertAgendaContacts(ctx, contact.UserID, sign, before.ContactUserIDs),
+			errors.Wrapf(c.upsertAgendaContacts(ctx, contact.UserID, before.AgendaContactUserIDs),
 				"can't rollback agenda contacts joined value for userID:%v", contact.UserID)).ErrorOrNil()
 	}
 
 	return nil
 }
 
-func (c *agendaContactsSource) upsertAgendaContacts(ctx context.Context, userID, sign string, contacts *users.Enum[users.UserID]) error {
-	sql := fmt.Sprintf(`INSERT INTO levels_and_roles_progress(user_id, contact_user_ids, agenda_contacts_joined) VALUES ($1, $2, $3)
+func (c *agendaContactsSource) upsertAgendaContacts(ctx context.Context, userID string, contacts *users.Enum[users.UserID]) error {
+	sql := `INSERT INTO levels_and_roles_progress(user_id, agenda_contact_user_ids, agenda_contacts_joined) VALUES ($1, $2, array_length($2::TEXT[],1))
 				ON CONFLICT(user_id)
 				DO UPDATE
-					SET contact_user_ids = EXCLUDED.contact_user_ids,
-					    agenda_contacts_joined = levels_and_roles_progress.agenda_contacts_joined %v 1
-					WHERE COALESCE(levels_and_roles_progress.contact_user_ids, ARRAY[]::TEXT[]) != COALESCE(EXCLUDED.contact_user_ids, ARRAY[]::TEXT[])
-					   OR levels_and_roles_progress.agenda_contacts_joined != EXCLUDED.agenda_contacts_joined`, sign)
-	agendaContactsJoined := 1
-	_, err := storage.Exec(ctx, c.db, sql, userID, contacts, agendaContactsJoined)
+					SET agenda_contact_user_ids = EXCLUDED.agenda_contact_user_ids,
+					    agenda_contacts_joined = array_length(EXCLUDED.agenda_contact_user_ids,1)
+					WHERE COALESCE(levels_and_roles_progress.agenda_contact_user_ids, ARRAY[]::TEXT[]) != COALESCE(EXCLUDED.agenda_contact_user_ids, ARRAY[]::TEXT[])`
+	_, err := storage.Exec(ctx, c.db, sql, userID, contacts)
 
 	return errors.Wrapf(err, "can't insert/update contact user ids:%#v for userID:%v", contacts, userID)
 }

@@ -35,10 +35,9 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	if params == nil {
 		return nil
 	}
-	var updatedRows uint64
-	if updatedRows, err = storage.Exec(ctx, r.db, sql, params...); updatedRows == 0 && err == nil {
+	if updatedRows, uErr := storage.Exec(ctx, r.db, sql, params...); updatedRows == 0 && uErr == nil {
 		return r.PseudoCompleteTask(ctx, task)
-	} else if err != nil {
+	} else if uErr != nil {
 		return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params...)
 	}
 	if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
@@ -48,14 +47,14 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 			   SET pseudo_completed_tasks = $2
 			   WHERE user_id = $1
 				 AND COALESCE(pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
-		if updatedRows, err = storage.Exec(ctx, r.db, sql, task.UserID, userProgress.PseudoCompletedTasks, pseudoCompletedTasks); err == nil && updatedRows == 0 {
+		if updatedRows, rErr := storage.Exec(ctx, r.db, sql, task.UserID, userProgress.PseudoCompletedTasks, pseudoCompletedTasks); rErr == nil && updatedRows == 0 {
 			log.Error(errors.Wrapf(sErr, "race condition while rolling back the update request"))
 
 			return r.PseudoCompleteTask(ctx, task)
-		} else if err != nil {
+		} else if rErr != nil {
 			return multierror.Append( //nolint:wrapcheck // Not needed.
 				sErr,
-				errors.Wrapf(err, "[rollback] failed to update task_progress.pseudo_completed_tasks for params:%#v", params...),
+				errors.Wrapf(rErr, "[rollback] failed to update task_progress.pseudo_completed_tasks for params:%#v", params...),
 			).ErrorOrNil()
 		}
 
@@ -189,25 +188,6 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 			return sErr
 		}
 	}
-	if completedTasks != nil && len(*completedTasks) == len(&AllTypes) && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
-		if err = r.awardAllTasksCompletionICECoinsBonus(ctx, userID); err != nil {
-			sErr := errors.Wrapf(err, "failed to awardAllTasksCompletionICECoinsBonus for userID:%v", userID)
-			params[1] = pr.CompletedTasks
-			params[2] = completedTasks
-			if updatedRows, rErr := storage.Exec(ctx, r.db, sql, params...); rErr == nil && updatedRows == 0 {
-				log.Error(errors.Wrapf(sErr, "[sendCompletedTaskMessages]rollback race condition"))
-
-				return r.completeTasks(ctx, userID)
-			} else if rErr != nil {
-				return multierror.Append( //nolint:wrapcheck // Not needed.
-					sErr,
-					errors.Wrapf(rErr, "[awardAllTasksCompletionICECoinsBonus][rollback] failed to update task_progress.completed_tasks for params:%#v", params...),
-				).ErrorOrNil()
-			}
-
-			return sErr
-		}
-	}
 
 	return nil
 }
@@ -262,39 +242,6 @@ func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] 
 	}
 
 	return &completedTasks
-}
-
-func (r *repository) awardAllTasksCompletionICECoinsBonus(ctx context.Context, userID string) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "unexpected deadline")
-	}
-	type (
-		AddBalanceCommand struct {
-			BaseFactor string `json:"baseFactor,omitempty" example:"1243"`
-			UserID     string `json:"userId,omitempty" example:"some unique id"`
-			EventID    string `json:"eventId,omitempty" example:"some unique id"`
-		}
-	)
-	cmd := &AddBalanceCommand{
-		BaseFactor: fmt.Sprint(allTasksCompletionBaseMiningRatePrizeFactor),
-		UserID:     userID,
-		EventID:    "all_tasks_completion_ice_bonus",
-	}
-	valueBytes, err := json.MarshalContext(ctx, cmd)
-	if err != nil {
-		return errors.Wrapf(err, "failed to marshal %#v", cmd)
-	}
-	msg := &messagebroker.Message{
-		Headers: map[string]string{"producer": "santa"},
-		Key:     cmd.UserID,
-		Topic:   r.cfg.MessageBroker.ProducingTopics[0].Name,
-		Value:   valueBytes,
-	}
-	responder := make(chan error, 1)
-	defer close(responder)
-	r.mb.SendMessage(ctx, msg, responder)
-
-	return errors.Wrapf(<-responder, "failed to send `%v` message to broker", msg.Topic)
 }
 
 func (r *repository) sendCompletedTaskMessage(ctx context.Context, completedTask *CompletedTask) error {
@@ -365,7 +312,8 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, userID string)
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
 	sql := `INSERT INTO task_progress(user_id, mining_started) VALUES ($1, $2)
-			ON CONFLICT(user_id) DO UPDATE SET mining_started = true;`
+			ON CONFLICT(user_id) DO UPDATE SET mining_started = EXCLUDED.mining_started
+			WHERE task_progress.mining_started != EXCLUDED.mining_started;`
 	_, err := storage.Exec(ctx, s.db, sql, userID, true)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
@@ -392,11 +340,8 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
 		return errors.Wrapf(s.deleteProgress(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
 	}
-	if err := s.upsertProgress(ctx, snapshot); err != nil {
-		return errors.Wrapf(err, "failed to upsert progress for:%#v", snapshot)
-	}
 
-	return nil
+	return errors.Wrapf(s.upsertProgress(ctx, snapshot), "failed to upsert progress for:%#v", snapshot)
 }
 
 func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnapshot) error {
@@ -409,7 +354,11 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 		ProfilePictureSet: us.ProfilePictureURL != "" && !strings.Contains(us.ProfilePictureURL, "default-profile-picture"),
 	}
 	sql := `INSERT INTO task_progress(user_id, username_set, profile_picture_set) VALUES ($1, $2, $3)
-			ON CONFLICT(user_id) DO UPDATE SET username_set = $2, profile_picture_set = $3;`
+			ON CONFLICT(user_id) DO UPDATE SET 
+			        username_set = EXCLUDED.username_set,
+			    	profile_picture_set = EXCLUDED.profile_picture_set
+			WHERE task_progress.username_set != EXCLUDED.username_set
+			   OR task_progress.profile_picture_set != EXCLUDED.profile_picture_set;`
 	_, err := storage.Exec(ctx, s.db, sql, insertTuple.UserID, insertTuple.UsernameSet, insertTuple.ProfilePictureSet)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
@@ -439,7 +388,8 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
 	sql := `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, $2)
 		   ON CONFLICT(user_id) DO UPDATE  
-		   		SET friends_invited = EXCLUDED.friends_invited`
+		   		SET friends_invited = EXCLUDED.friends_invited
+		   	WHERE task_progress.friends_invited != EXCLUDED.friends_invited`
 	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.Count)
 
 	return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", friends)

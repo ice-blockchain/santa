@@ -4,7 +4,6 @@ package friendsinvited
 
 import (
 	"context"
-	stdlibtime "time"
 
 	"github.com/goccy/go-json"
 	"github.com/pkg/errors"
@@ -29,14 +28,14 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 		return nil
 	}
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
-		return errors.Wrapf(s.deleteReferrals(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
+		return errors.Wrapf(s.deleteFriendsInvited(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
 	}
 
-	return s.insertReferrals(ctx, snapshot, msg.Timestamp)
+	return s.insertReferrals(ctx, snapshot)
 }
 
 //nolint:gocognit // Transaction in one place.
-func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSnapshot, msgTimestamp stdlibtime.Time) error {
+func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && (us.User.ReferredBy == us.Before.ReferredBy || us.Before.ReferredBy != "")) { //nolint:lll,revive // .
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
@@ -44,7 +43,7 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 	params := []any{
 		us.User.ID,
 		us.User.ReferredBy,
-		msgTimestamp,
+		us.User.UpdatedAt.Time,
 	}
 
 	return errors.Wrapf(storage.DoInTransaction(ctx, s.db, func(conn storage.QueryExecer) error {
@@ -69,7 +68,7 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 	}), "insertReferrals: transaction failed for %#v", us)
 }
 
-func (s *userTableSource) deleteReferrals(ctx context.Context, us *users.UserSnapshot) error {
+func (s *userTableSource) deleteFriendsInvited(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}

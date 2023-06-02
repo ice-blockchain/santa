@@ -14,7 +14,7 @@ friends-invited: &friends-invited
     replicaURLs:
       - postgresql://root:pass@localhost:5432/santa
   messageBroker: &friendsInvitedMessageBroker
-    consumerGroup: tasks-testing
+    consumerGroup: friends-invited-testing
     createTopics: true
     urls:
       - localhost:9092

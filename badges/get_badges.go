@@ -62,13 +62,10 @@ func (r *repository) getStatistics(ctx context.Context, groupType GroupType) (ma
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	allTypes := AllGroups[groupType]
 	sql := `SELECT *
 				FROM badge_statistics
-				WHERE badge_group_type = $1
-				LIMIT $2 OFFSET $3`
-	offset := 0
-	res, err := storage.Select[statistics](ctx, r.db, sql, string(groupType), offset, uint32(len(allTypes)+1))
+				WHERE badge_group_type = $1`
+	res, err := storage.Select[statistics](ctx, r.db, sql, string(groupType))
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get BADGE_STATISTICS for groupType:%v", groupType)
 	}

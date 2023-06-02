@@ -39,7 +39,7 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 	}
 	sql := `INSERT INTO badge_progress(achieved_badges, user_id) VALUES($1, $2) 
 				ON CONFLICT (user_id) DO UPDATE
-									SET achieved_badges = $1
+									SET achieved_badges = EXCLUDED.achieved_badges
 				WHERE COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) = COALESCE($3, ARRAY[]::TEXT[])`
 	rowsUpserted, err := storage.Exec(ctx, r.db, sql, achievedBadges, userID, pr.AchievedBadges)
 	if err != nil || rowsUpserted == 0 {
@@ -123,8 +123,8 @@ func (p *progress) reEvaluateAchievedBadges(repo *repository) *users.Enum[Type] 
 		case LevelGroupType:
 			achieved = p.CompletedLevels >= repo.cfg.Milestones[badgeType].FromInclusive
 		case CoinGroupType:
-			if p.Balance != nil && *p.Balance > 0 {
-				achieved = *p.Balance > float64(repo.cfg.Milestones[badgeType].FromInclusive)
+			if p.Balance > 0 {
+				achieved = p.Balance >= repo.cfg.Milestones[badgeType].FromInclusive
 			}
 		case SocialGroupType:
 			achieved = p.FriendsInvited >= repo.cfg.Milestones[badgeType].FromInclusive
@@ -366,10 +366,10 @@ func (s *balancesTableSource) Process(ctx context.Context, msg *messagebroker.Me
 		return nil
 	}
 
-	return errors.Wrapf(s.upsertProgress(ctx, bal.Standard+bal.PreStaking, bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
+	return errors.Wrapf(s.upsertProgress(ctx, int64(bal.Standard+bal.PreStaking), bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
 }
 
-func (s *balancesTableSource) upsertProgress(ctx context.Context, balance float64, userID string) error {
+func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64, userID string) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
@@ -381,7 +381,7 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance float6
 	sql := `INSERT INTO badge_progress(user_id, balance) VALUES($1, $2)
 				ON CONFLICT(user_id)
 				DO UPDATE
-					SET balance = $2
+					SET balance = EXCLUDED.balance
 				WHERE COALESCE(badge_progress.balance, 0) != COALESCE(EXCLUDED.balance, 0)`
 	_, err = storage.Exec(ctx, s.db, sql, userID, balance)
 

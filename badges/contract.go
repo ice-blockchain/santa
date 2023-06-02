@@ -295,10 +295,10 @@ var (
 type (
 	progress struct {
 		AchievedBadges  *users.Enum[Type] `json:"achievedBadges,omitempty" example:"c1,l1,l2,c2"`
-		Balance         *float64          `json:"balance,omitempty" example:"1232323232.56"`
 		UserID          string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
 		FriendsInvited  uint64            `json:"friendsInvited,omitempty" example:"3"`
 		CompletedLevels uint64            `json:"completedLevels,omitempty" example:"3"`
+		Balance         uint64            `json:"balance,omitempty" example:"1232323232"`
 		HideBadges      bool              `json:"hideBadges,omitempty" example:"false"`
 	}
 	statistics struct {

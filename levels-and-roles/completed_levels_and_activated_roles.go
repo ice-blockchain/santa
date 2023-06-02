@@ -54,11 +54,10 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, miningStreak u
 	}
 	insertTuple := &progress{UserID: userID, MiningStreak: miningStreak}
 	_, err := storage.Exec(ctx, s.db, `
-		INSERT INTO levels_and_roles_progress(user_id, mining_streak)
-			VALUES ($1,$2)
-			ON CONFLICT (user_id)
-			DO UPDATE 
-			SET mining_streak = $2`, insertTuple.UserID, insertTuple.MiningStreak)
+		INSERT INTO levels_and_roles_progress(user_id, mining_streak) VALUES ($1,$2)
+		ON CONFLICT (user_id) DO UPDATE 
+			SET mining_streak = EXCLUDED.mining_streak
+		WHERE levels_and_roles_progress.mining_streak != EXCLUDED.mining_streak`, insertTuple.UserID, insertTuple.MiningStreak)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
@@ -98,10 +97,10 @@ func (s *completedTasksSource) upsertProgress(ctx context.Context, completedTask
 	}
 	insertTuple := &progress{UserID: userID, CompletedTasks: completedTasks}
 	_, err = storage.Exec(ctx, s.db, `
-		INSERT INTO levels_and_roles_progress(user_id, completed_tasks)
-				VALUES ($1,$2)
-				ON CONFLICT(user_id) DO UPDATE 
-				SET completed_tasks = $2`, insertTuple.UserID, insertTuple.CompletedTasks)
+		INSERT INTO levels_and_roles_progress(user_id, completed_tasks) VALUES ($1,$2)
+		ON CONFLICT(user_id) DO UPDATE 
+			SET completed_tasks = EXCLUDED.completed_tasks
+		WHERE levels_and_roles_progress.completed_tasks != EXCLUDED.completed_tasks`, insertTuple.UserID, insertTuple.CompletedTasks)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
@@ -216,10 +215,14 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 	_, err := storage.Exec(ctx, s.db, `
 		INSERT INTO levels_and_roles_progress(user_id, phone_number_hash, hide_level, hide_role)
 			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (user_id) DO UPDATE 
-				SET phone_number_hash = $2,
-			    	hide_level = $3,
-			    	hide_role = $4`, insertTuple.UserID, insertTuple.PhoneNumberHash, insertTuple.HideLevel, insertTuple.HideRole)
+			ON CONFLICT (user_id) DO UPDATE SET 
+			    phone_number_hash = EXCLUDED.phone_number_hash,
+			    hide_level = EXCLUDED.hide_level,
+			    hide_role = EXCLUDED.hide_role
+			WHERE levels_and_roles_progress.phone_number_hash != EXCLUDED.phone_number_hash
+			   OR levels_and_roles_progress.hide_level != EXCLUDED.hide_level
+			   OR levels_and_roles_progress.hide_role != EXCLUDED.hide_role`,
+		insertTuple.UserID, insertTuple.PhoneNumberHash, insertTuple.HideLevel, insertTuple.HideRole)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
 		errors.Wrapf(err, "failed to upsert progress for %#v", insertTuple),
@@ -247,8 +250,9 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 
 func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
 	sql := `INSERT INTO levels_and_roles_progress(user_id, friends_invited) VALUES ($1, $2)
-		   		ON CONFLICT(user_id) DO UPDATE  
-		   		SET friends_invited = EXCLUDED.friends_invited`
+		   	ON CONFLICT(user_id) DO UPDATE SET 
+		   	    friends_invited = EXCLUDED.friends_invited
+		   	WHERE levels_and_roles_progress.friends_invited != EXCLUDED.friends_invited`
 	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.Count)
 
 	return errors.Wrapf(err, "failed to set levels_and_roles_progress.friends_invited, params:%#v", friends)
@@ -259,12 +263,8 @@ func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnap
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	_, delProgressErr := storage.Exec(ctx, s.db, `DELETE FROM LEVELS_AND_ROLES_PROGRESS WHERE user_id = $1`, us.Before.ID)
-	_, delPingsErr := storage.Exec(ctx, s.db, `DELETE FROM PINGS WHERE user_id = $1 OR pinged_by = $1`, us.Before.ID)
 
-	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(delProgressErr, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us),
-		errors.Wrapf(delPingsErr, "failed to delete PINGS for:%#v", us),
-	).ErrorOrNil()
+	return errors.Wrapf(delProgressErr, "failed to delete LEVELS_AND_ROLES_PROGRESS for:%#v", us)
 }
 
 func (r *repository) sendTryCompleteLevelsCommandMessage(ctx context.Context, userID string) error {
@@ -312,7 +312,7 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 	}
 	sql := `INSERT INTO levels_and_roles_progress(user_id, completed_levels) VALUES ($1, $2)
 				ON CONFLICT (user_id) DO UPDATE 
-					SET completed_levels = $2
+					SET completed_levels = EXCLUDED.completed_levels
 				WHERE COALESCE(levels_and_roles_progress.completed_levels,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 	params := []any{
 		pr.UserID,
@@ -447,18 +447,17 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 	}
 	sql := `INSERT INTO levels_and_roles_progress (user_id, enabled_roles) VALUES ($1, $2)
 				ON CONFLICT (user_id) DO UPDATE 
-					SET enabled_roles = $2
+					SET enabled_roles = EXCLUDED.enabled_roles
 				WHERE COALESCE(levels_and_roles_progress.enabled_roles,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
 	params := []any{
 		pr.UserID,
 		enabledRoles,
 		pr.EnabledRoles,
 	}
-	var rowsUpdated uint64
-	if rowsUpdated, err = storage.Exec(ctx, r.db, sql, params...); err == nil && rowsUpdated == 0 {
+	if rowsUpdated, uErr := storage.Exec(ctx, r.db, sql, params...); uErr == nil && rowsUpdated == 0 {
 		return r.enableRoles(ctx, userID)
-	} else if err != nil {
-		return errors.Wrapf(err, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
+	} else if uErr != nil {
+		return errors.Wrapf(uErr, "failed to insert LEVELS_AND_ROLES_PROGRESS.enabled_roles for params:%#v", params...)
 	}
 	if len(*enabledRoles) > 0 && (pr.EnabledRoles == nil || len(*pr.EnabledRoles) < len(*enabledRoles)) { //nolint:nestif // .
 		newlyEnabledRoles := make([]*EnabledRole, 0, len(&AllRoleTypesThatCanBeEnabled))
@@ -480,14 +479,14 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 			sErr := errors.Wrapf(err, "failed to sendEnabledRoleMessages for userID:%v,enabledRoles:%#v", userID, newlyEnabledRoles)
 			params[1] = pr.EnabledRoles
 			params[2] = enabledRoles
-			if rowsUpdated, err = storage.Exec(ctx, r.db, sql, params...); rowsUpdated == 0 && err == nil {
+			if rowsUpdated, rErr := storage.Exec(ctx, r.db, sql, params...); rowsUpdated == 0 && rErr == nil {
 				log.Error(errors.Wrapf(sErr, "[sendEnabledRoleMessages]rollback race condition"))
 
 				return r.enableRoles(ctx, userID)
-			} else if err != nil {
+			} else if rErr != nil {
 				return multierror.Append( //nolint:wrapcheck // Not needed.
 					sErr,
-					errors.Wrapf(err, "[sendEnabledRoleMessages][rollback]failed to update LEVELS_AND_ROLES_PROGRESS.enabled_roles, params:%#v", params...),
+					errors.Wrapf(rErr, "[sendEnabledRoleMessages][rollback]failed to update LEVELS_AND_ROLES_PROGRESS.enabled_roles, params:%#v", params...),
 				).ErrorOrNil()
 			}
 

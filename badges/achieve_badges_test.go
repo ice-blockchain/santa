@@ -96,7 +96,7 @@ func Test_Progress_ReevaluateAchievedBadges(t *testing.T) {
 		},
 		{
 			name:                   "Achieve next one for the balances",
-			progress:               badgeProgress(&users.Enum[Type]{Social1Type, Level1Type}, float64(defCfg.Milestones[Coin1Type].ToInclusive), 0, 0),
+			progress:               badgeProgress(&users.Enum[Type]{Social1Type, Level1Type}, defCfg.Milestones[Coin1Type].ToInclusive, 0, 0),
 			cfg:                    defCfg,
 			expectedNewBadgesState: &users.Enum[Type]{Social1Type, Level1Type, Coin1Type},
 		},
@@ -229,10 +229,10 @@ func defaultCfg() *config {
 	return &cfg
 }
 
-func badgeProgress(alreadyAchieved *users.Enum[Type], balance float64, friends, levels uint64) *progress {
+func badgeProgress(alreadyAchieved *users.Enum[Type], balance, friends, levels uint64) *progress {
 	return &progress{
 		AchievedBadges:  alreadyAchieved,
-		Balance:         &balance,
+		Balance:         balance,
 		FriendsInvited:  friends,
 		CompletedLevels: levels,
 	}

@@ -4,7 +4,9 @@ package levelsandroles
 
 import (
 	"context"
+	"math/rand"
 	"sync"
+	stdlibtime "time"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
@@ -14,6 +16,7 @@ import (
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
 
@@ -53,6 +56,7 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		&agendaContactsSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
+	go prc.startProcessedPingsCleaner(ctx)
 
 	return prc
 }
@@ -155,4 +159,33 @@ func requestingUserID(ctx context.Context) (requestingUserID string) {
 	requestingUserID, _ = ctx.Value(requestingUserIDCtxValueKey).(string) //nolint:errcheck // Not needed.
 
 	return
+}
+
+func (p *processor) startProcessedPingsCleaner(ctx context.Context) {
+	ticker := stdlibtime.NewTicker(stdlibtime.Duration(1+rand.Intn(24)) * stdlibtime.Minute) //nolint:gosec,gomnd // Not an  issue.
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			const deadline = 30 * stdlibtime.Second
+			reqCtx, cancel := context.WithTimeout(ctx, deadline)
+			log.Error(errors.Wrap(p.deleteProcessedPings(reqCtx), "failed to deleteOldReferrals"))
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (p *processor) deleteProcessedPings(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline")
+	}
+	sql := `DELETE FROM pings WHERE last_ping_cooldown_ended_at < $1`
+	if _, err := storage.Exec(ctx, p.db, sql, time.New(time.Now().Add(-24*stdlibtime.Hour)).Time); err != nil {
+		return errors.Wrap(err, "failed to delete old data from referrals")
+	}
+
+	return nil
 }
