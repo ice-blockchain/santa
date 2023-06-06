@@ -302,8 +302,8 @@ type (
 		HideBadges      bool              `json:"hideBadges,omitempty" example:"false"`
 	}
 	statistics struct {
-		Type       Type
-		GroupType  GroupType
+		Type       Type      `db:"badge_type"`
+		GroupType  GroupType `db:"badge_group_type"`
 		AchievedBy uint64
 	}
 	tryAchievedBadgesCommandSource struct {
