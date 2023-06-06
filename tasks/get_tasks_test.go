@@ -12,7 +12,7 @@ import (
 
 func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 	t.Parallel()
-
+	bogusUsername := "bogus"
 	testCases := []struct {
 		name     string
 		p        *progress
@@ -22,7 +22,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 		{
 			name: "twitter task is completed",
 			p: &progress{
-				TwitterUserHandle: "blob",
+				TwitterUserHandle: &bogusUsername,
 				CompletedTasks:    &users.Enum[Type]{FollowUsOnTwitterType},
 			},
 			repo: &repository{cfg: &config{RequiredFriendsInvited: 2}},
@@ -37,7 +37,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 					Data: nil, Type: UploadProfilePictureType, Completed: false,
 				},
 				{
-					Data: &Data{TwitterUserHandle: "blob"}, Type: FollowUsOnTwitterType, Completed: true,
+					Data: &Data{TwitterUserHandle: bogusUsername}, Type: FollowUsOnTwitterType, Completed: true,
 				},
 				{
 					Data: nil, Type: JoinTelegramType, Completed: false,
@@ -50,7 +50,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 		{
 			name: "twitter task is in progress, but not marked as completed",
 			p: &progress{
-				TwitterUserHandle: "blob",
+				TwitterUserHandle: &bogusUsername,
 			},
 			repo: &repository{cfg: &config{RequiredFriendsInvited: 2}},
 			expected: []*Task{
@@ -64,7 +64,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 					Data: nil, Type: UploadProfilePictureType, Completed: false,
 				},
 				{
-					Data: &Data{TwitterUserHandle: "blob"}, Type: FollowUsOnTwitterType, Completed: false,
+					Data: &Data{TwitterUserHandle: bogusUsername}, Type: FollowUsOnTwitterType, Completed: false,
 				},
 				{
 					Data: nil, Type: JoinTelegramType, Completed: false,
@@ -77,7 +77,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 		{
 			name: "telegram task is completed",
 			p: &progress{
-				TelegramUserHandle: "blob",
+				TelegramUserHandle: &bogusUsername,
 				CompletedTasks:     &users.Enum[Type]{JoinTelegramType},
 			},
 			repo: &repository{cfg: &config{RequiredFriendsInvited: 2}},
@@ -95,7 +95,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 					Data: nil, Type: FollowUsOnTwitterType, Completed: false,
 				},
 				{
-					Data: &Data{TelegramUserHandle: "blob"}, Type: JoinTelegramType, Completed: true,
+					Data: &Data{TelegramUserHandle: bogusUsername}, Type: JoinTelegramType, Completed: true,
 				},
 				{
 					Data: &Data{RequiredQuantity: 2}, Type: InviteFriendsType, Completed: false,
@@ -105,7 +105,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 		{
 			name: "telegram task is in progress, but not marked as completed",
 			p: &progress{
-				TelegramUserHandle: "blob",
+				TelegramUserHandle: &bogusUsername,
 			},
 			repo: &repository{cfg: &config{RequiredFriendsInvited: 2}},
 			expected: []*Task{
@@ -122,7 +122,7 @@ func TestBuildTasks(t *testing.T) { //nolint:funlen // It's a test function
 					Data: nil, Type: FollowUsOnTwitterType, Completed: false,
 				},
 				{
-					Data: &Data{TelegramUserHandle: "blob"}, Type: JoinTelegramType, Completed: false,
+					Data: &Data{TelegramUserHandle: bogusUsername}, Type: JoinTelegramType, Completed: false,
 				},
 				{
 					Data: &Data{RequiredQuantity: 2}, Type: InviteFriendsType, Completed: false,

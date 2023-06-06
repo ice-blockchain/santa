@@ -17,6 +17,7 @@ func TestReEvaluateCompletedTasks(t *testing.T) { //nolint:funlen // It's a test
 	for _, taskType := range &AllTypes {
 		completedTasks = append(completedTasks, taskType)
 	}
+	bogusUsername := "bogus" //nolint:goconst // .
 	testCases := []struct {
 		p        *progress
 		repo     *repository
@@ -71,7 +72,7 @@ func TestReEvaluateCompletedTasks(t *testing.T) { //nolint:funlen // It's a test
 				UsernameSet:       true,
 				MiningStarted:     true,
 				ProfilePictureSet: true,
-				TwitterUserHandle: "blob",
+				TwitterUserHandle: &bogusUsername,
 			},
 			repo:     &repository{cfg: &config{}},
 			expected: &users.Enum[Type]{ClaimUsernameType, StartMiningType, UploadProfilePictureType, FollowUsOnTwitterType},
@@ -82,8 +83,8 @@ func TestReEvaluateCompletedTasks(t *testing.T) { //nolint:funlen // It's a test
 				UsernameSet:        true,
 				MiningStarted:      true,
 				ProfilePictureSet:  true,
-				TwitterUserHandle:  "blob",
-				TelegramUserHandle: "blob",
+				TwitterUserHandle:  &bogusUsername,
+				TelegramUserHandle: &bogusUsername,
 			},
 			repo:     &repository{cfg: &config{RequiredFriendsInvited: 1}},
 			expected: &users.Enum[Type]{ClaimUsernameType, StartMiningType, UploadProfilePictureType, FollowUsOnTwitterType, JoinTelegramType},
@@ -94,8 +95,8 @@ func TestReEvaluateCompletedTasks(t *testing.T) { //nolint:funlen // It's a test
 				UsernameSet:        true,
 				MiningStarted:      true,
 				ProfilePictureSet:  true,
-				TwitterUserHandle:  "blob",
-				TelegramUserHandle: "blob",
+				TwitterUserHandle:  &bogusUsername,
+				TelegramUserHandle: &bogusUsername,
 				FriendsInvited:     2,
 			},
 			repo:     &repository{cfg: &config{RequiredFriendsInvited: 1}},
