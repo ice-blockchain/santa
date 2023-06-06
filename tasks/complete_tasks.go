@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
+	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -374,7 +374,7 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	if len(msg.Value) == 0 {
 		return nil
 	}
-	friends := new(friendsinvited.Count)
+	friends := new(friendsInvited.Count)
 	if err := json.UnmarshalContext(ctx, msg.Value, friends); err != nil {
 		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), friends)
 	}
@@ -385,12 +385,12 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	).ErrorOrNil()
 }
 
-func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
+func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsInvited.Count) error {
 	sql := `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, $2)
 		   ON CONFLICT(user_id) DO UPDATE  
 		   		SET friends_invited = EXCLUDED.friends_invited
 		   	WHERE task_progress.friends_invited != EXCLUDED.friends_invited`
-	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.Count)
+	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.FriendsInvited)
 
 	return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", friends)
 }

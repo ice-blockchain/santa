@@ -18,6 +18,7 @@ func TestReEvaluateCompletedLevels(t *testing.T) { //nolint:funlen // It's a tes
 		completedLevels = append(completedLevels, levelType)
 	}
 	phoneNumberHash := "bogus"
+	tenContacts := users.Enum[string]([]string{"1", "2", "3", "4", "5", "7", "8", "9", "10"})
 	testCases := []struct {
 		p        *progress
 		repo     *repository
@@ -63,7 +64,7 @@ func TestReEvaluateCompletedLevels(t *testing.T) { //nolint:funlen // It's a tes
 			name: "agenda contacts joined milestone is completed, level is completed as well",
 			p: &progress{
 				PhoneNumberHash:      &phoneNumberHash,
-				AgendaContactsJoined: 10,
+				AgendaContactUserIDs: &tenContacts,
 			},
 			repo: &repository{cfg: &config{
 				AgendaContactsJoinedMilestones: map[LevelType]uint64{Level1Type: 9},

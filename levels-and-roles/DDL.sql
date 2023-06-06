@@ -4,7 +4,6 @@
 CREATE TABLE IF NOT EXISTS levels_and_roles_progress (
                         mining_streak               BIGINT NOT NULL DEFAULT 0,
                         pings_sent                  BIGINT NOT NULL DEFAULT 0,
-                        agenda_contacts_joined      BIGINT NOT NULL DEFAULT 0,
                         friends_invited             BIGINT NOT NULL DEFAULT 0,
                         completed_tasks             BIGINT NOT NULL DEFAULT 0,
                         hide_level                  BOOLEAN DEFAULT false,

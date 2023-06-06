@@ -298,7 +298,7 @@ func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends
 		   		ON CONFLICT(user_id) DO UPDATE  
 		   			SET friends_invited = EXCLUDED.friends_invited
 		   		WHERE COALESCE(badge_progress.friends_invited, 0) != COALESCE(EXCLUDED.friends_invited, 0)`
-	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.Count)
+	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.FriendsInvited)
 
 	return errors.Wrapf(err, "failed to set badge_progress.friends_invited, params:%#v", friends)
 }

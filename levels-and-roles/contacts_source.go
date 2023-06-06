@@ -55,11 +55,10 @@ func (c *agendaContactsSource) Process(ctx context.Context, msg *messagebroker.M
 }
 
 func (c *agendaContactsSource) upsertAgendaContacts(ctx context.Context, userID string, contacts *users.Enum[users.UserID]) error {
-	sql := `INSERT INTO levels_and_roles_progress(user_id, agenda_contact_user_ids, agenda_contacts_joined) VALUES ($1, $2, array_length($2::TEXT[],1))
+	sql := `INSERT INTO levels_and_roles_progress(user_id, agenda_contact_user_ids) VALUES ($1, $2)
 				ON CONFLICT(user_id)
 				DO UPDATE
-					SET agenda_contact_user_ids = EXCLUDED.agenda_contact_user_ids,
-					    agenda_contacts_joined = array_length(EXCLUDED.agenda_contact_user_ids,1)
+					SET agenda_contact_user_ids = EXCLUDED.agenda_contact_user_ids
 					WHERE COALESCE(levels_and_roles_progress.agenda_contact_user_ids, ARRAY[]::TEXT[]) != COALESCE(EXCLUDED.agenda_contact_user_ids, ARRAY[]::TEXT[])`
 	_, err := storage.Exec(ctx, c.db, sql, userID, contacts)
 

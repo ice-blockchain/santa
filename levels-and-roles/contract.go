@@ -141,7 +141,6 @@ type (
 		UserID               string                 `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
 		MiningStreak         uint64                 `json:"miningStreak,omitempty" example:"3"`
 		PingsSent            uint64                 `json:"pingsSent,omitempty" example:"3"`
-		AgendaContactsJoined uint64                 `json:"agendaContactsJoined,omitempty" example:"3"`
 		FriendsInvited       uint64                 `json:"friendsInvited,omitempty" example:"3"`
 		CompletedTasks       uint64                 `json:"completedTasks,omitempty" example:"3"`
 		HideLevel            bool                   `json:"hideLevel,omitempty" example:"true"`

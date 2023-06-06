@@ -2,9 +2,8 @@
 
 CREATE TABLE IF NOT EXISTS referrals (
                                          processed_at   TIMESTAMP NOT NULL,
-                                         user_id        TEXT NOT NULL,
-                                         referred_by    TEXT NOT NULL,
-                                         PRIMARY KEY(user_id, referred_by, processed_at)
+                                         user_id        TEXT NOT NULL PRIMARY KEY,
+                                         referred_by    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS referrals_processed_at_ix ON referrals (processed_at);
 

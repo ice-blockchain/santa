@@ -18,8 +18,8 @@ type (
 	}
 
 	Count struct {
-		UserID string `json:"userId" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-		Count  uint64 `json:"count" example:"5"`
+		UserID         string `json:"userId" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
+		FriendsInvited uint64 `json:"friendsInvited" example:"5" db:"invited_count"`
 	}
 )
 
@@ -50,12 +50,6 @@ type (
 	userTableSource struct {
 		*processor
 	}
-
-	friendsInvited struct {
-		UserID       string
-		InvitedCount int64
-	}
-
 	config struct {
 		messagebroker.Config `mapstructure:",squash"` //nolint:tagliatelle // Nope.
 	}

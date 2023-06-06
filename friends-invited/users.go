@@ -6,6 +6,7 @@ import (
 	"context"
 
 	"github.com/goccy/go-json"
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
@@ -59,7 +60,7 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 		ON CONFLICT(user_id) DO UPDATE SET
 		   invited_count = friends_invited.invited_count + 1
 		RETURNING *`
-		friends, err := storage.ExecOne[friendsInvited](ctx, s.db, sql, us.User.ReferredBy)
+		friends, err := storage.ExecOne[Count](ctx, s.db, sql, us.User.ReferredBy)
 		if err != nil {
 			return errors.Wrapf(err, "failed to increment friends_invited for userID:%v (ref:%v)", us.User.ReferredBy, us.User.ID)
 		}
@@ -72,19 +73,25 @@ func (s *userTableSource) deleteFriendsInvited(ctx context.Context, us *users.Us
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	_, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID)
+	var errDecrementT0 error
+	rowsDeleted, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID)
+	if rowsDeleted > 0 && us.Before.ReferredBy != "" && us.Before.ReferredBy != us.Before.ID {
+		_, errDecrementT0 = storage.Exec(ctx, s.db, `
+			UPDATE friends_invited SET
+				invited_count = GREATEST(friends_invited.invited_count - 1, 0)
+			WHERE user_id = $1`, us.Before.ReferredBy)
+	}
 
-	return errors.Wrapf(errDelUser, "failed to delete task_progress for:%#v", us)
+	return multierror.Append( //nolint:wrapcheck // .
+		errors.Wrapf(errDelUser, "failed to delete friends-invited for:%#v", us),
+		errors.Wrapf(errDecrementT0, "failed to decrement friends-invited for T0:%v", us.Before.ReferredBy),
+	).ErrorOrNil()
 }
 
-func (r *repository) sendFriendsInvitedCountUpdate(ctx context.Context, friends *friendsInvited) error {
-	refCount := &Count{
-		UserID: friends.UserID,
-		Count:  uint64(friends.InvitedCount),
-	}
-	valueBytes, err := json.MarshalContext(ctx, refCount)
+func (r *repository) sendFriendsInvitedCountUpdate(ctx context.Context, friends *Count) error {
+	valueBytes, err := json.MarshalContext(ctx, friends)
 	if err != nil {
-		return errors.Wrapf(err, "failed to marshal %#v", refCount)
+		return errors.Wrapf(err, "failed to marshal %#v", friends)
 	}
 	msg := &messagebroker.Message{
 		Headers: map[string]string{"producer": "santa"},
