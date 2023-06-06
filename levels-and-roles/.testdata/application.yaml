@@ -79,6 +79,14 @@ levels-and-roles: &levels-and-roles
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: contacts-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      - name: friends-invited
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
     consumingTopics:
       - name: try-complete-levels-commands
       - name: users-table
@@ -86,6 +94,8 @@ levels-and-roles: &levels-and-roles
       - name: started-days-off
       - name: completed-tasks
       - name: user-pings
+      - name: friends-invited
+      - name: contacts-table
 levels-and-roles_test:
   <<: *levels-and-roles
   messageBroker:

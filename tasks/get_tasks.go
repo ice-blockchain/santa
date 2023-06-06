@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/go-tarantool-client"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func (r *repository) GetTasks(ctx context.Context, userID string) (resp []*Task, err error) {
@@ -30,30 +30,29 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res = new(progress)
-	err = errors.Wrapf(r.db.GetTyped("TASK_PROGRESS", "pk_unnamed_TASK_PROGRESS_1", tarantool.StringKey{S: userID}, res),
-		"failed to get TASK_PROGRESS for userID:%v", userID)
-	if res.UserID == "" {
+	res, err = storage.Get[progress](ctx, r.db, `SELECT * FROM task_progress WHERE user_id = $1`, userID)
+	err = errors.Wrapf(err, "failed to get TASK_PROGRESS for userID:%v", userID)
+	if storage.IsErr(err, storage.ErrNotFound) {
 		return nil, ErrRelationNotFound
 	}
 
 	return
 }
 
-func (p *progress) buildTasks(repo *repository) []*Task { //nolint:gocognit,funlen,revive // Wrong.
+func (p *progress) buildTasks(repo *repository) []*Task { //nolint:gocognit,funlen,revive,gocyclo,cyclop // Wrong.
 	resp := repo.defaultTasks()
 	for ix, task := range resp {
 		switch task.Type { //nolint:exhaustive // Only those 2 have specific data persisted.
 		case FollowUsOnTwitterType:
-			if p.TwitterUserHandle != "" {
+			if p.TwitterUserHandle != nil && *p.TwitterUserHandle != "" {
 				task.Data = &Data{
-					TwitterUserHandle: p.TwitterUserHandle,
+					TwitterUserHandle: *p.TwitterUserHandle,
 				}
 			}
 		case JoinTelegramType:
-			if p.TelegramUserHandle != "" {
+			if p.TelegramUserHandle != nil && *p.TelegramUserHandle != "" {
 				task.Data = &Data{
-					TelegramUserHandle: p.TelegramUserHandle,
+					TelegramUserHandle: *p.TelegramUserHandle,
 				}
 			}
 		}

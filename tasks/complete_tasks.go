@@ -13,52 +13,48 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
+	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen // .
+func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen,gocognit,revive // .
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	userProgress, err := r.getProgress(ctx, task.UserID)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", task.UserID)
+	}
+	if userProgress == nil {
+		userProgress = new(progress)
+		userProgress.UserID = task.UserID
 	}
 	params, sql := userProgress.buildUpdatePseudoCompletedTasksSQL(task, r)
 	if params == nil {
 		return nil
 	}
-	if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			return r.PseudoCompleteTask(ctx, task)
-		}
-
-		return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params)
+	if updatedRows, uErr := storage.Exec(ctx, r.db, sql, params...); updatedRows == 0 && uErr == nil {
+		return r.PseudoCompleteTask(ctx, task)
+	} else if uErr != nil {
+		return errors.Wrapf(err, "failed to update task_progress.pseudo_completed_tasks for params:%#v", params...)
 	}
 	if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
 		sErr := errors.Wrapf(err, "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
-		pseudoCompletedTasks := params["pseudo_completed_tasks"].(*users.Enum[Type]) //nolint:errcheck,forcetypeassert // We know for sure.
-		params = make(map[string]any, 1+1+1)
-		params["user_id"] = task.UserID
-		params["pseudo_completed_tasks"] = userProgress.PseudoCompletedTasks
-		params["old_pseudo_completed_tasks"] = pseudoCompletedTasks
+		pseudoCompletedTasks := params[2].(*users.Enum[Type]) //nolint:errcheck,forcetypeassert // We're sure.
 		sql = `UPDATE task_progress
-			   SET pseudo_completed_tasks = :pseudo_completed_tasks
-			   WHERE user_id = :user_id
-				 AND IFNULL(pseudo_completed_tasks,'') = IFNULL(:old_pseudo_completed_tasks,'')`
-		if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-			if errors.Is(err, storage.ErrNotFound) {
-				log.Error(errors.Wrapf(sErr, "race condition while rolling back the update request"))
+			   SET pseudo_completed_tasks = $2
+			   WHERE user_id = $1
+				 AND COALESCE(pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
+		if updatedRows, rErr := storage.Exec(ctx, r.db, sql, task.UserID, userProgress.PseudoCompletedTasks, pseudoCompletedTasks); rErr == nil && updatedRows == 0 {
+			log.Error(errors.Wrapf(sErr, "race condition while rolling back the update request"))
 
-				return r.PseudoCompleteTask(ctx, task)
-			}
-
+			return r.PseudoCompleteTask(ctx, task)
+		} else if rErr != nil {
 			return multierror.Append( //nolint:wrapcheck // Not needed.
 				sErr,
-				errors.Wrapf(err, "[rollback] failed to update task_progress.pseudo_completed_tasks for params:%#v", params),
+				errors.Wrapf(rErr, "[rollback] failed to update task_progress.pseudo_completed_tasks for params:%#v", params...),
 			).ErrorOrNil()
 		}
 
@@ -68,7 +64,7 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	return nil
 }
 
-func (p *progress) buildUpdatePseudoCompletedTasksSQL(task *Task, repo *repository) (params map[string]any, sql string) { //nolint:funlen // .
+func (p *progress) buildUpdatePseudoCompletedTasksSQL(task *Task, repo *repository) (params []any, sql string) { //nolint:funlen // .
 	for _, tsk := range p.buildTasks(repo) {
 		if tsk.Type == task.Type {
 			if tsk.Completed {
@@ -84,25 +80,42 @@ func (p *progress) buildUpdatePseudoCompletedTasksSQL(task *Task, repo *reposito
 	sort.SliceStable(pseudoCompletedTasks, func(i, j int) bool {
 		return TypeOrder[pseudoCompletedTasks[i]] < TypeOrder[pseudoCompletedTasks[j]]
 	})
-	params = make(map[string]any, 1+1+1+1)
-	params["user_id"] = task.UserID
-	params["pseudo_completed_tasks"] = &pseudoCompletedTasks
-	params["old_pseudo_completed_tasks"] = p.PseudoCompletedTasks
-	fields := append(make([]string, 0, 1+1), "pseudo_completed_tasks = :pseudo_completed_tasks ")
+	params = make([]any, 0)
+	params = append(params, task.UserID, p.PseudoCompletedTasks, &pseudoCompletedTasks)
+	fieldIndexes := append(make([]string, 0, 1+1), "$3")
+	fieldNames := append(make([]string, 0, 1+1), "pseudo_completed_tasks")
+	nextIndex := 4
 	switch task.Type { //nolint:exhaustive // We only care to treat those differently.
 	case FollowUsOnTwitterType:
-		params["twitter_user_handle"] = task.Data.TwitterUserHandle
-		fields = append(fields, "twitter_user_handle = :twitter_user_handle ")
+		params = append(params, task.Data.TwitterUserHandle)
+		fieldNames = append(fieldNames, "twitter_user_handle")
+		fieldIndexes = append(fieldIndexes, fmt.Sprintf("$%v ", nextIndex))
 	case JoinTelegramType:
-		params["telegram_user_handle"] = task.Data.TelegramUserHandle
-		fields = append(fields, "telegram_user_handle = :telegram_user_handle ")
+		params = append(params, task.Data.TelegramUserHandle)
+		fieldNames = append(fieldNames, "telegram_user_handle")
+		fieldIndexes = append(fieldIndexes, fmt.Sprintf("$%v ", nextIndex))
 	}
-	sql = fmt.Sprintf(`UPDATE task_progress
-						SET %v
-						WHERE user_id = :user_id
-						  AND IFNULL(pseudo_completed_tasks,'') = IFNULL(:old_pseudo_completed_tasks,'')`, strings.Join(fields, ","))
+	sql = fmt.Sprintf(`
+			INSERT INTO task_progress(user_id, %[2]v)
+			VALUES ($1, %[3]v)
+			ON CONFLICT(user_id) DO UPDATE
+									SET %[1]v
+									WHERE COALESCE(task_progress.pseudo_completed_tasks,ARRAY[]::TEXT[]) = COALESCE($2,ARRAY[]::TEXT[])`,
+		strings.Join(formatFields(fieldNames, fieldIndexes), ","),
+		strings.Join(fieldNames, ","),
+		strings.Join(fieldIndexes, ","),
+	)
 
 	return params, sql
+}
+
+func formatFields(names, indexes []string) []string {
+	res := make([]string, len(names)) //nolint:makezero // We're know for sure.
+	for ind, name := range names {
+		res[ind] = fmt.Sprintf("%v = %v", name, indexes[ind])
+	}
+
+	return res
 }
 
 func (r *repository) completeTasks(ctx context.Context, userID string) error { //nolint:revive,funlen,gocognit,gocyclo,cyclop // .
@@ -124,28 +137,20 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 	if completedTasks != nil && pr.CompletedTasks != nil && len(*pr.CompletedTasks) == len(*completedTasks) {
 		return nil
 	}
-	sql := `UPDATE task_progress
-			SET completed_tasks = :completed_tasks
-			WHERE user_id = :user_id
-              AND IFNULL(completed_tasks,'') = IFNULL(:old_completed_tasks,'')`
-	params := make(map[string]any, 1+1+1)
-	params["user_id"] = pr.UserID
-	params["completed_tasks"] = completedTasks
-	params["old_completed_tasks"] = pr.CompletedTasks
-	//nolint:nestif // .
-	if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			tuple := &progress{CompletedTasks: completedTasks, UserID: pr.UserID}
-			if err = storage.CheckNoSQLDMLErr(r.db.InsertTyped("TASK_PROGRESS", tuple, &[]*progress{})); err != nil && errors.Is(err, storage.ErrDuplicate) {
-				return r.completeTasks(ctx, userID)
-			}
-			if err != nil {
-				return errors.Wrapf(err, "failed to insert TASK_PROGRESS %#v", tuple)
-			}
-		}
-		if err != nil {
-			return errors.Wrapf(err, "failed to update task_progress.completed_tasks for params:%#v", params)
-		}
+	sql := `
+		INSERT INTO task_progress(user_id, completed_tasks) VALUES ($1, $2)
+			ON CONFLICT(user_id) DO UPDATE
+				SET completed_tasks = EXCLUDED.completed_tasks
+			WHERE COALESCE(task_progress.completed_tasks,ARRAY[]::TEXT[]) = COALESCE($3,ARRAY[]::TEXT[])`
+	params := []any{
+		pr.UserID,
+		completedTasks,
+		pr.CompletedTasks,
+	}
+	if updatedRows, uErr := storage.Exec(ctx, r.db, sql, params...); uErr == nil && updatedRows == 0 {
+		return r.completeTasks(ctx, userID)
+	} else if uErr != nil {
+		return errors.Wrapf(uErr, "failed to insert/update task_progress.completed_tasks for params:%#v", params...)
 	}
 	//nolint:nestif // .
 	if completedTasks != nil && len(*completedTasks) > 0 && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
@@ -167,40 +172,16 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 		}
 		if err = runConcurrently(ctx, r.sendCompletedTaskMessage, newlyCompletedTasks); err != nil {
 			sErr := errors.Wrapf(err, "failed to sendCompletedTaskMessages for userID:%v,completedTasks:%#v", userID, newlyCompletedTasks)
-			params["completed_tasks"] = pr.CompletedTasks
-			params["old_completed_tasks"] = completedTasks
-			if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-				if errors.Is(err, storage.ErrNotFound) {
-					log.Error(errors.Wrapf(sErr, "[sendCompletedTaskMessages]rollback race condition"))
+			params[1] = pr.CompletedTasks
+			params[2] = completedTasks
+			if updatedRows, rErr := storage.Exec(ctx, r.db, sql, params...); rErr == nil && updatedRows == 0 {
+				log.Error(errors.Wrapf(sErr, "[sendCompletedTaskMessages]rollback race condition"))
 
-					return r.completeTasks(ctx, userID)
-				}
-
+				return r.completeTasks(ctx, userID)
+			} else if rErr != nil {
 				return multierror.Append( //nolint:wrapcheck // Not needed.
 					sErr,
-					errors.Wrapf(err, "[sendCompletedTaskMessages][rollback] failed to update task_progress.completed_tasks for params:%#v", params),
-				).ErrorOrNil()
-			}
-
-			return sErr
-		}
-	}
-	//nolint:nestif // .
-	if completedTasks != nil && len(*completedTasks) == len(&AllTypes) && (pr.CompletedTasks == nil || len(*pr.CompletedTasks) < len(*completedTasks)) {
-		if err = r.awardAllTasksCompletionICECoinsBonus(ctx, userID); err != nil {
-			sErr := errors.Wrapf(err, "failed to awardAllTasksCompletionICECoinsBonus for userID:%v", userID)
-			params["completed_tasks"] = pr.CompletedTasks
-			params["old_completed_tasks"] = completedTasks
-			if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-				if errors.Is(err, storage.ErrNotFound) {
-					log.Error(errors.Wrapf(sErr, "[awardAllTasksCompletionICECoinsBonus]rollback race condition"))
-
-					return r.completeTasks(ctx, userID)
-				}
-
-				return multierror.Append( //nolint:wrapcheck // Not needed.
-					sErr,
-					errors.Wrapf(err, "[awardAllTasksCompletionICECoinsBonus][rollback] failed to update task_progress.completed_tasks, params:%#v", params),
+					errors.Wrapf(rErr, "[sendCompletedTaskMessages][rollback] failed to update task_progress.completed_tasks for params:%#v", params...),
 				).ErrorOrNil()
 			}
 
@@ -240,11 +221,11 @@ func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] 
 		case UploadProfilePictureType:
 			completed = p.ProfilePictureSet
 		case FollowUsOnTwitterType:
-			if p.TwitterUserHandle != "" {
+			if p.TwitterUserHandle != nil && *p.TwitterUserHandle != "" {
 				completed = true
 			}
 		case JoinTelegramType:
-			if p.TelegramUserHandle != "" {
+			if p.TelegramUserHandle != nil && *p.TelegramUserHandle != "" {
 				completed = true
 			}
 		case InviteFriendsType:
@@ -261,39 +242,6 @@ func (p *progress) reEvaluateCompletedTasks(repo *repository) *users.Enum[Type] 
 	}
 
 	return &completedTasks
-}
-
-func (r *repository) awardAllTasksCompletionICECoinsBonus(ctx context.Context, userID string) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "unexpected deadline")
-	}
-	type (
-		AddBalanceCommand struct {
-			BaseFactor string `json:"baseFactor,omitempty" example:"1243"`
-			UserID     string `json:"userId,omitempty" example:"some unique id"`
-			EventID    string `json:"eventId,omitempty" example:"some unique id"`
-		}
-	)
-	cmd := &AddBalanceCommand{
-		BaseFactor: fmt.Sprint(allTasksCompletionBaseMiningRatePrizeFactor),
-		UserID:     userID,
-		EventID:    "all_tasks_completion_ice_bonus",
-	}
-	valueBytes, err := json.MarshalContext(ctx, cmd)
-	if err != nil {
-		return errors.Wrapf(err, "failed to marshal %#v", cmd)
-	}
-	msg := &messagebroker.Message{
-		Headers: map[string]string{"producer": "santa"},
-		Key:     cmd.UserID,
-		Topic:   r.cfg.MessageBroker.ProducingTopics[0].Name,
-		Value:   valueBytes,
-	}
-	responder := make(chan error, 1)
-	defer close(responder)
-	r.mb.SendMessage(ctx, msg, responder)
-
-	return errors.Wrapf(<-responder, "failed to send `%v` message to broker", msg.Topic)
 }
 
 func (r *repository) sendCompletedTaskMessage(ctx context.Context, completedTask *CompletedTask) error {
@@ -363,13 +311,13 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, userID string)
 		(pr != nil && pr.CompletedTasks != nil && len(*pr.CompletedTasks) == len(&AllTypes)) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	const miningStartedColumnIndex = 8
-	insertTuple := &progress{UserID: userID, MiningStarted: true}
-	ops := append(make([]tarantool.Op, 0, 1), tarantool.Op{Op: "=", Field: miningStartedColumnIndex, Arg: insertTuple.MiningStarted})
+	sql := `INSERT INTO task_progress(user_id, mining_started) VALUES ($1, $2)
+			ON CONFLICT(user_id) DO UPDATE SET mining_started = EXCLUDED.mining_started
+			WHERE task_progress.mining_started != EXCLUDED.mining_started;`
+	_, err := storage.Exec(ctx, s.db, sql, userID, true)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.UpsertTyped("TASK_PROGRESS", insertTuple, ops, &[]*progress{})),
-			"failed to upsert progress for %#v", insertTuple),
+		errors.Wrapf(err, "failed to upsert progress for %v %v", userID, true),
 		errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, userID),
 			"failed to sendTryCompleteTasksCommandMessage for userID:%v", userID),
 	).ErrorOrNil()
@@ -392,11 +340,8 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
 		return errors.Wrapf(s.deleteProgress(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
 	}
-	if err := s.upsertProgress(ctx, snapshot); err != nil {
-		return errors.Wrapf(err, "failed to upsert progress for:%#v", snapshot)
-	}
 
-	return nil
+	return errors.Wrapf(s.upsertProgress(ctx, snapshot), "failed to upsert progress for:%#v", snapshot)
 }
 
 func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnapshot) error {
@@ -408,57 +353,54 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 		UsernameSet:       us.Username != "" && us.Username != us.ID,
 		ProfilePictureSet: us.ProfilePictureURL != "" && !strings.Contains(us.ProfilePictureURL, "default-profile-picture"),
 	}
-	const usernameSetColumnIndex, profilePictureSetColumnIndex = 6, 7
-	ops := append(make([]tarantool.Op, 0, 1+1),
-		tarantool.Op{Op: "=", Field: usernameSetColumnIndex, Arg: insertTuple.UsernameSet},
-		tarantool.Op{Op: "=", Field: profilePictureSetColumnIndex, Arg: insertTuple.ProfilePictureSet})
+	sql := `INSERT INTO task_progress(user_id, username_set, profile_picture_set) VALUES ($1, $2, $3)
+			ON CONFLICT(user_id) DO UPDATE SET 
+			        username_set = EXCLUDED.username_set,
+			    	profile_picture_set = EXCLUDED.profile_picture_set
+			WHERE task_progress.username_set != EXCLUDED.username_set
+			   OR task_progress.profile_picture_set != EXCLUDED.profile_picture_set;`
+	_, err := storage.Exec(ctx, s.db, sql, insertTuple.UserID, insertTuple.UsernameSet, insertTuple.ProfilePictureSet)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.UpsertTyped("TASK_PROGRESS", insertTuple, ops, &[]*progress{})), "failed to upsert progress for %#v", us),
-		errors.Wrapf(s.updateFriendsInvited(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
+		errors.Wrapf(err, "failed to upsert progress for %#v", us),
 		errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, us.ID), "failed to sendTryCompleteTasksCommandMessage for userID:%v", us.ID),
 	).ErrorOrNil()
 }
 
-//nolint:gocognit // .
-func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.UserSnapshot) error {
-	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && us.User.ReferredBy == us.Before.ReferredBy) { //nolint:lll,revive // .
-		return errors.Wrap(ctx.Err(), "context failed")
+func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}
-	sql := `REPLACE INTO referrals(user_id,referred_by) VALUES (:user_id,:referred_by)`
-	params := make(map[string]any, 1+1)
-	params["user_id"] = us.User.ID
-	params["referred_by"] = us.User.ReferredBy
-	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)); err != nil {
-		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params)
+	if len(msg.Value) == 0 {
+		return nil
 	}
-	delete(params, "user_id")
-	sql = `UPDATE task_progress 
-		   SET friends_invited = (SELECT COUNT(*) FROM referrals WHERE referred_by = :referred_by)
-		   WHERE user_id = :referred_by`
-	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			err = errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.InsertTyped("TASK_PROGRESS", &progress{UserID: us.User.ReferredBy, FriendsInvited: 1}, &[]*progress{})), "failed to insert progress for referredBy:%v, from :%#v", us.User.ReferredBy, us) //nolint:lll // .
-		}
-		if err != nil && !errors.Is(err, storage.ErrDuplicate) {
-			return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", params)
-		}
+	friends := new(friendsInvited.Count)
+	if err := json.UnmarshalContext(ctx, msg.Value, friends); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), friends)
 	}
 
-	return errors.Wrapf(s.sendTryCompleteTasksCommandMessage(ctx, us.User.ReferredBy),
-		"failed to sendTryCompleteTasksCommandMessage, userID:%v,referredBy:%v", us.User.ID, us.User.ReferredBy)
+	return multierror.Append( //nolint:wrapcheck // Not needed.
+		errors.Wrapf(f.updateFriendsInvited(ctx, friends), "failed to update tasks friends invited for %#v", friends),
+		errors.Wrapf(f.sendTryCompleteTasksCommandMessage(ctx, friends.UserID), "failed to sendTryCompleteTasksCommandMessage for userID:%v", friends.UserID),
+	).ErrorOrNil()
+}
+
+func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsInvited.Count) error {
+	sql := `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, $2)
+		   ON CONFLICT(user_id) DO UPDATE  
+		   		SET friends_invited = EXCLUDED.friends_invited
+		   	WHERE task_progress.friends_invited != EXCLUDED.friends_invited`
+	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.FriendsInvited)
+
+	return errors.Wrapf(err, "failed to set task_progress.friends_invited, params:%#v", friends)
 }
 
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	params := map[string]any{"user_id": us.Before.ID}
+	params := []any{us.Before.ID}
+	_, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM task_progress WHERE user_id = $1`, params...)
 
-	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM task_progress WHERE user_id = :user_id`, params)),
-			"failed to delete task_progress for:%#v", us),
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM referrals WHERE user_id = :user_id`, params)),
-			"failed to delete referrals for:%#v", us),
-	).ErrorOrNil()
+	return errors.Wrapf(errDelUser, "failed to delete task_progress for:%#v", us)
 }

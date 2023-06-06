@@ -7,8 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/go-tarantool-client"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 func (r *repository) GetSummary(ctx context.Context, userID string) (*Summary, error) {
@@ -26,10 +25,11 @@ func (r *repository) getProgress(ctx context.Context, userID string) (res *progr
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res = new(progress)
-	err = errors.Wrapf(r.db.GetTyped("LEVELS_AND_ROLES_PROGRESS", "pk_unnamed_LEVELS_AND_ROLES_PROGRESS_1", tarantool.StringKey{S: userID}, res),
-		"failed to get LEVELS_AND_ROLES_PROGRESS for userID:%v", userID)
-	if res.UserID == "" {
+	sql := `SELECT *
+			FROM levels_and_roles_progress
+			WHERE user_id = $1`
+	res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	if errors.Is(err, storage.ErrNotFound) {
 		return nil, storage.ErrRelationNotFound
 	}
 

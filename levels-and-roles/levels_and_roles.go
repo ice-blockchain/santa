@@ -4,26 +4,27 @@ package levelsandroles
 
 import (
 	"context"
+	"math/rand"
 	"sync"
+	stdlibtime "time"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
 
-func New(ctx context.Context, cancel context.CancelFunc) Repository {
+func New(ctx context.Context, _ context.CancelFunc) Repository {
 	var cfg config
 	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
 
-	db := storage.MustConnect(ctx, cancel, ddl, applicationYamlKey)
+	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
 
 	return &repository{
 		cfg:      &cfg,
@@ -39,13 +40,8 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	var mbConsumer messagebroker.Client
 	prc := &processor{repository: &repository{
 		cfg: &cfg,
-		db: storage.MustConnect(context.Background(), func() { //nolint:contextcheck // It's intended. Cuz we want to close everything gracefully.
-			if mbConsumer != nil {
-				log.Error(errors.Wrap(mbConsumer.Close(), "failed to close mbConsumer due to db premature cancellation"))
-			}
-			cancel()
-		}, ddl, applicationYamlKey),
-		mb: messagebroker.MustConnect(ctx, applicationYamlKey),
+		db:  storage.MustConnect(ctx, ddl, applicationYamlKey),
+		mb:  messagebroker.MustConnect(ctx, applicationYamlKey),
 	}}
 	mss := &miningSessionSource{processor: prc}
 	//nolint:contextcheck // It's intended. Cuz we want to close everything gracefully.
@@ -56,8 +52,11 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 		&startedDaysOffSource{miningSessionSource: mss},
 		&completedTasksSource{processor: prc},
 		&userPingsSource{processor: prc},
+		&friendsInvitedSource{processor: prc},
+		&agendaContactsSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
+	go prc.startProcessedPingsCleaner(ctx)
 
 	return prc
 }
@@ -66,7 +65,7 @@ func (r *repository) Close() error {
 	return errors.Wrap(r.shutdown(), "closing repository failed")
 }
 
-func closeAll(mbConsumer, mbProducer messagebroker.Client, db tarantool.Connector, otherClosers ...func() error) func() error {
+func closeAll(mbConsumer, mbProducer messagebroker.Client, db *storage.DB, otherClosers ...func() error) func() error {
 	return func() error {
 		err1 := errors.Wrap(mbConsumer.Close(), "closing message broker consumer connection failed")
 		err2 := errors.Wrap(db.Close(), "closing db connection failed")
@@ -84,7 +83,7 @@ func closeAll(mbConsumer, mbProducer messagebroker.Client, db tarantool.Connecto
 }
 
 func (p *processor) CheckHealth(ctx context.Context) error {
-	if _, err := p.db.Ping(); err != nil {
+	if err := p.db.Ping(ctx); err != nil {
 		return errors.Wrap(err, "[health-check] failed to ping DB")
 	}
 	type ts struct {
@@ -160,4 +159,33 @@ func requestingUserID(ctx context.Context) (requestingUserID string) {
 	requestingUserID, _ = ctx.Value(requestingUserIDCtxValueKey).(string) //nolint:errcheck // Not needed.
 
 	return
+}
+
+func (p *processor) startProcessedPingsCleaner(ctx context.Context) {
+	ticker := stdlibtime.NewTicker(stdlibtime.Duration(1+rand.Intn(24)) * stdlibtime.Minute) //nolint:gosec,gomnd // Not an  issue.
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			const deadline = 30 * stdlibtime.Second
+			reqCtx, cancel := context.WithTimeout(ctx, deadline)
+			log.Error(errors.Wrap(p.deleteProcessedPings(reqCtx), "failed to deleteOldReferrals"))
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (p *processor) deleteProcessedPings(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline")
+	}
+	sql := `DELETE FROM pings WHERE last_ping_cooldown_ended_at < $1`
+	if _, err := storage.Exec(ctx, p.db, sql, time.New(time.Now().Add(-24*stdlibtime.Hour)).Time); err != nil {
+		return errors.Wrap(err, "failed to delete old data from referrals")
+	}
+
+	return nil
 }

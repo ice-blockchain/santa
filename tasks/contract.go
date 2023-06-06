@@ -7,10 +7,11 @@ import (
 	_ "embed"
 	"io"
 
+	"github.com/pkg/errors"
+
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 // Public API.
@@ -26,6 +27,7 @@ const (
 
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
+	ErrRaceCondition    = errors.New("race condition")
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllTypes = [6]Type{
 		ClaimUsernameType,
@@ -85,24 +87,22 @@ type (
 // Private API.
 
 const (
-	applicationYamlKey                          = "tasks"
-	allTasksCompletionBaseMiningRatePrizeFactor = 150
+	applicationYamlKey = "tasks"
 )
 
 // .
 var (
-	//go:embed DDL.lua
+	//go:embed DDL.sql
 	ddl string
 )
 
 type (
 	progress struct {
-		_msgpack             struct{}          `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		CompletedTasks       *users.Enum[Type] `json:"completedTasks,omitempty" example:"claim_username,start_mining"`
 		PseudoCompletedTasks *users.Enum[Type] `json:"pseudoCompletedTasks,omitempty" example:"claim_username,start_mining"`
+		TwitterUserHandle    *string           `json:"twitterUserHandle,omitempty" example:"jdoe2"`
+		TelegramUserHandle   *string           `json:"telegramUserHandle,omitempty" example:"jdoe1"`
 		UserID               string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
-		TwitterUserHandle    string            `json:"twitterUserHandle,omitempty" example:"jdoe2"`
-		TelegramUserHandle   string            `json:"telegramUserHandle,omitempty" example:"jdoe1"`
 		FriendsInvited       uint64            `json:"friendsInvited,omitempty" example:"3"`
 		UsernameSet          bool              `json:"usernameSet,omitempty" example:"true"`
 		ProfilePictureSet    bool              `json:"profilePictureSet,omitempty" example:"true"`
@@ -117,10 +117,14 @@ type (
 	userTableSource struct {
 		*processor
 	}
+
+	friendsInvitedSource struct {
+		*processor
+	}
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       tarantool.Connector
+		db       *storage.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

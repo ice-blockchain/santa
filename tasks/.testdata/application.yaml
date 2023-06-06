@@ -38,7 +38,7 @@ tasks: &tasks
         partitions: 10
         replicationFactor: 1
         retention: 1000h
-      - name: add-balance-commands
+      - name: friends-invited
         partitions: 10
         replicationFactor: 1
         retention: 1000h
@@ -46,8 +46,7 @@ tasks: &tasks
       - name: try-complete-tasks-commands
       - name: users-table
       - name: mining-sessions-table
-    producingTopics:
-      - name: add-balance-commands
+      - name: friends-invited
 tasks_test:
   <<: *tasks
   messageBroker:

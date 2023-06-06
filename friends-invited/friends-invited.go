@@ -1,34 +1,22 @@
 // SPDX-License-Identifier: ice License 1.0
 
-package tasks
+package friendsinvited
 
 import (
 	"context"
-	"sync"
+	"math/rand"
+	stdlibtime "time"
 
 	"github.com/goccy/go-json"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
-	"github.com/ice-blockchain/eskimo/users"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/connectors/storage/v2"
+	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/time"
 )
-
-func New(ctx context.Context, _ context.CancelFunc) Repository {
-	var cfg config
-	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
-
-	db := storage.MustConnect(ctx, ddl, applicationYamlKey)
-
-	return &repository{
-		cfg:      &cfg,
-		shutdown: db.Close,
-		db:       db,
-	}
-}
 
 func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	var cfg config
@@ -42,12 +30,10 @@ func StartProcessor(ctx context.Context, cancel context.CancelFunc) Processor {
 	}}
 	//nolint:contextcheck // It's intended. Cuz we want to close everything gracefully.
 	mbConsumer = messagebroker.MustConnectAndStartConsuming(context.Background(), cancel, applicationYamlKey,
-		&tryCompleteTasksCommandSource{processor: prc},
 		&userTableSource{processor: prc},
-		&miningSessionSource{processor: prc},
-		&friendsInvitedSource{processor: prc},
 	)
 	prc.shutdown = closeAll(mbConsumer, prc.mb, prc.db)
+	go prc.startProcessedReferralsCleaner(ctx)
 
 	return prc
 }
@@ -96,52 +82,31 @@ func (p *processor) CheckHealth(ctx context.Context) error {
 	return errors.Wrapf(<-responder, "[health-check] failed to send health check message to broker")
 }
 
-func runConcurrently[ARG any](ctx context.Context, run func(context.Context, ARG) error, args []ARG) error {
+func (p *processor) startProcessedReferralsCleaner(ctx context.Context) {
+	ticker := stdlibtime.NewTicker(stdlibtime.Duration(1+rand.Intn(24)) * stdlibtime.Minute) //nolint:gosec,gomnd // Not an  issue.
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			const deadline = 30 * stdlibtime.Second
+			reqCtx, cancel := context.WithTimeout(ctx, deadline)
+			log.Error(errors.Wrap(p.deleteProcessedReferrals(reqCtx), "failed to deleteOldReferrals"))
+			cancel()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (p *processor) deleteProcessedReferrals(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	if len(args) == 0 {
-		return nil
-	}
-	wg := new(sync.WaitGroup)
-	wg.Add(len(args))
-	errChan := make(chan error, len(args))
-	for i := range args {
-		go func(ix int) {
-			defer wg.Done()
-			errChan <- errors.Wrapf(run(ctx, args[ix]), "failed to run:%#v", args[ix])
-		}(i)
-	}
-	wg.Wait()
-	close(errChan)
-	errs := make([]error, 0, len(args))
-	for err := range errChan {
-		errs = append(errs, err)
+	sql := `DELETE FROM referrals WHERE processed_at < $1`
+	if _, err := storage.Exec(ctx, p.db, sql, time.New(time.Now().Add(-24*stdlibtime.Hour)).Time); err != nil {
+		return errors.Wrap(err, "failed to delete old data from referrals")
 	}
 
-	return errors.Wrap(multierror.Append(nil, errs...).ErrorOrNil(), "at least one execution failed")
-}
-
-func AreTasksCompleted(actual *users.Enum[Type], expectedSubset ...Type) bool { //nolint:gocognit // .
-	if len(expectedSubset) == 0 {
-		return actual == nil || len(*actual) == 0
-	}
-	if (actual == nil || len(*actual) == 0) && len(expectedSubset) > 0 {
-		return false
-	}
-	for _, expectedType := range expectedSubset {
-		var completed bool
-		for _, completedType := range *actual {
-			if completedType == expectedType {
-				completed = true
-
-				break
-			}
-		}
-		if !completed {
-			return false
-		}
-	}
-
-	return true
+	return nil
 }

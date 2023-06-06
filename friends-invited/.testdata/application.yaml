@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: ice License 1.0
+
+development: true
+logger:
+  encoder: console
+  level: info
+friends-invited: &friends-invited
+  wintr/connectors/storage/v2: &friendsInvitedDatabase
+    runDDL: true
+    primaryURL: postgresql://root:pass@localhost:5432/santa
+    credentials:
+      user: root
+      password: pass
+    replicaURLs:
+      - postgresql://root:pass@localhost:5432/santa
+  messageBroker: &friendsInvitedMessageBroker
+    consumerGroup: friends-invited-testing
+    createTopics: true
+    urls:
+      - localhost:9092
+    topics: &friendsInvitedMessageBrokerTopics
+      - name: santa-health-check
+        partitions: 1
+        replicationFactor: 1
+      - name: friends-invited
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+      ### The next topics are not owned by this service, but are needed to be created for the local/test environment.
+      - name: users-table
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
+    consumingTopics:
+      - name: users-table
+friends-invited_test:
+  <<: *friends-invited
+  messageBroker:
+    <<: *friendsInvitedMessageBroker
+    consumingTopics: *friendsInvitedMessageBrokerTopics
+    consumerGroup: santa-friends-invited-test
+  db:
+    <<: *friendsInvitedDatabase
+    schemaPath: friends-invited/DDL.lua

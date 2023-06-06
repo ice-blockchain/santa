@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/wintr/coin"
 	wintrconfig "github.com/ice-blockchain/wintr/config"
 )
 
@@ -233,7 +232,7 @@ func defaultCfg() *config {
 func badgeProgress(alreadyAchieved *users.Enum[Type], balance, friends, levels uint64) *progress {
 	return &progress{
 		AchievedBadges:  alreadyAchieved,
-		Balance:         coin.NewAmountUint64(balance).MultiplyUint64(coin.Denomination),
+		Balance:         balance,
 		FriendsInvited:  friends,
 		CompletedLevels: levels,
 	}

@@ -118,6 +118,10 @@ badges: &badges
         partitions: 10
         replicationFactor: 1
         retention: 1000h
+      - name: friends-invited
+        partitions: 10
+        replicationFactor: 1
+        retention: 1000h
     consumingTopics:
       - name: try-achieve-badges-commands
       - name: achieved-badges
@@ -125,6 +129,7 @@ badges: &badges
       - name: completed-levels
       - name: balances-table
       - name: global-table
+      - name: friends-invited
 badges_test:
   <<: *badges
   messageBroker:

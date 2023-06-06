@@ -4,7 +4,6 @@ package badges
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/goccy/go-json"
@@ -12,11 +11,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
+	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
 	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
-	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -39,28 +37,17 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 	if achievedBadges != nil && pr.AchievedBadges != nil && len(*pr.AchievedBadges) == len(*achievedBadges) {
 		return nil
 	}
-	sql := `UPDATE badge_progress
-			SET achieved_badges = :achieved_badges
-			WHERE user_id = :user_id
-              AND IFNULL(achieved_badges,'') = IFNULL(:old_achieved_badges,'')`
-	params := make(map[string]any, 1+1+1)
-	params["user_id"] = pr.UserID
-	params["achieved_badges"] = achievedBadges
-	params["old_achieved_badges"] = pr.AchievedBadges
-	//nolint:nestif // .
-	if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			tuple := &progress{AchievedBadges: achievedBadges, UserID: pr.UserID}
-			if err = storage.CheckNoSQLDMLErr(r.db.InsertTyped("BADGE_PROGRESS", tuple, &[]*progress{})); err != nil && errors.Is(err, storage.ErrDuplicate) {
-				return r.achieveBadges(ctx, userID)
-			}
-			if err != nil {
-				return errors.Wrapf(err, "failed to insert BADGE_PROGRESS %#v", tuple)
-			}
+	sql := `INSERT INTO badge_progress(achieved_badges, user_id) VALUES($1, $2) 
+				ON CONFLICT (user_id) DO UPDATE
+									SET achieved_badges = EXCLUDED.achieved_badges
+				WHERE COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) = COALESCE($3, ARRAY[]::TEXT[])`
+	rowsUpserted, err := storage.Exec(ctx, r.db, sql, achievedBadges, userID, pr.AchievedBadges)
+	if err != nil || rowsUpserted == 0 {
+		if rowsUpserted == 0 && err == nil {
+			return r.achieveBadges(ctx, userID)
 		}
-		if err != nil {
-			return errors.Wrapf(err, "failed to update badge_progress.achieved_badges for params:%#v", params)
-		}
+
+		return errors.Wrapf(err, "failed to insert BADGE_PROGRESS userID:%v, achievedBadges:%v", userID, achievedBadges)
 	}
 	//nolint:nestif // .
 	if achievedBadges != nil && len(*achievedBadges) > 0 && (pr.AchievedBadges == nil || len(*pr.AchievedBadges) < len(*achievedBadges)) {
@@ -87,12 +74,15 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 				AchievedBadges: achievedBadgesCount[groupType],
 			})
 		}
-		if err = runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); err != nil {
+		if cErr := runConcurrently(ctx, r.sendAchievedBadgeMessage, newlyAchievedBadges); cErr != nil {
 			sErr := errors.Wrapf(err, "failed to sendAchievedBadgeMessages for userID:%v,achievedBadges:%#v", userID, newlyAchievedBadges)
-			params["achieved_badges"] = pr.AchievedBadges
-			params["old_achieved_badges"] = achievedBadges
-			if err = storage.CheckSQLDMLErr(r.db.PrepareExecute(sql, params)); err != nil {
-				if errors.Is(err, storage.ErrNotFound) {
+			sql = `UPDATE badge_progress 
+						SET achieved_badges = $1
+						WHERE user_id = $2 AND
+							  COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) = COALESCE($3, ARRAY[]::TEXT[])`
+			rowsUpdated, uErr := storage.Exec(ctx, r.db, sql, pr.AchievedBadges, userID, achievedBadges)
+			if uErr != nil || rowsUpdated == 0 {
+				if rowsUpdated == 0 && uErr == nil {
 					log.Error(errors.Wrapf(sErr, "[sendAchievedBadgeMessages]rollback race condition"))
 
 					return r.achieveBadges(ctx, userID)
@@ -100,7 +90,7 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 
 				return multierror.Append( //nolint:wrapcheck // Not needed.
 					sErr,
-					errors.Wrapf(err, "[sendAchievedBadgeMessages][rollback] failed to update badge_progress.achieved_badges for params:%#v", params),
+					errors.Wrapf(uErr, "[sendAchievedBadgeMessages][rollback] failed to update badge_progress.achieved_badges for achieved badges:%v and userID:%v", pr.AchievedBadges, userID), //nolint:lll // .
 				).ErrorOrNil()
 			}
 
@@ -133,8 +123,8 @@ func (p *progress) reEvaluateAchievedBadges(repo *repository) *users.Enum[Type] 
 		case LevelGroupType:
 			achieved = p.CompletedLevels >= repo.cfg.Milestones[badgeType].FromInclusive
 		case CoinGroupType:
-			if !p.Balance.IsZero() {
-				achieved = p.Balance.GTE(coin.NewAmountUint64(repo.cfg.Milestones[badgeType].FromInclusive).MultiplyUint64(uint64(coin.Denomination)).Uint)
+			if p.Balance > 0 {
+				achieved = p.Balance >= repo.cfg.Milestones[badgeType].FromInclusive
 			}
 		case SocialGroupType:
 			achieved = p.FriendsInvited >= repo.cfg.Milestones[badgeType].FromInclusive
@@ -207,7 +197,7 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 		return nil
 	}
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
-		return errors.Wrapf(s.deleteProgress(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
+		return errors.Wrapf(s.handleUserDeletion(ctx, snapshot), "failed to handle user deletionfor:%#v", snapshot)
 	}
 	if err := s.upsertProgress(ctx, snapshot); err != nil {
 		return errors.Wrapf(err, "failed to upsert progress for:%#v", snapshot)
@@ -230,59 +220,87 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 			}
 		}
 	}
-	insertTuple := &progress{
-		UserID:     us.ID,
-		HideBadges: hideBadges,
-	}
-	const hideBadgesColumnIndex = 5
-	ops := append(make([]tarantool.Op, 0, 1), tarantool.Op{Op: "=", Field: hideBadgesColumnIndex, Arg: insertTuple.HideBadges})
+	sql := `INSERT INTO badge_progress(user_id, hide_badges) VALUES($1, $2)
+				   ON CONFLICT(user_id)
+				   DO UPDATE
+					   SET hide_badges = EXCLUDED.hide_badges
+				   WHERE COALESCE(badge_progress.hide_badges, FALSE) != COALESCE(EXCLUDED.hide_badges, FALSE)`
+	_, err := storage.Exec(ctx, s.db, sql, us.ID, hideBadges)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.UpsertTyped("BADGE_PROGRESS", insertTuple, ops, &[]*progress{})), "failed to upsert progress for %#v", us),
-		errors.Wrapf(s.updateFriendsInvited(ctx, us), "failed to updateFriendsInvited for user:%#v", us),
+		errors.Wrapf(err, "failed to upsert progress for %#v", us),
 		errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, us.ID), "failed to sendTryAchieveBadgesCommandMessage for userID:%v", us.ID),
 	).ErrorOrNil()
 }
 
-//nolint:gocognit // .
-func (s *userTableSource) updateFriendsInvited(ctx context.Context, us *users.UserSnapshot) error {
-	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && us.User.ReferredBy == us.Before.ReferredBy) { //nolint:lll,revive // .
-		return errors.Wrap(ctx.Err(), "context failed")
+func (s *userTableSource) handleUserDeletion(ctx context.Context, us *users.UserSnapshot) error {
+	pr, err := s.getProgress(ctx, us.Before.ID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get progress for userID:%v", us.Before.ID)
 	}
-	sql := `REPLACE INTO referrals(user_id,referred_by) VALUES (:user_id,:referred_by)`
-	params := make(map[string]any, 1+1)
-	params["user_id"] = us.User.ID
-	params["referred_by"] = us.User.ReferredBy
-	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)); err != nil {
-		return errors.Wrapf(err, "failed to REPLACE INTO referrals, params:%#v", params)
+
+	if err = s.deleteProgress(ctx, us); err != nil {
+		return errors.Wrapf(err, "failed to delete progress for:%#v", us)
 	}
-	delete(params, "user_id")
-	sql = `UPDATE badge_progress 
-		   SET friends_invited = (SELECT COUNT(*) FROM referrals WHERE referred_by = :referred_by)
-		   WHERE user_id = :referred_by`
-	if err := storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			err = errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.InsertTyped("BADGE_PROGRESS", &progress{UserID: us.User.ReferredBy, FriendsInvited: 1}, &[]*progress{})), "failed to insert progress for referredBy:%v, from :%#v", us.User.ReferredBy, us) //nolint:lll // .
-		}
-		if err != nil && !errors.Is(err, storage.ErrDuplicate) {
-			return errors.Wrapf(err, "failed to set badge_progress.friends_invited, params:%#v", params)
+
+	if pr != nil && pr.AchievedBadges != nil {
+		if err = s.decrementAchievedBadgesOnUserDelete(ctx, us.Before.ID, pr.AchievedBadges); err != nil {
+			return errors.Wrapf(err, "failed to decrement achieved badges counts, badges: %v", *pr.AchievedBadges)
 		}
 	}
 
-	return errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, us.User.ReferredBy),
-		"failed to sendTryAchieveBadgesCommandMessage, userID:%v,referredBy:%v", us.User.ID, us.User.ReferredBy)
+	return nil
+}
+
+func (s *userTableSource) decrementAchievedBadgesOnUserDelete(ctx context.Context, userID users.UserID, achievedBadges *users.Enum[Type]) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
+	}
+	sql := `UPDATE BADGE_STATISTICS SET
+	ACHIEVED_BY = GREATEST(ACHIEVED_BY - 1, 0)
+	WHERE BADGE_TYPE = ANY($1)`
+	_, err := storage.Exec(ctx, s.db, sql, achievedBadges)
+
+	return errors.Wrapf(err,
+		"failed to decrement achieved badges count due to user deletion, userID: %v, badges: %#v", userID, achievedBadges)
 }
 
 func (s *userTableSource) deleteProgress(ctx context.Context, us *users.UserSnapshot) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	params := map[string]any{"user_id": us.Before.ID}
+	sql := `DELETE FROM badge_progress WHERE user_id = $1`
+	_, err := storage.Exec(ctx, s.db, sql, us.Before.ID)
+
+	return errors.Wrapf(err, "failed to delete badge_progress for:%#v", us)
+}
+
+func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.Message) error {
+	if ctx.Err() != nil {
+		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
+	}
+	if len(msg.Value) == 0 {
+		return nil
+	}
+	friends := new(friendsinvited.Count)
+	if err := json.UnmarshalContext(ctx, msg.Value, friends); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), friends)
+	}
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(`DELETE FROM badge_progress WHERE user_id = :user_id`, params)),
-			"failed to delete badge_progress for:%#v", us),
+		errors.Wrapf(f.updateFriendsInvited(ctx, friends), "failed to update badges friendsInvited for %#v", friends),
+		errors.Wrapf(f.sendTryAchieveBadgesCommandMessage(ctx, friends.UserID), "failed to sendTryAchieveBadgesCommandMessage for userID:%v", friends.UserID),
 	).ErrorOrNil()
+}
+
+func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
+	sql := `INSERT INTO badge_progress(user_id, friends_invited) VALUES ($1, $2)
+		   		ON CONFLICT(user_id) DO UPDATE  
+		   			SET friends_invited = EXCLUDED.friends_invited
+		   		WHERE COALESCE(badge_progress.friends_invited, 0) != COALESCE(EXCLUDED.friends_invited, 0)`
+	_, err := storage.Exec(ctx, f.db, sql, friends.UserID, friends.FriendsInvited)
+
+	return errors.Wrapf(err, "failed to set badge_progress.friends_invited, params:%#v", friends)
 }
 
 func (s *completedLevelsSource) Process(ctx context.Context, msg *messagebroker.Message) error {
@@ -313,15 +331,16 @@ func (s *completedLevelsSource) upsertProgress(ctx context.Context, completedLev
 		(pr != nil && (pr.CompletedLevels == uint64(len(&levelsandroles.AllLevelTypes)) || IsBadgeGroupAchieved(pr.AchievedBadges, LevelGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	const completedLevelsColumnIndex = 4
-	insertTuple := &progress{UserID: userID, CompletedLevels: completedLevels}
-	ops := append(make([]tarantool.Op, 0, 1), tarantool.Op{Op: "=", Field: completedLevelsColumnIndex, Arg: insertTuple.CompletedLevels})
+	sql := `INSERT INTO badge_progress(user_id, completed_levels) VALUES($1, $2)
+				ON CONFLICT(user_id)
+				DO UPDATE
+					SET completed_levels = EXCLUDED.completed_levels
+				WHERE COALESCE(badge_progress.completed_levels, 0) != COALESCE(EXCLUDED.completed_levels, 0)`
+	_, err = storage.Exec(ctx, s.db, sql, userID, int64(completedLevels))
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.UpsertTyped("BADGE_PROGRESS", insertTuple, ops, &[]*progress{})),
-			"failed to upsert progress for %#v", insertTuple),
-		errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, userID),
-			"failed to sendTryAchieveBadgesCommandMessage for userID:%v", userID),
+		errors.Wrapf(err, "failed to insert/update progress for userID:%v, completedLevels:%v", userID, completedLevels),
+		errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, userID), "failed to sendTryAchieveBadgesCommandMessage for userID:%v", userID),
 	).ErrorOrNil()
 }
 
@@ -334,9 +353,9 @@ func (s *balancesTableSource) Process(ctx context.Context, msg *messagebroker.Me
 	}
 	type (
 		Balances struct {
-			Standard   *coin.ICEFlake `json:"standard,omitempty" example:"124302"`
-			PreStaking *coin.ICEFlake `json:"preStaking,omitempty" example:"124302"`
-			UserID     string         `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+			UserID     string  `json:"userId,omitempty" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2"`
+			Standard   float64 `json:"standard,omitempty" example:"124302.55"`
+			PreStaking float64 `json:"preStaking,omitempty" example:"124302.65"`
 		}
 	)
 	var bal Balances
@@ -347,10 +366,10 @@ func (s *balancesTableSource) Process(ctx context.Context, msg *messagebroker.Me
 		return nil
 	}
 
-	return errors.Wrapf(s.upsertProgress(ctx, bal.Standard.Add(bal.PreStaking), bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
+	return errors.Wrapf(s.upsertProgress(ctx, int64(bal.Standard+bal.PreStaking), bal.UserID), "failed to upsertProgress for Balances:%#v", bal)
 }
 
-func (s *balancesTableSource) upsertProgress(ctx context.Context, balance *coin.ICEFlake, userID string) error {
+func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64, userID string) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
@@ -359,15 +378,16 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance *coin.
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes) || IsBadgeGroupAchieved(pr.AchievedBadges, CoinGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	const balanceColumnIndex = 1
-	insertTuple := &progress{UserID: userID, Balance: balance}
-	ops := append(make([]tarantool.Op, 0, 1), tarantool.Op{Op: "=", Field: balanceColumnIndex, Arg: insertTuple.Balance})
+	sql := `INSERT INTO badge_progress(user_id, balance) VALUES($1, $2)
+				ON CONFLICT(user_id)
+				DO UPDATE
+					SET balance = EXCLUDED.balance
+				WHERE COALESCE(badge_progress.balance, 0) != COALESCE(EXCLUDED.balance, 0)`
+	_, err = storage.Exec(ctx, s.db, sql, userID, balance)
 
 	return multierror.Append( //nolint:wrapcheck // Not needed.
-		errors.Wrapf(storage.CheckNoSQLDMLErr(s.db.UpsertTyped("BADGE_PROGRESS", insertTuple, ops, &[]*progress{})),
-			"failed to upsert progress for %#v", insertTuple),
-		errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, userID),
-			"failed to sendTryAchieveBadgesCommandMessage for userID:%v", userID),
+		errors.Wrapf(err, "failed to insert/update progress balance:%v for userID:%v", balance, userID),
+		errors.Wrapf(s.sendTryAchieveBadgesCommandMessage(ctx, userID), "failed to sendTryAchieveBadgesCommandMessage for userID:%v", userID),
 	).ErrorOrNil()
 }
 
@@ -385,13 +405,10 @@ func (s *globalTableSource) Process(ctx context.Context, msg *messagebroker.Mess
 	if val.Key != "TOTAL_USERS" {
 		return nil
 	}
-	sql := fmt.Sprintf(`UPDATE badge_statistics
-						SET achieved_by = :achieved_by
-						WHERE badge_type IN ('%v','%v','%v')`, LevelGroupType, CoinGroupType, SocialGroupType)
-	params := make(map[string]any, 1)
-	params["achieved_by"] = val.Value
+	sql := `UPDATE badge_statistics SET achieved_by = $1 WHERE badge_type IN ($2, $3, $4)`
+	_, err := storage.Exec(ctx, s.db, sql, int64(val.Value), string(LevelGroupType), string(CoinGroupType), string(SocialGroupType))
 
-	return errors.Wrapf(storage.CheckSQLDMLErr(s.db.PrepareExecute(sql, params)), "failed to update badge_statistics from global unsigned value:%#v", &val)
+	return errors.Wrapf(err, "failed to update badge_statistics from global unsigned value:%#v", &val)
 }
 
 func (s *achievedBadgesSource) Process(ctx context.Context, msg *messagebroker.Message) error {
@@ -402,10 +419,11 @@ func (s *achievedBadgesSource) Process(ctx context.Context, msg *messagebroker.M
 	if err := json.UnmarshalContext(ctx, msg.Value, &badge); err != nil {
 		return errors.Wrapf(err, "process: cannot unmarshall %v into %#v", string(msg.Value), &badge)
 	}
-	const achievedByColumnIndex = 2
-	incOp := []tarantool.Op{{Op: "+", Field: achievedByColumnIndex, Arg: 1}}
-	tuple := &statistics{Type: badge.Type}
+	sql := `INSERT INTO badge_statistics(badge_type, badge_group_type, achieved_by) VALUES($1, $2, 1)
+				ON CONFLICT(badge_type)
+				DO UPDATE
+					SET achieved_by = badge_statistics.achieved_by+1`
+	_, err := storage.Exec(ctx, s.db, sql, badge.Type, badge.GroupType)
 
-	return errors.Wrapf(s.db.UpsertTyped("BADGE_STATISTICS", tuple, incOp, &[]*statistics{}),
-		"error increasing badge statistics for badge:%v", badge.Type)
+	return errors.Wrapf(err, "error increasing badge statistics for badge:%v", badge.Type)
 }

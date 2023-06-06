@@ -177,6 +177,8 @@ var SwaggerInfo = &swag.Spec{
 	Description:      "API that handles everything related to write-only operations for user's achievements and gamification progress.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
+	LeftDelim:        "{{",
+	RightDelim:       "}}",
 }
 
 func init() {

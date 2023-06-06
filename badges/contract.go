@@ -10,10 +10,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	"github.com/ice-blockchain/go-tarantool-client"
-	"github.com/ice-blockchain/wintr/coin"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
-	"github.com/ice-blockchain/wintr/connectors/storage"
+	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
 // Public API.
@@ -56,6 +54,8 @@ const (
 var (
 	ErrRelationNotFound = storage.ErrRelationNotFound
 	ErrHidden           = errors.New("badges are hidden")
+	ErrRaceCondition    = errors.New("race condition")
+
 	//nolint:gochecknoglobals // It's just for more descriptive validation messages.
 	AllTypes = [26]Type{
 		Level1Type,
@@ -225,6 +225,12 @@ var (
 		CoinGroupType:   append(make([]Type, 0, len(CoinTypeOrder)), Coin1Type, Coin2Type, Coin3Type, Coin4Type, Coin5Type, Coin6Type, Coin7Type, Coin8Type, Coin9Type, Coin10Type),                       //nolint:lll // .
 		SocialGroupType: append(make([]Type, 0, len(SocialTypeOrder)), Social1Type, Social2Type, Social3Type, Social4Type, Social5Type, Social6Type, Social7Type, Social8Type, Social9Type, Social10Type), //nolint:lll // .
 	}
+	//nolint:gochecknoglobals // .
+	GroupsOrderSummaries = [3]GroupType{
+		LevelGroupType,
+		CoinGroupType,
+		SocialGroupType,
+	}
 )
 
 type (
@@ -282,22 +288,20 @@ const (
 
 // .
 var (
-	//go:embed DDL.lua
+	//go:embed DDL.sql
 	ddl string
 )
 
 type (
 	progress struct {
-		_msgpack        struct{}          `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		AchievedBadges  *users.Enum[Type] `json:"achievedBadges,omitempty" example:"c1,l1,l2,c2"`
-		Balance         *coin.ICEFlake    `json:"balance,omitempty" example:"1232323232"`
 		UserID          string            `json:"userId,omitempty" example:"edfd8c02-75e0-4687-9ac2-1ce4723865c4"`
 		FriendsInvited  uint64            `json:"friendsInvited,omitempty" example:"3"`
 		CompletedLevels uint64            `json:"completedLevels,omitempty" example:"3"`
+		Balance         uint64            `json:"balance,omitempty" example:"1232323232"`
 		HideBadges      bool              `json:"hideBadges,omitempty" example:"false"`
 	}
 	statistics struct {
-		_msgpack   struct{} `msgpack:",asArray"` //nolint:unused,tagliatelle,revive,nosnakecase // To insert we need asArray
 		Type       Type
 		GroupType  GroupType
 		AchievedBy uint64
@@ -311,6 +315,11 @@ type (
 	userTableSource struct {
 		*processor
 	}
+
+	friendsInvitedSource struct {
+		*processor
+	}
+
 	completedLevelsSource struct {
 		*processor
 	}
@@ -323,7 +332,7 @@ type (
 	repository struct {
 		cfg      *config
 		shutdown func() error
-		db       tarantool.Connector
+		db       *storage.DB
 		mb       messagebroker.Client
 	}
 	processor struct {

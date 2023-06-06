@@ -10,7 +10,8 @@ import (
 
 	"github.com/ice-blockchain/santa/badges"
 	"github.com/ice-blockchain/santa/cmd/santa-sleigh/api"
-	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
+	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
+	levelsAndRoles "github.com/ice-blockchain/santa/levels-and-roles"
 	"github.com/ice-blockchain/santa/tasks"
 	appCfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
@@ -42,8 +43,9 @@ func (s *service) RegisterRoutes(router *server.Router) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.tasksProcessor = tasks.StartProcessor(ctx, cancel)
-	s.levelsAndRolesProcessor = levelsandroles.StartProcessor(ctx, cancel)
+	s.levelsAndRolesProcessor = levelsAndRoles.StartProcessor(ctx, cancel)
 	s.badgesProcessor = badges.StartProcessor(ctx, cancel)
+	s.friendsProcessor = friendsInvited.StartProcessor(ctx, cancel)
 }
 
 func (s *service) Close(ctx context.Context) error {
@@ -55,6 +57,7 @@ func (s *service) Close(ctx context.Context) error {
 		errors.Wrap(s.badgesProcessor.Close(), "could not close badges processor"),
 		errors.Wrap(s.levelsAndRolesProcessor.Close(), "could not close levels-and-roles processor"),
 		errors.Wrap(s.tasksProcessor.Close(), "could not close tasks processor"),
+		errors.Wrap(s.friendsProcessor.Close(), "could not close friends-invited processor"),
 	).ErrorOrNil(), "could not close processors")
 }
 
@@ -70,6 +73,10 @@ func (s *service) CheckHealth(ctx context.Context) error {
 	log.Debug("checking health...", "package", "badges")
 	if err := s.badgesProcessor.CheckHealth(ctx); err != nil {
 		return errors.Wrap(err, "badges processor health check failed")
+	}
+	log.Debug("checking health...", "package", "friends-invited")
+	if err := s.friendsProcessor.CheckHealth(ctx); err != nil {
+		return errors.Wrap(err, "friends-invited processor health check failed")
 	}
 
 	return nil
