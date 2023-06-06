@@ -259,7 +259,7 @@ func (s *userTableSource) decrementAchievedBadgesOnUserDelete(ctx context.Contex
 	sql := `UPDATE BADGE_STATISTICS SET
 	ACHIEVED_BY = GREATEST(ACHIEVED_BY - 1, 0)
 	WHERE BADGE_TYPE = ANY($1)`
-	_, err := storage.Exec(ctx, s.db, sql, achievedBadges)
+	_, err := storage.Exec(ctx, s.db, sql, *achievedBadges)
 
 	return errors.Wrapf(err,
 		"failed to decrement achieved badges count due to user deletion, userID: %v, badges: %#v", userID, achievedBadges)
