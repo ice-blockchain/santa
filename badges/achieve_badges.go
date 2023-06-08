@@ -378,7 +378,7 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64,
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes) || IsBadgeGroupAchieved(pr.AchievedBadges, CoinGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
-	if pr.Balance == balance {
+	if pr != nil && pr.Balance == balance {
 		return nil
 	}
 	sql := `INSERT INTO badge_progress(user_id, balance) VALUES($1, $2)
