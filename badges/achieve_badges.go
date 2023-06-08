@@ -121,13 +121,13 @@ func (p *progress) reEvaluateAchievedBadges(repo *repository) *users.Enum[Type] 
 		var achieved bool
 		switch GroupTypeForEachType[badgeType] {
 		case LevelGroupType:
-			achieved = p.CompletedLevels >= repo.cfg.Milestones[badgeType].FromInclusive
+			achieved = uint64(p.CompletedLevels) >= repo.cfg.Milestones[badgeType].FromInclusive
 		case CoinGroupType:
 			if p.Balance > 0 {
-				achieved = p.Balance >= repo.cfg.Milestones[badgeType].FromInclusive
+				achieved = uint64(p.Balance) >= repo.cfg.Milestones[badgeType].FromInclusive
 			}
 		case SocialGroupType:
-			achieved = p.FriendsInvited >= repo.cfg.Milestones[badgeType].FromInclusive
+			achieved = uint64(p.FriendsInvited) >= repo.cfg.Milestones[badgeType].FromInclusive
 		}
 		if achieved {
 			achievedBadges = append(achievedBadges, badgeType)
@@ -328,7 +328,7 @@ func (s *completedLevelsSource) upsertProgress(ctx context.Context, completedLev
 	pr, err := s.getProgress(ctx, userID)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes))) ||
-		(pr != nil && (pr.CompletedLevels == uint64(len(&levelsandroles.AllLevelTypes)) || IsBadgeGroupAchieved(pr.AchievedBadges, LevelGroupType))) {
+		(pr != nil && (pr.CompletedLevels == int64(len(&levelsandroles.AllLevelTypes)) || IsBadgeGroupAchieved(pr.AchievedBadges, LevelGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
 	sql := `INSERT INTO badge_progress(user_id, completed_levels) VALUES($1, $2)
@@ -377,6 +377,9 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64,
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes) || IsBadgeGroupAchieved(pr.AchievedBadges, CoinGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
+	}
+	if pr.Balance == balance {
+		return nil
 	}
 	sql := `INSERT INTO badge_progress(user_id, balance) VALUES($1, $2)
 				ON CONFLICT(user_id)
