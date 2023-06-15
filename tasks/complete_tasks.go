@@ -134,6 +134,9 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 		return nil
 	}
 	completedTasks := pr.reEvaluateCompletedTasks(r)
+	if completedTasks != nil && pr.CompletedTasks != nil {
+		log.Debug(fmt.Sprintf("[completeTasks] for userID:%v progress:%#v(%v) completedTasks:%v", userID, *pr, *pr.CompletedTasks, *completedTasks))
+	}
 	if completedTasks != nil && pr.CompletedTasks != nil && len(*pr.CompletedTasks) == len(*completedTasks) {
 		return nil
 	}
