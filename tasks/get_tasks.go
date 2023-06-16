@@ -14,7 +14,7 @@ func (r *repository) GetTasks(ctx context.Context, userID string) (resp []*Task,
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	userProgress, err := r.getProgress(ctx, userID)
+	userProgress, err := r.getProgress(ctx, userID, true)
 	if err != nil {
 		if errors.Is(err, ErrRelationNotFound) {
 			return r.defaultTasks(), nil
@@ -26,11 +26,17 @@ func (r *repository) GetTasks(ctx context.Context, userID string) (resp []*Task,
 	return userProgress.buildTasks(r), nil
 }
 
-func (r *repository) getProgress(ctx context.Context, userID string) (res *progress, err error) {
+//nolint:revive //.
+func (r *repository) getProgress(ctx context.Context, userID string, tolerateOldData bool) (res *progress, err error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	res, err = storage.Get[progress](ctx, r.db, `SELECT * FROM task_progress WHERE user_id = $1`, userID)
+	if tolerateOldData {
+		res, err = storage.Get[progress](ctx, r.db, `SELECT * FROM task_progress WHERE user_id = $1`, userID)
+	} else {
+		res, err = storage.ExecOne[progress](ctx, r.db, `SELECT * FROM task_progress WHERE user_id = $1`, userID)
+	}
+
 	err = errors.Wrapf(err, "failed to get TASK_PROGRESS for userID:%v", userID)
 	if storage.IsErr(err, storage.ErrNotFound) {
 		return nil, ErrRelationNotFound

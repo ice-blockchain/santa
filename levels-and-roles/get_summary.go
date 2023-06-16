@@ -14,21 +14,27 @@ func (r *repository) GetSummary(ctx context.Context, userID string) (*Summary, e
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	if res, err := r.getProgress(ctx, userID); err != nil && !errors.Is(err, storage.ErrRelationNotFound) {
+	if res, err := r.getProgress(ctx, userID, true); err != nil && !errors.Is(err, storage.ErrRelationNotFound) {
 		return nil, errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	} else { //nolint:revive // .
 		return newSummary(res, requestingUserID(ctx)), nil
 	}
 }
 
-func (r *repository) getProgress(ctx context.Context, userID string) (res *progress, err error) {
+//nolint:revive // .
+func (r *repository) getProgress(ctx context.Context, userID string, tolerateOldData bool) (res *progress, err error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	sql := `SELECT *
 			FROM levels_and_roles_progress
 			WHERE user_id = $1`
-	res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	if tolerateOldData {
+		res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	} else {
+		res, err = storage.ExecOne[progress](ctx, r.db, sql, userID)
+	}
+
 	if errors.Is(err, storage.ErrNotFound) {
 		return nil, storage.ErrRelationNotFound
 	}

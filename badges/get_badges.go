@@ -19,7 +19,7 @@ func (r *repository) GetBadges(ctx context.Context, groupType GroupType, userID 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to getStatistics for %v", groupType)
 	}
-	userProgress, err := r.getProgress(ctx, userID)
+	userProgress, err := r.getProgress(ctx, userID, true)
 	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return nil, errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
@@ -34,7 +34,7 @@ func (r *repository) GetSummary(ctx context.Context, userID string) ([]*BadgeSum
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	userProgress, err := r.getProgress(ctx, userID)
+	userProgress, err := r.getProgress(ctx, userID, true)
 	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return nil, errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
@@ -45,12 +45,18 @@ func (r *repository) GetSummary(ctx context.Context, userID string) ([]*BadgeSum
 	return userProgress.buildBadgeSummaries(), nil
 }
 
-func (r *repository) getProgress(ctx context.Context, userID string) (res *progress, err error) {
+//nolint:revive // .
+func (r *repository) getProgress(ctx context.Context, userID string, tolerateOldData bool) (res *progress, err error) {
 	if ctx.Err() != nil {
 		return nil, errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
 	sql := `SELECT * FROM badge_progress WHERE user_id = $1`
-	res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	if tolerateOldData {
+		res, err = storage.Get[progress](ctx, r.db, sql, userID)
+	} else {
+		res, err = storage.ExecOne[progress](ctx, r.db, sql, userID)
+	}
+
 	if res == nil {
 		return nil, ErrRelationNotFound
 	}

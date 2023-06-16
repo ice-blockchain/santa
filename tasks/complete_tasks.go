@@ -23,7 +23,7 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	userProgress, err := r.getProgress(ctx, task.UserID)
+	userProgress, err := r.getProgress(ctx, task.UserID, true)
 	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", task.UserID)
 	}
@@ -122,7 +122,7 @@ func (r *repository) completeTasks(ctx context.Context, userID string) error { /
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	pr, err := r.getProgress(ctx, userID)
+	pr, err := r.getProgress(ctx, userID, false)
 	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
@@ -310,7 +310,7 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, userID string)
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	if pr, err := s.getProgress(ctx, userID); err != nil && !errors.Is(err, ErrRelationNotFound) ||
+	if pr, err := s.getProgress(ctx, userID, true); err != nil && !errors.Is(err, ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedTasks != nil && len(*pr.CompletedTasks) == len(&AllTypes)) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
