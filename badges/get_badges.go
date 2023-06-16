@@ -5,6 +5,7 @@ package badges
 import (
 	"context"
 	"math"
+	"sort"
 
 	"github.com/pkg/errors"
 
@@ -79,16 +80,26 @@ func (r *repository) getStatistics(ctx context.Context, groupType GroupType) (ma
 	return r.calculateUnachievedPercentages(groupType, res), nil
 }
 
-//nolint:funlen // calculation logic, it is better to keep in one place
+//nolint:funlen,revive,gocognit // calculation logic, it is better to keep in one place
 func (*repository) calculateUnachievedPercentages(groupType GroupType, res []*statistics) map[Type]float64 {
 	allTypes := AllGroups[groupType]
 	var totalUsers, totalAchievedBy uint64
 	achievedByForEachType, resp := make(map[Type]uint64, cap(res)-1), make(map[Type]float64, cap(res)-1)
-	for _, row := range res {
+	sort.SliceStable(res, func(i, j int) bool {
+		return AllTypeOrder[res[i].Type] < AllTypeOrder[res[j].Type]
+	})
+	for idx, row := range res {
 		if row.Type == Type(row.GroupType) {
 			totalUsers = row.AchievedBy
 		} else {
-			achievedByForEachType[row.Type] = row.AchievedBy
+			// Previous cannot be less than current, trying to fix the data.
+			maxNextItem := row.AchievedBy
+			for nextItemsIdx := idx; nextItemsIdx < len(res); nextItemsIdx++ {
+				if res[nextItemsIdx].AchievedBy > maxNextItem {
+					maxNextItem = res[nextItemsIdx].AchievedBy
+				}
+			}
+			achievedByForEachType[row.Type] = uint64(math.Max(float64(row.AchievedBy), float64(maxNextItem)))
 			totalAchievedBy += achievedByForEachType[row.Type]
 		}
 	}
@@ -102,8 +113,8 @@ func (*repository) calculateUnachievedPercentages(groupType GroupType, res []*st
 		currentBadgeAchievedBy := math.Min(float64(achievedByForEachType[allTypes[ind]]), float64(totalUsers))
 		if currentBadgeType == allTypes[0] {
 			resp[currentBadgeType] = percent100 * ((float64(totalAchievedBy) - currentBadgeAchievedBy) / float64(totalUsers))
-			if totalAchievedBy == 0 {
-				resp[currentBadgeType] = 100.0
+			if totalAchievedBy < totalUsers {
+				resp[currentBadgeType] = percent100 - (percent100 * currentBadgeAchievedBy / float64(totalUsers))
 			}
 
 			continue

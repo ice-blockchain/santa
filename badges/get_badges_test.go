@@ -179,6 +179,54 @@ func Test_Repository_calculateUnachievedPercentages(t *testing.T) {
 				Social9Type:  0,
 				Social10Type: 0,
 			}),
+		unachivedPercentageTestCase().
+			WithDesc("Total achieved badges less than total users").
+			WithUsers(t, SocialGroupType, 2, 2, 1, 0, 0, 0, 0, 0, 0, 0).
+			Expected(map[Type]float64{
+				Social1Type:  98,
+				Social2Type:  0,
+				Social3Type:  1,
+				Social4Type:  1,
+				Social5Type:  0,
+				Social6Type:  0,
+				Social7Type:  0,
+				Social8Type:  0,
+				Social9Type:  0,
+				Social10Type: 0,
+			}),
+		unachivedPercentageTestCase().
+			WithDesc("Totally messed up with lesser value in the middle").
+			WithUsers(t, LevelGroupType, 30, 20, 1, 5, 0, 0).
+			Expected(map[Type]float64{
+				Level1Type: 70,
+				Level2Type: 10,
+				Level3Type: 15, // Have 1 but actually at least 5, cuz L4 = 5, 20-5 = 15.
+				Level4Type: 0,
+				Level5Type: 5,
+				Level6Type: 0,
+			}),
+		unachivedPercentageTestCase().
+			WithDesc("Totally messed up with multiple lesser values descending").
+			WithUsers(t, LevelGroupType, 100, 30, 1, 0, 20, 10).
+			Expected(map[Type]float64{
+				Level1Type: 0,
+				Level2Type: 70,
+				Level3Type: 10,
+				Level4Type: 0,
+				Level5Type: 0,
+				Level6Type: 10,
+			}),
+		unachivedPercentageTestCase().
+			WithDesc("Totally messed up with multiple lesser values ascending").
+			WithUsers(t, LevelGroupType, 70, 40, 0, 1, 20, 0).
+			Expected(map[Type]float64{
+				Level1Type: 30,
+				Level2Type: 30,
+				Level3Type: 20,
+				Level4Type: 0,
+				Level5Type: 0,
+				Level6Type: 20,
+			}),
 	}
 
 	random := randomAchievedUsers(len(AllGroups[SocialGroupType]))
@@ -199,6 +247,7 @@ func Test_Repository_calculateUnachievedPercentages(t *testing.T) {
 			// Avoid values like 28.999999999999996.
 			sum := float64(0.0)
 			for k, v := range actual {
+				require.GreaterOrEqual(t, v, 0.0)
 				actual[k] = math.Round(v)
 				sum += v
 			}
