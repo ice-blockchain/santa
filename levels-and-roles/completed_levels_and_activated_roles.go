@@ -46,7 +46,7 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, miningStreak u
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	if pr, err := s.getProgress(ctx, userID); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
+	if pr, err := s.getProgress(ctx, userID, true); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedLevels != nil &&
 			(len(*pr.CompletedLevels) == len(&AllLevelTypes) ||
 				AreLevelsCompleted(pr.CompletedLevels, Level1Type, Level2Type, Level3Type, Level4Type, Level5Type))) {
@@ -88,7 +88,7 @@ func (s *completedTasksSource) upsertProgress(ctx context.Context, completedTask
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	pr, err := s.getProgress(ctx, userID)
+	pr, err := s.getProgress(ctx, userID, true)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedLevels != nil && (len(*pr.CompletedLevels) == len(&AllLevelTypes))) ||
 		(pr != nil && (pr.CompletedTasks == uint64(len(&tasks.AllTypes)) ||
@@ -135,7 +135,7 @@ func (s *userPingsSource) Process(ctx context.Context, msg *messagebroker.Messag
 }
 
 func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy string, lastCooldown *time.Time) error {
-	if pr, err := s.getProgress(ctx, userID); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
+	if pr, err := s.getProgress(ctx, userID, true); err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.CompletedLevels != nil &&
 			(len(*pr.CompletedLevels) == len(&AllLevelTypes) ||
 				AreLevelsCompleted(pr.CompletedLevels, Level16Type, Level17Type, Level18Type, Level19Type, Level20Type, Level21Type))) {
@@ -295,7 +295,7 @@ func (r *repository) completeLevels(ctx context.Context, userID string) error { 
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	pr, err := r.getProgress(ctx, userID)
+	pr, err := r.getProgress(ctx, userID, false)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
@@ -430,7 +430,7 @@ func (r *repository) enableRoles(ctx context.Context, userID string) error { //n
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	pr, err := r.getProgress(ctx, userID)
+	pr, err := r.getProgress(ctx, userID, false)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}

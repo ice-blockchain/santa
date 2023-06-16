@@ -25,7 +25,7 @@ func (c *agendaContactsSource) Process(ctx context.Context, msg *messagebroker.M
 	if err := json.UnmarshalContext(ctx, msg.Value, contact); err != nil {
 		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), contact)
 	}
-	before, err := c.getProgress(ctx, contact.UserID)
+	before, err := c.getProgress(ctx, contact.UserID, true)
 	if err != nil && !storage.IsErr(err, storage.ErrNotFound) {
 		return errors.Wrapf(err, "can't get contacts for userID:%v", contact.UserID)
 	}

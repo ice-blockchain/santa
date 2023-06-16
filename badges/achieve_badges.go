@@ -22,7 +22,7 @@ func (r *repository) achieveBadges(ctx context.Context, userID string) error { /
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
-	pr, err := r.getProgress(ctx, userID)
+	pr, err := r.getProgress(ctx, userID, false)
 	if err != nil && !errors.Is(err, ErrRelationNotFound) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
@@ -234,7 +234,7 @@ func (s *userTableSource) upsertProgress(ctx context.Context, us *users.UserSnap
 }
 
 func (s *userTableSource) handleUserDeletion(ctx context.Context, us *users.UserSnapshot) error {
-	pr, err := s.getProgress(ctx, us.Before.ID)
+	pr, err := s.getProgress(ctx, us.Before.ID, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get progress for userID:%v", us.Before.ID)
 	}
@@ -325,7 +325,7 @@ func (s *completedLevelsSource) upsertProgress(ctx context.Context, completedLev
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	pr, err := s.getProgress(ctx, userID)
+	pr, err := s.getProgress(ctx, userID, true)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes))) ||
 		(pr != nil && (pr.CompletedLevels == int64(len(&levelsandroles.AllLevelTypes)) || IsBadgeGroupAchieved(pr.AchievedBadges, LevelGroupType))) {
@@ -373,7 +373,7 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64,
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	pr, err := s.getProgress(ctx, userID)
+	pr, err := s.getProgress(ctx, userID, true)
 	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
 		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes) || IsBadgeGroupAchieved(pr.AchievedBadges, CoinGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
