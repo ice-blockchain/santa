@@ -33,6 +33,15 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	}
 	params, sql := userProgress.buildUpdatePseudoCompletedTasksSQL(task, r)
 	if params == nil {
+		// FE calls endpoint when task "completed", and we have nothing to update
+		// so task is completed or pseudo-completed. But FE called endpoint one more time
+		// it means there is some lag between pseudo and real-completion, may be msg is messed up,
+		// so try to send another one to finally complete it (cuz it is already completed from FE side anyway).
+		reallyCompleted := userProgress.reallyCompleted(task)
+		if !reallyCompleted {
+			return errors.Wrapf(r.sendTryCompleteTasksCommandMessage(ctx, task.UserID), "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
+		}
+
 		return nil
 	}
 	if updatedRows, uErr := storage.Exec(ctx, r.db, sql, params...); updatedRows == 0 && uErr == nil {

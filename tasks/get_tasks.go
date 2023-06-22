@@ -85,6 +85,22 @@ func (p *progress) buildTasks(repo *repository) []*Task { //nolint:gocognit,funl
 	return resp
 }
 
+func (p *progress) reallyCompleted(task *Task) bool {
+	if p.CompletedTasks == nil {
+		return false
+	}
+	reallyCompleted := false
+	for _, tsk := range *p.CompletedTasks {
+		if tsk == task.Type {
+			reallyCompleted = true
+
+			break
+		}
+	}
+
+	return reallyCompleted
+}
+
 func (r *repository) defaultTasks() (resp []*Task) {
 	resp = make([]*Task, 0, len(&AllTypes))
 	for _, taskType := range &AllTypes {
