@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/goccy/go-json v0.10.2
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/ice-blockchain/eskimo v1.144.0
+	github.com/ice-blockchain/eskimo v1.145.0
 	github.com/ice-blockchain/wintr v1.120.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
