@@ -6,7 +6,6 @@ import (
 	"context"
 
 	"github.com/goccy/go-json"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
@@ -40,7 +39,7 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && (us.User.ReferredBy == us.Before.ReferredBy || us.Before.ReferredBy != "")) { //nolint:lll,revive // .
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
-	sql := `INSERT INTO referrals(user_id,referred_by, processed_at) VALUES ($1,$2,$3)`
+	sql := `INSERT INTO referrals(user_id,referred_by, processed_at, deleted) VALUES ($1,$2,$3, false)`
 	params := []any{
 		us.User.ID,
 		us.User.ReferredBy,
@@ -74,18 +73,28 @@ func (s *userTableSource) deleteFriendsInvited(ctx context.Context, us *users.Us
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	var errDecrementT0 error
-	rowsDeleted, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID)
-	if rowsDeleted > 0 && us.Before.ReferredBy != "" && us.Before.ReferredBy != us.Before.ID {
-		_, errDecrementT0 = storage.Exec(ctx, s.db, `
+	if _, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID); errDelUser != nil {
+		return errors.Wrapf(errDelUser, "failed to delete friends-invited for:%#v", us)
+	}
+	if us.Before.ReferredBy != "" && us.Before.ReferredBy != us.Before.ID {
+		sql := `INSERT INTO referrals(user_id,referred_by, processed_at, deleted) VALUES ($1,$2,$3, true)`
+		params := []any{us.Before.ID, us.Before.ReferredBy, us.Before.UpdatedAt.Time}
+		if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+			if storage.IsErr(err, storage.ErrDuplicate) {
+				return nil
+			}
+
+			return errors.Wrapf(err, "failed to insert referrals, params:%#v", params...)
+		}
+		if _, errDecrementT0 = storage.Exec(ctx, s.db, `
 			UPDATE friends_invited SET
 				invited_count = GREATEST(friends_invited.invited_count - 1, 0)
-			WHERE user_id = $1`, us.Before.ReferredBy)
+			WHERE user_id = $1`, us.Before.ReferredBy); errDecrementT0 != nil {
+			return errors.Wrapf(errDecrementT0, "failed to decrement friends-invited for T0:%v due to user %v deletion", us.Before.ReferredBy, us.Before.ID)
+		}
 	}
 
-	return multierror.Append( //nolint:wrapcheck // .
-		errors.Wrapf(errDelUser, "failed to delete friends-invited for:%#v", us),
-		errors.Wrapf(errDecrementT0, "failed to decrement friends-invited for T0:%v", us.Before.ReferredBy),
-	).ErrorOrNil()
+	return nil
 }
 
 func (r *repository) sendFriendsInvitedCountUpdate(ctx context.Context, friends *Count) error {
