@@ -227,9 +227,9 @@ var (
 	}
 	//nolint:gochecknoglobals // .
 	GroupsOrderSummaries = [3]GroupType{
-		LevelGroupType,
-		CoinGroupType,
 		SocialGroupType,
+		CoinGroupType,
+		LevelGroupType,
 	}
 )
 
