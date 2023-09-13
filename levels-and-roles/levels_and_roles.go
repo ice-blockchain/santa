@@ -105,7 +105,7 @@ func (p *processor) CheckHealth(ctx context.Context) error {
 	return errors.Wrapf(<-responder, "[health-check] failed to send health check message to broker")
 }
 
-func AreLevelsCompleted(actual *users.Enum[LevelType], expectedSubset ...LevelType) bool { //nolint:gocognit // .
+func AreLevelsCompleted(actual *users.Enum[LevelType], expectedSubset ...LevelType) bool {
 	if len(expectedSubset) == 0 {
 		return actual == nil || len(*actual) == 0
 	}

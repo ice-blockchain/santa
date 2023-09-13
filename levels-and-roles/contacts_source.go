@@ -14,7 +14,7 @@ import (
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func (c *agendaContactsSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:funlen,gocognit // Not worth to break.
+func (c *agendaContactsSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:funlen // Not worth to break.
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}

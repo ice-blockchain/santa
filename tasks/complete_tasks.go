@@ -19,7 +19,7 @@ import (
 	"github.com/ice-blockchain/wintr/log"
 )
 
-func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen,gocognit,revive // .
+func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error { //nolint:funlen,revive // .
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline")
 	}
@@ -335,7 +335,7 @@ func (s *miningSessionSource) upsertProgress(ctx context.Context, userID string)
 	).ErrorOrNil()
 }
 
-func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:gocognit // .
+func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}

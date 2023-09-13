@@ -164,7 +164,7 @@ func (s *userPingsSource) upsertProgress(ctx context.Context, userID, pingedBy s
 		"failed to sendTryCompleteLevelsCommandMessage, userID:%v,pingedBy:%v", userID, pingedBy)
 }
 
-func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:gocognit // .
+func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}

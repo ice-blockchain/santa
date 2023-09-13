@@ -122,7 +122,7 @@ func runConcurrently[ARG any](ctx context.Context, run func(context.Context, ARG
 	return errors.Wrap(multierror.Append(nil, errs...).ErrorOrNil(), "at least one execution failed")
 }
 
-func AreTasksCompleted(actual *users.Enum[Type], expectedSubset ...Type) bool { //nolint:gocognit // .
+func AreTasksCompleted(actual *users.Enum[Type], expectedSubset ...Type) bool {
 	if len(expectedSubset) == 0 {
 		return actual == nil || len(*actual) == 0
 	}

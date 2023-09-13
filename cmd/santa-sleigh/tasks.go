@@ -37,7 +37,7 @@ func (s *service) setupTasksRoutes(router *server.Router) {
 //	@Failure		500				{object}	server.ErrorResponse
 //	@Failure		504				{object}	server.ErrorResponse	"if request times out"
 //	@Router			/tasks/{taskType}/users/{userId} [PUT].
-func (s *service) PseudoCompleteTask( //nolint:gocritic,gocognit // False negative.
+func (s *service) PseudoCompleteTask( //nolint:gocritic // False negative.
 	ctx context.Context,
 	req *server.Request[CompleteTaskRequestBody, any],
 ) (*server.Response[any], *server.Response[server.ErrorResponse]) {

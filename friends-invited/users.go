@@ -13,7 +13,7 @@ import (
 	"github.com/ice-blockchain/wintr/connectors/storage/v2"
 )
 
-func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:gocognit // .
+func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:gocyclo,revive,cyclop // .
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}
@@ -24,30 +24,26 @@ func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Messag
 	if err := json.UnmarshalContext(ctx, msg.Value, snapshot); err != nil {
 		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), snapshot)
 	}
-	if (snapshot.Before == nil || snapshot.Before.ID == "") && (snapshot.User == nil || snapshot.User.ID == "") {
-		return nil
+	if snapshot.Before != nil && snapshot.Before.ID != "" && snapshot.User != nil && snapshot.User.ID != "" &&
+		snapshot.User.ReferredBy != snapshot.User.ID && snapshot.User.ReferredBy != "" && !snapshot.Before.IsHuman() && snapshot.User.IsHuman() {
+		return errors.Wrapf(s.insertReferrals(ctx, snapshot), "failed to insertReferrals[friendsinvited] for:%#v", snapshot)
 	}
 	if snapshot.Before != nil && snapshot.Before.ID != "" && (snapshot.User == nil || snapshot.User.ID == "") {
-		return errors.Wrapf(s.deleteFriendsInvited(ctx, snapshot), "failed to delete progress for:%#v", snapshot)
+		return errors.Wrapf(s.deleteFriendsInvited(ctx, snapshot), "failed to delete [friendsinvited] progress for:%#v", snapshot)
 	}
 
-	return s.insertReferrals(ctx, snapshot)
+	return nil
 }
 
-//nolint:gocognit // Transaction in one place.
 func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSnapshot) error {
-	if ctx.Err() != nil || us.User == nil || us.User.ReferredBy == "" || us.User.ReferredBy == us.User.ID || (us.Before != nil && us.Before.ID != "" && (us.User.ReferredBy == us.Before.ReferredBy || us.Before.ReferredBy != "")) { //nolint:lll,revive // .
-		return errors.Wrap(ctx.Err(), "context failed")
-	}
-	sql := `INSERT INTO referrals(user_id,referred_by, processed_at, deleted) VALUES ($1,$2,$3, false)`
-	params := []any{
-		us.User.ID,
-		us.User.ReferredBy,
-		us.User.UpdatedAt.Time,
-	}
-
-	return errors.Wrapf(storage.DoInTransaction(ctx, s.db, func(conn storage.QueryExecer) error {
-		if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+	return errors.Wrapf(storage.DoInTransaction(ctx, s.db, func(tx storage.QueryExecer) error {
+		sql := `INSERT INTO referrals(user_id,referred_by, processed_at, deleted) VALUES ($1,$2,$3, false)`
+		params := []any{
+			us.User.ID,
+			us.User.ReferredBy,
+			us.User.UpdatedAt.Time,
+		}
+		if _, err := storage.Exec(ctx, tx, sql, params...); err != nil {
 			if storage.IsErr(err, storage.ErrDuplicate) {
 				return nil
 			}
@@ -59,7 +55,7 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 		ON CONFLICT(user_id) DO UPDATE SET
 		   invited_count = friends_invited.invited_count + 1
 		RETURNING *`
-		friends, err := storage.ExecOne[Count](ctx, s.db, sql, us.User.ReferredBy)
+		friends, err := storage.ExecOne[Count](ctx, tx, sql, us.User.ReferredBy)
 		if err != nil {
 			return errors.Wrapf(err, "failed to increment friends_invited for userID:%v (ref:%v)", us.User.ReferredBy, us.User.ID)
 		}
@@ -68,33 +64,39 @@ func (s *userTableSource) insertReferrals(ctx context.Context, us *users.UserSna
 	}), "insertReferrals: transaction failed for %#v", us)
 }
 
-func (s *userTableSource) deleteFriendsInvited(ctx context.Context, us *users.UserSnapshot) error {
-	if ctx.Err() != nil {
-		return errors.Wrap(ctx.Err(), "context failed")
-	}
-	var errDecrementT0 error
-	if _, errDelUser := storage.Exec(ctx, s.db, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID); errDelUser != nil {
-		return errors.Wrapf(errDelUser, "failed to delete friends-invited for:%#v", us)
-	}
-	if us.Before.ReferredBy != "" && us.Before.ReferredBy != us.Before.ID {
+func (s *userTableSource) deleteFriendsInvited(ctx context.Context, us *users.UserSnapshot) error { //nolint:funlen // .
+	return errors.Wrapf(storage.DoInTransaction(ctx, s.db, func(tx storage.QueryExecer) error {
+		if _, errDelUser := storage.Exec(ctx, tx, `DELETE FROM friends_invited WHERE user_id = $1`, us.Before.ID); errDelUser != nil {
+			return errors.Wrapf(errDelUser, "failed to delete friends-invited for:%#v", us)
+		}
+		if us.Before.ReferredBy == "" || us.Before.ReferredBy == us.Before.ID || !us.Before.IsHuman() {
+			return nil
+		}
 		sql := `INSERT INTO referrals(user_id,referred_by, processed_at, deleted) VALUES ($1,$2,$3, true)`
 		params := []any{us.Before.ID, us.Before.ReferredBy, us.Before.UpdatedAt.Time}
-		if _, err := storage.Exec(ctx, s.db, sql, params...); err != nil {
+		if _, err := storage.Exec(ctx, tx, sql, params...); err != nil {
 			if storage.IsErr(err, storage.ErrDuplicate) {
 				return nil
 			}
 
 			return errors.Wrapf(err, "failed to insert referrals, params:%#v", params...)
 		}
-		if _, errDecrementT0 = storage.Exec(ctx, s.db, `
+		updatedFriendsCount, errDecrementT0 := storage.ExecOne[Count](ctx, tx, `
 			UPDATE friends_invited SET
 				invited_count = GREATEST(friends_invited.invited_count - 1, 0)
-			WHERE user_id = $1`, us.Before.ReferredBy); errDecrementT0 != nil {
+			WHERE user_id = $1
+			RETURNING *`, us.Before.ReferredBy)
+		if errDecrementT0 != nil {
+			if storage.IsErr(errDecrementT0, storage.ErrNotFound) {
+				return nil
+			}
+
 			return errors.Wrapf(errDecrementT0, "failed to decrement friends-invited for T0:%v due to user %v deletion", us.Before.ReferredBy, us.Before.ID)
 		}
-	}
 
-	return nil
+		return errors.Wrapf(s.sendFriendsInvitedCountUpdate(ctx, updatedFriendsCount),
+			"failed to sendFriendsInvitedCountUpdate for T0:%v due to user %v deletion", us.Before.ReferredBy, us.Before.ID)
+	}), "deleteFriendsInvited: transaction failed for %#v", us)
 }
 
 func (r *repository) sendFriendsInvitedCountUpdate(ctx context.Context, friends *Count) error {

@@ -182,7 +182,7 @@ func (s *tryAchievedBadgesCommandSource) Process(ctx context.Context, msg *messa
 	return errors.Wrapf(s.achieveBadges(ctx, msg.Key), "failed to achieveBadges for userID:%v", msg.Key)
 }
 
-func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error { //nolint:gocognit // .
+func (s *userTableSource) Process(ctx context.Context, msg *messagebroker.Message) error {
 	if ctx.Err() != nil {
 		return errors.Wrap(ctx.Err(), "unexpected deadline while processing message")
 	}
