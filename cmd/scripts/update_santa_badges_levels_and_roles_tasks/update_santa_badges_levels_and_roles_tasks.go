@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -23,6 +24,7 @@ import (
 const (
 	applicationYamlUsersKey = "users"
 	applicationYamlKeySanta = "santa"
+	concurrencyCount        = 1000
 )
 
 var (
@@ -83,14 +85,17 @@ func main() {
 	upd.update(context.Background())
 }
 
+//nolint:revive,funlen,gocognit // .
 func (u *updater) update(ctx context.Context) {
 	var (
-		updatedCount uint64 = 0
+		updatedCount uint64
 		maxLimit     uint64 = 10000
-		offset       uint64 = 0
+		offset       uint64
 		recalculated []string
 	)
-	for ctx.Err() == nil {
+	concurrencyGuard := make(chan struct{}, concurrencyCount)
+	wg := new(sync.WaitGroup)
+	for {
 		/******************************************************************************************************************************************************
 			1. Fetching a new batch of users from eskimo and filtering already updated users.
 		******************************************************************************************************************************************************/
@@ -109,19 +114,22 @@ func (u *updater) update(ctx context.Context) {
 				GROUP BY u.id
 				LIMIT $1
 				OFFSET $2`
-		users, err := storagePG.Select[eskimoUser](ctx, u.dbEskimo, sql, maxLimit, offset)
+		usrs, err := storagePG.Select[eskimoUser](ctx, u.dbEskimo, sql, maxLimit, offset)
 		if err != nil {
 			log.Panic("error on trying to get actual friends invited values crossed with already updated values", err)
 		}
-		if len(users) == 0 {
+		if len(usrs) == 0 {
 			log.Debug("no more users to handle results for")
 
 			break
 		}
 
+		/******************************************************************************************************************************************************
+			2. Fetching tasks and badges specific data.
+		******************************************************************************************************************************************************/
 		var userKeysProgress []string
-		actualFriendsInvitedCount := make(map[string]uint64, len(users))
-		for _, usr := range users {
+		actualFriendsInvitedCount := make(map[string]uint64, len(usrs))
+		for _, usr := range usrs {
 			userKeysProgress = append(userKeysProgress, usr.ID)
 			actualFriendsInvitedCount[usr.ID] = usr.FriendsInvited
 		}
@@ -150,19 +158,26 @@ func (u *updater) update(ctx context.Context) {
 		/******************************************************************************************************************************************************
 			3. Updating santa.
 		******************************************************************************************************************************************************/
-		for _, usr := range res {
-			if err := u.updateBadgesAndStatistics(ctx, usr, actualFriendsInvitedCount[usr.UserID]); err != nil {
-				log.Panic("can't update badges and badges statistics, userID:", usr.UserID)
-			}
-			if err := u.updateLevelsAndRoles(ctx, usr, actualFriendsInvitedCount[usr.UserID]); err != nil {
-				log.Panic("can't update levels and roles, userID:", usr.UserID)
-			}
-			if err := u.updateTasks(ctx, usr, actualFriendsInvitedCount[usr.UserID]); err != nil {
-				log.Panic("can't update tasks, userID:", usr.UserID)
-			}
-			if err := u.updateFriendsInvited(ctx, usr, actualFriendsInvitedCount[usr.UserID]); err != nil {
-				log.Panic("can't update friends invited, userID:", usr.UserID)
-			}
+		for _, r := range res {
+			usr := r
+			wg.Add(1)
+			concurrencyGuard <- struct{}{}
+			go func() {
+				defer wg.Done()
+				if uErr := u.updateBadgesAndStatistics(ctx, usr, actualFriendsInvitedCount[usr.UserID]); uErr != nil {
+					log.Panic("can't update badges and badges statistics, userID:", usr.UserID, uErr)
+				}
+				if uErr := u.updateLevelsAndRoles(ctx, usr, actualFriendsInvitedCount[usr.UserID]); uErr != nil {
+					log.Panic("can't update levels and roles, userID:", usr.UserID, uErr)
+				}
+				if uErr := u.updateTasks(ctx, usr, actualFriendsInvitedCount[usr.UserID]); uErr != nil {
+					log.Panic("can't update tasks, userID:", usr.UserID, uErr)
+				}
+				if uErr := u.updateFriendsInvited(ctx, usr, actualFriendsInvitedCount[usr.UserID]); uErr != nil {
+					log.Panic("can't update friends invited, userID:", usr.UserID, uErr)
+				}
+				<-concurrencyGuard
+			}()
 			recalculated = append(recalculated, fmt.Sprintf("('%v')", usr.UserID))
 		}
 
@@ -172,8 +187,8 @@ func (u *updater) update(ctx context.Context) {
 		if len(recalculated) > 0 {
 			sql = fmt.Sprintf(`INSERT INTO updated_santa_users(user_id) VALUES %v
 									ON CONFLICT DO NOTHING`, strings.Join(recalculated, ","))
-			if _, err := storagePG.Exec(ctx, u.dbEskimo, sql); err != nil {
-				log.Panic("error on persisting recalculated values", err)
+			if _, eErr := storagePG.Exec(ctx, u.dbEskimo, sql); eErr != nil {
+				log.Panic("error on persisting recalculated values", eErr)
 			}
 		}
 		updatedCount += uint64(len(res))
@@ -181,15 +196,18 @@ func (u *updater) update(ctx context.Context) {
 
 		offset += maxLimit
 	}
+	wg.Wait()
 }
 
+//nolint:funlen // .
 func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser, actualFriendsInvited uint64) error {
-	achievedBadges, newBadgesTypeCount := u.reEvaluateEnabledBadges(usr.AchievedBadges, actualFriendsInvited, usr.Balance)
+	achievedBadges, newBadgesTypeCount := reEvaluateEnabledBadges(usr.AchievedBadges, actualFriendsInvited, usr.Balance)
 	var completedLevelsSQL string
-	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) && actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
+	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) &&
+		actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
 		completedLevelsSQL = ",completed_levels = GREATEST(completed_levels - 1, 0)"
 	}
-	newBadgesTypeCount = u.diffBadgeStatistics(usr, newBadgesTypeCount)
+	newBadgesTypeCount = diffBadgeStatistics(usr, newBadgesTypeCount)
 	sql := fmt.Sprintf(`UPDATE badge_progress
 								SET friends_invited = $2,
 									achieved_badges = $3
@@ -199,46 +217,47 @@ func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser
 								  	   OR COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) != COALESCE($3, ARRAY[]::TEXT[]))
 									   OR $4 = TRUE`, completedLevelsSQL)
 	if _, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, achievedBadges, completedLevelsSQL != ""); err != nil {
-		return errors.Wrapf(err, "failed to set badge_progress.friends_invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
+		return errors.Wrapf(err, "failed to update badge_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 	}
 	var mErr *multierror.Error
 	for badgeType, val := range newBadgesTypeCount {
-		if val != 0 {
-			sign := "+"
-			if val < 0 {
-				sign = "-"
-				val *= -1
-			}
-			sql := fmt.Sprintf(`UPDATE badge_statistics
+		if val == 0 {
+			continue
+		}
+		sign := "+"
+		if val < 0 {
+			sign = "-"
+			val *= -1
+		}
+		sql = fmt.Sprintf(`UPDATE badge_statistics
 										SET achieved_by = GREATEST(achieved_by %v $1, 0)
 									WHERE badge_type = $2`, sign)
-			_, err := storagePG.Exec(ctx, u.dbSanta, sql, val, badgeType)
-			mErr = multierror.Append(errors.Wrapf(err, "failed to update badge_statistics, userID:%v, badgeType:%v, val:%v", usr.UserID, badgeType, val))
-		}
+		_, err := storagePG.Exec(ctx, u.dbSanta, sql, val, badgeType)
+		mErr = multierror.Append(errors.Wrapf(err, "failed to update badge_statistics, userID:%v, badgeType:%v, val:%v", usr.UserID, badgeType, val))
 	}
 
-	return multierror.Append(mErr, nil).ErrorOrNil()
+	return errors.Wrapf(multierror.Append(mErr, nil).ErrorOrNil(), "can't update badge statistics")
 }
 
-func (u *updater) diffBadgeStatistics(usr *commonUser, newBadgesTypeCount map[badges.Type]int64) map[badges.Type]int64 {
+func diffBadgeStatistics(usr *commonUser, newBadgesTypeCount map[badges.Type]int64) map[badges.Type]int64 {
 	oldBadgesTypeCounts := make(map[badges.Type]int64, len(badges.AllTypes))
 	oldGroupCounts := make(map[badges.GroupType]int64, len(badges.AllGroups))
 	for _, badge := range *usr.AchievedBadges {
-		switch badges.GroupTypeForEachType[badge] {
+		switch badges.GroupTypeForEachType[badge] { //nolint:exhaustive // We need to handle only 2 groups.
 		case badges.CoinGroupType:
 			oldBadgesTypeCounts[badge]++
 			oldGroupCounts[badges.CoinGroupType]++
 		case badges.SocialGroupType:
 			oldBadgesTypeCounts[badge]++
 			oldGroupCounts[badges.SocialGroupType]++
+		default:
+			continue
 		}
 	}
 	if newBadgesTypeCount != nil {
-		for _, key := range badges.AllTypes {
+		for _, key := range &badges.AllTypes {
 			if _, ok1 := oldBadgesTypeCounts[key]; ok1 {
 				if _, ok2 := newBadgesTypeCount[key]; ok2 {
-					newBadgesTypeCount[key] = newBadgesTypeCount[key] - oldBadgesTypeCounts[key]
-				} else {
 					newBadgesTypeCount[key] -= oldBadgesTypeCounts[key]
 				}
 			}
@@ -249,9 +268,10 @@ func (u *updater) diffBadgeStatistics(usr *commonUser, newBadgesTypeCount map[ba
 }
 
 func (u *updater) updateLevelsAndRoles(ctx context.Context, usr *commonUser, actualFriendsInvited uint64) error {
-	enabledRoles := u.reEvaluateEnabledRole(actualFriendsInvited)
+	enabledRoles := reEvaluateEnabledRole(actualFriendsInvited)
 	var completedTasksSQL, completedLevelsSQL string
-	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) && actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
+	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) &&
+		actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
 		completedTasksSQL = ", completed_tasks = GREATEST(completed_tasks - 1, 0)"
 		completedLevelsSQL = ",completed_levels = array_remove(completed_levels, '11')" // We know for sure from config file this level id that need to be removed.
 	}
@@ -260,17 +280,19 @@ func (u *updater) updateLevelsAndRoles(ctx context.Context, usr *commonUser, act
 									enabled_roles = $3
 									%v
 									%v
-							WHERE user_id = $1 AND (friends_invited != $2 
+							WHERE user_id = $1 
+								  AND (friends_invited != $2 
 								  OR COALESCE(levels_and_roles_progress.enabled_roles, ARRAY[]::TEXT[]) != COALESCE($3, ARRAY[]::TEXT[])
 								  OR $4 = TRUE)`, completedTasksSQL, completedLevelsSQL)
 	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, enabledRoles, (completedTasksSQL != "" || completedLevelsSQL != ""))
 
-	return errors.Wrapf(err, "failed to set levels_and_roles_progress.friends_invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
+	return errors.Wrapf(err, "failed to update levels_and_roles_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }
 
 func (u *updater) updateTasks(ctx context.Context, usr *commonUser, actualFriendsInvited uint64) error {
 	var completedTasksSQL, whereSQL string
-	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) && actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
+	if ((usr.CompletedTasks != nil && *usr.CompletedTasks) || (usr.PseudoCompletedTasks != nil && *usr.PseudoCompletedTasks)) &&
+		actualFriendsInvited < cfgSanta.RequiredFriendsInvited {
 		completedTasksSQL = `, completed_tasks = array_remove(completed_tasks, 'invite_friends')
 							 , pseudo_completed_tasks = array_remove(pseudo_completed_tasks, 'invite_friends')`
 	}
@@ -281,7 +303,7 @@ func (u *updater) updateTasks(ctx context.Context, usr *commonUser, actualFriend
 								  AND (friends_invited != $2 %v OR $3 = TRUE)`, completedTasksSQL, whereSQL)
 	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, completedTasksSQL != "")
 
-	return errors.Wrapf(err, "failed to set task_progress.friends_invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
+	return errors.Wrapf(err, "failed to update task_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }
 
 func (u *updater) updateFriendsInvited(ctx context.Context, usr *commonUser, actualFriendsInvited uint64) error {
@@ -291,10 +313,10 @@ func (u *updater) updateFriendsInvited(ctx context.Context, usr *commonUser, act
 				   		 AND friends_invited.invited_count != $2`
 	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited)
 
-	return errors.Wrapf(err, "failed to set task_progress.friends_invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
+	return errors.Wrapf(err, "failed to update friends invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }
 
-func (u *updater) reEvaluateEnabledRole(friendsInvited uint64) *users.Enum[levelsandroles.RoleType] {
+func reEvaluateEnabledRole(friendsInvited uint64) *users.Enum[levelsandroles.RoleType] {
 	if friendsInvited >= cfgSanta.RequiredInvitedFriendsToBecomeAmbassador {
 		completedLevels := append(make(users.Enum[levelsandroles.RoleType], 0, len(&levelsandroles.AllRoleTypesThatCanBeEnabled)), levelsandroles.AmbassadorRoleType)
 
@@ -304,7 +326,10 @@ func (u *updater) reEvaluateEnabledRole(friendsInvited uint64) *users.Enum[level
 	return nil
 }
 
-func (u *updater) reEvaluateEnabledBadges(alreadyAchievedBadges *users.Enum[badges.Type], friendsInvited uint64, balance int64) (achievedBadges users.Enum[badges.Type], badgesTypeCounts map[badges.Type]int64) {
+//nolint:funlen // .
+func reEvaluateEnabledBadges(
+	alreadyAchievedBadges *users.Enum[badges.Type], friendsInvited uint64, balance int64,
+) (achievedBadges users.Enum[badges.Type], badgesTypeCounts map[badges.Type]int64) {
 	badgesTypeCounts = make(map[badges.Type]int64)
 	achievedBadges = make(users.Enum[badges.Type], 0, len(&badges.AllTypes))
 	if alreadyAchievedBadges != nil {
@@ -316,13 +341,15 @@ func (u *updater) reEvaluateEnabledBadges(alreadyAchievedBadges *users.Enum[badg
 	}
 	for _, badgeType := range &badges.AllTypes {
 		var achieved bool
-		switch badges.GroupTypeForEachType[badgeType] {
+		switch badges.GroupTypeForEachType[badgeType] { //nolint:exhaustive // We need to handle only 2 cases.
 		case badges.CoinGroupType:
 			if balance > 0 {
 				achieved = uint64(balance) >= cfgSanta.Milestones[badgeType].FromInclusive
 			}
 		case badges.SocialGroupType:
-			achieved = uint64(friendsInvited) >= cfgSanta.Milestones[badgeType].FromInclusive
+			achieved = friendsInvited >= cfgSanta.Milestones[badgeType].FromInclusive
+		default:
+			continue
 		}
 		if achieved {
 			achievedBadges = append(achievedBadges, badgeType)
