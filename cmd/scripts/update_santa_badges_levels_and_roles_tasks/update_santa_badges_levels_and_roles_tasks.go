@@ -28,12 +28,6 @@ const (
 )
 
 var (
-	//go:embed DDLSanta.sql
-	ddlSanta string
-
-	//go:embed DDLEskimo.sql
-	ddlUsers string
-
 	//nolint:gochecknoglobals // Singleton & global config mounted only during bootstrap.
 	cfgSanta configSanta
 )
@@ -66,8 +60,8 @@ type (
 func main() {
 	appCfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
 
-	dbEskimo := storagePG.MustConnect(context.Background(), ddlUsers, applicationYamlUsersKey)
-	dbSanta := storagePG.MustConnect(context.Background(), ddlSanta, applicationYamlKeySanta)
+	dbEskimo := storagePG.MustConnect(context.Background(), "", applicationYamlUsersKey)
+	dbSanta := storagePG.MustConnect(context.Background(), "", applicationYamlKeySanta)
 
 	if err := dbEskimo.Ping(context.Background()); err != nil {
 		log.Panic("can't ping users db", err)
@@ -91,7 +85,6 @@ func (u *updater) update(ctx context.Context) {
 		updatedCount uint64
 		maxLimit     uint64 = 10000
 		offset       uint64
-		recalculated []string
 	)
 	concurrencyGuard := make(chan struct{}, concurrencyCount)
 	wg := new(sync.WaitGroup)
@@ -106,11 +99,8 @@ func (u *updater) update(ctx context.Context) {
 				LEFT JOIN users t1
 					ON t1.referred_by = u.id
 					AND u.username != u.id
-				LEFT JOIN updated_santa_users upd
-					ON upd.user_id = u.id
 				WHERE u.referred_by != u.id
 					AND u.username != u.id
-					AND upd.user_id IS NULL
 				GROUP BY u.id
 				LIMIT $1
 				OFFSET $2`
@@ -178,19 +168,8 @@ func (u *updater) update(ctx context.Context) {
 				}
 				<-concurrencyGuard
 			}()
-			recalculated = append(recalculated, fmt.Sprintf("('%v')", usr.UserID))
 		}
 
-		/******************************************************************************************************************************************************
-			4. Persisting recalculated status.
-		******************************************************************************************************************************************************/
-		if len(recalculated) > 0 {
-			sql = fmt.Sprintf(`INSERT INTO updated_santa_users(user_id) VALUES %v
-									ON CONFLICT DO NOTHING`, strings.Join(recalculated, ","))
-			if _, eErr := storagePG.Exec(ctx, u.dbEskimo, sql); eErr != nil {
-				log.Panic("error on persisting recalculated values", eErr)
-			}
-		}
 		updatedCount += uint64(len(res))
 		log.Info("updated count: ", updatedCount)
 
