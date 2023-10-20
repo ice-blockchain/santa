@@ -27,6 +27,7 @@ const (
 	concurrencyCount        = 1000
 )
 
+// .
 var (
 	//nolint:gochecknoglobals // Singleton & global config mounted only during bootstrap.
 	cfgSanta configSanta
@@ -120,6 +121,9 @@ func (u *updater) update(ctx context.Context) {
 		var userKeysProgress []string
 		actualFriendsInvitedCount := make(map[string]uint64, len(usrs))
 		for _, usr := range usrs {
+			if usr.ID == "" {
+				continue
+			}
 			userKeysProgress = append(userKeysProgress, usr.ID)
 			actualFriendsInvitedCount[usr.ID] = usr.FriendsInvited
 		}
@@ -149,6 +153,9 @@ func (u *updater) update(ctx context.Context) {
 			3. Updating santa.
 		******************************************************************************************************************************************************/
 		for _, r := range res {
+			if r.UserID == "" {
+				continue
+			}
 			usr := r
 			wg.Add(1)
 			concurrencyGuard <- struct{}{}
