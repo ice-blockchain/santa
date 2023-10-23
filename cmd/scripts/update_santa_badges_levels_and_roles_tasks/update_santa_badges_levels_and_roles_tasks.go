@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"flag"
 	"fmt"
 	"sort"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	appcfg "github.com/ice-blockchain/wintr/config"
 	storagepg "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
+	"github.com/ice-blockchain/wintr/time"
 )
 
 const (
@@ -59,8 +61,19 @@ type (
 )
 
 func main() {
-	appcfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
+	var bugfixStartTimestampString string
+	flag.StringVar(&bugfixStartTimestampString, "bugfixStartTimestamp", "", "2023-10-23T13:09:24.220169Z")
+	flag.Parse()
 
+	var bugfixStartTimestamp *time.Time
+	if bugfixStartTimestampString == "" {
+		log.Panic("empty bugfix start timestamp string")
+	}
+	bugfixStartTimestamp = new(time.Time)
+	log.Panic(errors.Wrapf(bugfixStartTimestamp.UnmarshalText([]byte(bugfixStartTimestampString)), "failed to parse bugfix start timestamp `%v`", bugfixStartTimestampString)) //nolint:lll // .
+	bugfixStartTimestamp = time.New(bugfixStartTimestamp.UTC())
+
+	appcfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
 	dbEskimo := storagepg.MustConnect(context.Background(), "", applicationYamlUsersKey)
 	dbSanta := storagepg.MustConnect(context.Background(), "", applicationYamlKeySanta)
 
@@ -77,11 +90,11 @@ func main() {
 	defer upd.dbEskimo.Close()
 	defer upd.dbSanta.Close()
 
-	upd.update(context.Background())
+	upd.update(context.Background(), bugfixStartTimestamp)
 }
 
 //nolint:revive,funlen,gocognit // .
-func (u *updater) update(ctx context.Context) {
+func (u *updater) update(ctx context.Context, bugfixStartTimestamp *time.Time) {
 	var (
 		updatedCount uint64
 		maxLimit     uint64 = 10000
@@ -91,7 +104,7 @@ func (u *updater) update(ctx context.Context) {
 	wg := new(sync.WaitGroup)
 	for {
 		/******************************************************************************************************************************************************
-			1. Fetching a new batch of users from eskimo and filtering already updated users.
+			1. Fetching a new batch of users from eskimo.
 		******************************************************************************************************************************************************/
 		sql := `SELECT 
 					u.id,
@@ -102,10 +115,12 @@ func (u *updater) update(ctx context.Context) {
 					AND u.username != u.id
 				WHERE u.referred_by != u.id
 					AND u.username != u.id
+					AND u.created_at < $1
 				GROUP BY u.id
-				LIMIT $1
-				OFFSET $2`
-		usrs, err := storagepg.Select[eskimoUser](ctx, u.dbEskimo, sql, maxLimit, offset)
+				ORDER BY u.id ASC
+				LIMIT $2
+				OFFSET $3`
+		usrs, err := storagepg.Select[eskimoUser](ctx, u.dbEskimo, sql, bugfixStartTimestamp.Time, maxLimit, offset)
 		if err != nil {
 			log.Panic("error on trying to get actual friends invited values crossed with already updated values", err)
 		}
