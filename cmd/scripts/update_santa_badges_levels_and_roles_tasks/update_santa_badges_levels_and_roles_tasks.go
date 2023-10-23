@@ -70,7 +70,7 @@ func main() {
 		log.Panic("empty bugfix start timestamp string")
 	}
 	bugfixStartTimestamp = new(time.Time)
-	log.Panic(errors.Wrapf(bugfixStartTimestamp.UnmarshalText([]byte(bugfixStartTimestampString)), "failed to parse bugfix start timestamp `%v`", bugfixStartTimestampString)) //nolint:lll // .
+	log.Panic(errors.Wrapf(bugfixStartTimestamp.UnmarshalText([]byte(bugfixStartTimestampString)), "failed to parse bugfix start timestamp `%v`", bugfixStartTimestampString)) //nolint:lll,revive // .
 	bugfixStartTimestamp = time.New(bugfixStartTimestamp.UTC())
 
 	appcfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
