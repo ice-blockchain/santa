@@ -16,8 +16,8 @@ import (
 	"github.com/ice-blockchain/eskimo/users"
 	"github.com/ice-blockchain/santa/badges"
 	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
-	appCfg "github.com/ice-blockchain/wintr/config"
-	storagePG "github.com/ice-blockchain/wintr/connectors/storage/v2"
+	appcfg "github.com/ice-blockchain/wintr/config"
+	storagepg "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
 )
 
@@ -40,8 +40,8 @@ type (
 		RequiredFriendsInvited                   uint64                                `yaml:"requiredFriendsInvited"`
 	}
 	updater struct {
-		dbSanta  *storagePG.DB
-		dbEskimo *storagePG.DB
+		dbSanta  *storagepg.DB
+		dbEskimo *storagepg.DB
 	}
 	eskimoUser struct {
 		ID             string `json:"id" example:"did:ethr:0x4B73C58370AEfcEf86A6021afCDe5673511376B2" db:"id"`
@@ -59,10 +59,10 @@ type (
 )
 
 func main() {
-	appCfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
+	appcfg.MustLoadFromKey(applicationYamlKeySanta, &cfgSanta)
 
-	dbEskimo := storagePG.MustConnect(context.Background(), "", applicationYamlUsersKey)
-	dbSanta := storagePG.MustConnect(context.Background(), "", applicationYamlKeySanta)
+	dbEskimo := storagepg.MustConnect(context.Background(), "", applicationYamlUsersKey)
+	dbSanta := storagepg.MustConnect(context.Background(), "", applicationYamlKeySanta)
 
 	if err := dbEskimo.Ping(context.Background()); err != nil {
 		log.Panic("can't ping users db", err)
@@ -105,7 +105,7 @@ func (u *updater) update(ctx context.Context) {
 				GROUP BY u.id
 				LIMIT $1
 				OFFSET $2`
-		usrs, err := storagePG.Select[eskimoUser](ctx, u.dbEskimo, sql, maxLimit, offset)
+		usrs, err := storagepg.Select[eskimoUser](ctx, u.dbEskimo, sql, maxLimit, offset)
 		if err != nil {
 			log.Panic("error on trying to get actual friends invited values crossed with already updated values", err)
 		}
@@ -138,7 +138,7 @@ func (u *updater) update(ctx context.Context) {
 					JOIN badge_progress bp
 						ON tp.user_id = bp.user_id
 					WHERE tp.user_id = ANY($1)`
-		res, err := storagePG.Select[commonUser](ctx, u.dbSanta, sql, userKeysProgress)
+		res, err := storagepg.Select[commonUser](ctx, u.dbSanta, sql, userKeysProgress)
 		if err != nil {
 			log.Panic("error on trying to get tasks", userKeysProgress, err)
 		}
@@ -202,7 +202,7 @@ func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser
 								  AND (friends_invited != $2
 								  	   OR COALESCE(badge_progress.achieved_badges, ARRAY[]::TEXT[]) != COALESCE($3, ARRAY[]::TEXT[]))
 									   OR $4 = TRUE`, completedLevelsSQL)
-	if _, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, achievedBadges, completedLevelsSQL != ""); err != nil {
+	if _, err := storagepg.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, achievedBadges, completedLevelsSQL != ""); err != nil {
 		return errors.Wrapf(err, "failed to update badge_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 	}
 	var mErr *multierror.Error
@@ -218,7 +218,7 @@ func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser
 		sql = fmt.Sprintf(`UPDATE badge_statistics
 										SET achieved_by = GREATEST(achieved_by %v $1, 0)
 									WHERE badge_type = $2`, sign)
-		_, err := storagePG.Exec(ctx, u.dbSanta, sql, val, badgeType)
+		_, err := storagepg.Exec(ctx, u.dbSanta, sql, val, badgeType)
 		mErr = multierror.Append(errors.Wrapf(err, "failed to update badge_statistics, userID:%v, badgeType:%v, val:%v", usr.UserID, badgeType, val))
 	}
 
@@ -270,7 +270,7 @@ func (u *updater) updateLevelsAndRoles(ctx context.Context, usr *commonUser, act
 								  AND (friends_invited != $2 
 								  OR COALESCE(levels_and_roles_progress.enabled_roles, ARRAY[]::TEXT[]) != COALESCE($3, ARRAY[]::TEXT[])
 								  OR $4 = TRUE)`, completedTasksSQL, completedLevelsSQL)
-	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, enabledRoles, (completedTasksSQL != "" || completedLevelsSQL != ""))
+	_, err := storagepg.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, enabledRoles, (completedTasksSQL != "" || completedLevelsSQL != ""))
 
 	return errors.Wrapf(err, "failed to update levels_and_roles_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }
@@ -287,7 +287,7 @@ func (u *updater) updateTasks(ctx context.Context, usr *commonUser, actualFriend
 								%v
 							WHERE user_id = $1
 								  AND (friends_invited != $2 %v OR $3 = TRUE)`, completedTasksSQL, whereSQL)
-	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, completedTasksSQL != "")
+	_, err := storagepg.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited, completedTasksSQL != "")
 
 	return errors.Wrapf(err, "failed to update task_progress, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }
@@ -297,7 +297,7 @@ func (u *updater) updateFriendsInvited(ctx context.Context, usr *commonUser, act
 				   SET invited_count = $2
 				   WHERE user_id = $1
 				   		 AND friends_invited.invited_count != $2`
-	_, err := storagePG.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited)
+	_, err := storagepg.Exec(ctx, u.dbSanta, sql, usr.UserID, actualFriendsInvited)
 
 	return errors.Wrapf(err, "failed to update friends invited, userID:%v, friendsInvited:%v", usr.UserID, actualFriendsInvited)
 }

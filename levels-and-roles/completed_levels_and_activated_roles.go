@@ -10,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
+	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
 	"github.com/ice-blockchain/santa/tasks"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
@@ -237,7 +237,7 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	if len(msg.Value) == 0 {
 		return nil
 	}
-	friends := new(friendsInvited.Count)
+	friends := new(friendsinvited.Count)
 	if err := json.UnmarshalContext(ctx, msg.Value, friends); err != nil {
 		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), friends)
 	}
@@ -248,7 +248,7 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	).ErrorOrNil()
 }
 
-func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsInvited.Count) error {
+func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
 	sql := `INSERT INTO levels_and_roles_progress(user_id, friends_invited) VALUES ($1, $2)
 		   	ON CONFLICT(user_id) DO UPDATE SET 
 		   	    friends_invited = EXCLUDED.friends_invited

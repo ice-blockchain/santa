@@ -258,7 +258,7 @@ func Test_Repository_calculateUnachievedPercentages(t *testing.T) {
 			// so sum of percentages is 100-usersWhoOwnsLastBadge.
 			lastBadgeAchievedBy := tt.stats[len(AllGroups[tt.group])].AchievedBy
 			lastBadgeAchievedByPercentage := float64(lastBadgeAchievedBy*percent100) / float64(totalUsers)
-			assert.Equal(t, percent100-lastBadgeAchievedByPercentage, sum)
+			assert.Equal(t, percent100-lastBadgeAchievedByPercentage, sum) //nolint:testifylint // .
 		})
 	}
 }

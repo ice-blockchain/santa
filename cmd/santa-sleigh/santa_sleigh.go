@@ -10,10 +10,10 @@ import (
 
 	"github.com/ice-blockchain/santa/badges"
 	"github.com/ice-blockchain/santa/cmd/santa-sleigh/api"
-	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
-	levelsAndRoles "github.com/ice-blockchain/santa/levels-and-roles"
+	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
+	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
 	"github.com/ice-blockchain/santa/tasks"
-	appCfg "github.com/ice-blockchain/wintr/config"
+	appcfg "github.com/ice-blockchain/wintr/config"
 	"github.com/ice-blockchain/wintr/log"
 	"github.com/ice-blockchain/wintr/server"
 )
@@ -31,7 +31,7 @@ func main() {
 	defer cancel()
 
 	var cfg config
-	appCfg.MustLoadFromKey(applicationYamlKey, &cfg)
+	appcfg.MustLoadFromKey(applicationYamlKey, &cfg)
 	api.SwaggerInfo.Host = cfg.Host
 	api.SwaggerInfo.Version = cfg.Version
 	server.New(new(service), applicationYamlKey, swaggerRoot).ListenAndServe(ctx, cancel)
@@ -43,9 +43,9 @@ func (s *service) RegisterRoutes(router *server.Router) {
 
 func (s *service) Init(ctx context.Context, cancel context.CancelFunc) {
 	s.tasksProcessor = tasks.StartProcessor(ctx, cancel)
-	s.levelsAndRolesProcessor = levelsAndRoles.StartProcessor(ctx, cancel)
+	s.levelsAndRolesProcessor = levelsandroles.StartProcessor(ctx, cancel)
 	s.badgesProcessor = badges.StartProcessor(ctx, cancel)
-	s.friendsProcessor = friendsInvited.StartProcessor(ctx, cancel)
+	s.friendsProcessor = friendsinvited.StartProcessor(ctx, cancel)
 }
 
 func (s *service) Close(ctx context.Context) error {
