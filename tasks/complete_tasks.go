@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ice-blockchain/eskimo/users"
-	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
+	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
 	messagebroker "github.com/ice-blockchain/wintr/connectors/message_broker"
 	storage "github.com/ice-blockchain/wintr/connectors/storage/v2"
 	"github.com/ice-blockchain/wintr/log"
@@ -51,7 +51,7 @@ func (r *repository) PseudoCompleteTask(ctx context.Context, task *Task) error {
 	}
 	if err = r.sendTryCompleteTasksCommandMessage(ctx, task.UserID); err != nil {
 		sErr := errors.Wrapf(err, "failed to sendTryCompleteTasksCommandMessage for userID:%v", task.UserID)
-		pseudoCompletedTasks := params[2].(*users.Enum[Type]) //nolint:errcheck,forcetypeassert // We're sure.
+		pseudoCompletedTasks := params[2].(*users.Enum[Type]) //nolint:errcheck,forcetypeassert,revive // We're sure.
 		sql = `UPDATE task_progress
 			   SET pseudo_completed_tasks = $2
 			   WHERE user_id = $1
@@ -386,7 +386,7 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	if len(msg.Value) == 0 {
 		return nil
 	}
-	friends := new(friendsInvited.Count)
+	friends := new(friendsinvited.Count)
 	if err := json.UnmarshalContext(ctx, msg.Value, friends); err != nil {
 		return errors.Wrapf(err, "cannot unmarshal %v into %#v", string(msg.Value), friends)
 	}
@@ -397,7 +397,7 @@ func (f *friendsInvitedSource) Process(ctx context.Context, msg *messagebroker.M
 	).ErrorOrNil()
 }
 
-func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsInvited.Count) error {
+func (f *friendsInvitedSource) updateFriendsInvited(ctx context.Context, friends *friendsinvited.Count) error {
 	sql := `INSERT INTO task_progress(user_id, friends_invited) VALUES ($1, $2)
 		   ON CONFLICT(user_id) DO UPDATE  
 		   		SET friends_invited = EXCLUDED.friends_invited

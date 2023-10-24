@@ -4,7 +4,7 @@ package main
 
 import (
 	"github.com/ice-blockchain/santa/badges"
-	friendsInvited "github.com/ice-blockchain/santa/friends-invited"
+	friendsinvited "github.com/ice-blockchain/santa/friends-invited"
 	levelsandroles "github.com/ice-blockchain/santa/levels-and-roles"
 	"github.com/ice-blockchain/santa/tasks"
 )
@@ -38,7 +38,7 @@ type (
 		tasksProcessor          tasks.Processor
 		levelsAndRolesProcessor levelsandroles.Processor
 		badgesProcessor         badges.Processor
-		friendsProcessor        friendsInvited.Processor
+		friendsProcessor        friendsinvited.Processor
 	}
 	config struct {
 		Host    string `yaml:"host"`

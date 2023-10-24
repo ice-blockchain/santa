@@ -115,7 +115,7 @@ type (
 	}
 	Processor interface {
 		Repository
-		CheckHealth(context.Context) error
+		CheckHealth(ctx context.Context) error
 	}
 )
 
