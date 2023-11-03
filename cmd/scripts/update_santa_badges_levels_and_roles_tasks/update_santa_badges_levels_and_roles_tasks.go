@@ -67,7 +67,7 @@ func main() {
 
 	var bugfixStartTimestamp *time.Time
 	if bugfixStartTimestampString == "" {
-		log.Panic("empty bugfix start timestamp string")
+		log.Panic("empty bugfixStartTimestamp parameter")
 	}
 	bugfixStartTimestamp = new(time.Time)
 	log.Panic(errors.Wrapf(bugfixStartTimestamp.UnmarshalText([]byte(bugfixStartTimestampString)), "failed to parse bugfix start timestamp `%v`", bugfixStartTimestampString)) //nolint:lll,revive // .
@@ -108,15 +108,23 @@ func (u *updater) update(ctx context.Context, bugfixStartTimestamp *time.Time) {
 		******************************************************************************************************************************************************/
 		sql := `SELECT 
 					u.id,
-					COUNT(t1.id) 		AS friends_invited
+					COUNT(DISTINCT t1.id) 		AS friends_invited
 				FROM users u
-				LEFT JOIN users t1
-					ON t1.referred_by = u.id
-					AND u.username != u.id
-				WHERE u.referred_by != u.id
-					AND u.username != u.id
-					AND u.created_at < $1
-				GROUP BY u.id
+				LEFT JOIN USERS t1
+					ON t1.referred_by = u.ID
+						AND t1.id != u.id
+						AND t1.username != t1.id
+						AND t1.referred_by != t1.id
+				LEFT JOIN USERS t2
+					ON t2.referred_by = t1.ID
+						AND t2.id != t1.id
+						AND t2.username != t2.id
+						AND t2.referred_by != t2.id
+				JOIN referral_acquisition_history rah
+					ON u.id = rah.user_id
+				WHERE u.created_at < $1
+				GROUP BY u.id, rah.t1, rah.t2
+				HAVING rah.t1 != COUNT(DISTINCT t1.id) OR rah.t2 != COUNT(DISTINCT t2.id)
 				ORDER BY u.hash_code ASC
 				LIMIT $2
 				OFFSET $3`
@@ -125,8 +133,6 @@ func (u *updater) update(ctx context.Context, bugfixStartTimestamp *time.Time) {
 			log.Panic("error on trying to get actual friends invited values crossed with already updated values", err)
 		}
 		if len(usrs) == 0 {
-			log.Debug("no more users to handle results for")
-
 			break
 		}
 
@@ -158,7 +164,6 @@ func (u *updater) update(ctx context.Context, bugfixStartTimestamp *time.Time) {
 			log.Panic("error on trying to get tasks", userKeysProgress, err)
 		}
 		if len(res) == 0 {
-			log.Debug("no results for: ", userKeysProgress, err)
 			offset += maxLimit
 
 			continue
@@ -243,23 +248,25 @@ func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser
 func diffBadgeStatistics(usr *commonUser, newBadgesTypeCount map[badges.Type]int64) map[badges.Type]int64 {
 	oldBadgesTypeCounts := make(map[badges.Type]int64, len(badges.AllTypes))
 	oldGroupCounts := make(map[badges.GroupType]int64, len(badges.AllGroups))
-	for _, badge := range *usr.AchievedBadges {
-		switch badges.GroupTypeForEachType[badge] { //nolint:exhaustive // We need to handle only 2 groups.
-		case badges.CoinGroupType:
-			oldBadgesTypeCounts[badge]++
-			oldGroupCounts[badges.CoinGroupType]++
-		case badges.SocialGroupType:
-			oldBadgesTypeCounts[badge]++
-			oldGroupCounts[badges.SocialGroupType]++
-		default:
-			continue
+	if usr.AchievedBadges != nil {
+		for _, badge := range *usr.AchievedBadges {
+			switch badges.GroupTypeForEachType[badge] { //nolint:exhaustive // We need to handle only 2 groups.
+			case badges.CoinGroupType:
+				oldBadgesTypeCounts[badge]++
+				oldGroupCounts[badges.CoinGroupType]++
+			case badges.SocialGroupType:
+				oldBadgesTypeCounts[badge]++
+				oldGroupCounts[badges.SocialGroupType]++
+			default:
+				continue
+			}
 		}
-	}
-	if newBadgesTypeCount != nil {
-		for _, key := range &badges.AllTypes {
-			if _, ok1 := oldBadgesTypeCounts[key]; ok1 {
-				if _, ok2 := newBadgesTypeCount[key]; ok2 {
-					newBadgesTypeCount[key] -= oldBadgesTypeCounts[key]
+		if newBadgesTypeCount != nil {
+			for _, key := range &badges.AllTypes {
+				if _, ok1 := oldBadgesTypeCounts[key]; ok1 {
+					if _, ok2 := newBadgesTypeCount[key]; ok2 {
+						newBadgesTypeCount[key] -= oldBadgesTypeCounts[key]
+					}
 				}
 			}
 		}
