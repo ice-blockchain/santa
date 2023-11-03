@@ -245,6 +245,7 @@ func (u *updater) updateBadgesAndStatistics(ctx context.Context, usr *commonUser
 	return errors.Wrapf(multierror.Append(mErr, nil).ErrorOrNil(), "can't update badge statistics")
 }
 
+//nolint:gocognit,nestif,revive // .
 func diffBadgeStatistics(usr *commonUser, newBadgesTypeCount map[badges.Type]int64) map[badges.Type]int64 {
 	oldBadgesTypeCounts := make(map[badges.Type]int64, len(badges.AllTypes))
 	oldGroupCounts := make(map[badges.GroupType]int64, len(badges.AllGroups))
