@@ -374,7 +374,8 @@ func (s *balancesTableSource) upsertProgress(ctx context.Context, balance int64,
 		return errors.Wrap(ctx.Err(), "context failed")
 	}
 	pr, err := s.getProgress(ctx, userID, true)
-	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) {
+	if err != nil && !errors.Is(err, storage.ErrRelationNotFound) ||
+		(pr != nil && pr.AchievedBadges != nil && (len(*pr.AchievedBadges) == len(&AllTypes) || IsBadgeGroupAchieved(pr.AchievedBadges, CoinGroupType))) {
 		return errors.Wrapf(err, "failed to getProgress for userID:%v", userID)
 	}
 	if pr != nil && pr.Balance == balance {
