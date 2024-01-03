@@ -151,19 +151,19 @@ var (
 	}
 	//nolint:gochecknoglobals // .
 	LevelTypeNames = map[Type]string{
-		Level1Type: "ice Soldier",
+		Level1Type: "Ice Soldier",
 		Level2Type: "Wind Sergeant",
 		Level3Type: "Snow Lieutenant",
 		Level4Type: "Flake Colonel",
 		Level5Type: "Frost General",
-		Level6Type: "ice Commander",
+		Level6Type: "Ice Commander",
 	}
 	//nolint:gochecknoglobals // .
 	CoinTypeNames = map[Type]string{
 		Coin1Type:  "Poor George",
 		Coin2Type:  "Frozen Purse",
 		Coin3Type:  "Arctic Assistant",
-		Coin4Type:  "iceCube Swagger",
+		Coin4Type:  "IceCube Swagger",
 		Coin5Type:  "Polar Consultant",
 		Coin6Type:  "Igloo Broker",
 		Coin7Type:  "Snowy Accountant",
@@ -173,7 +173,7 @@ var (
 	}
 	//nolint:gochecknoglobals // .
 	SocialTypeNames = map[Type]string{
-		Social1Type:  "ice Breaker",
+		Social1Type:  "Ice Breaker",
 		Social2Type:  "Trouble Maker",
 		Social3Type:  "Snowy Plower",
 		Social4Type:  "Arctic Prankster",
@@ -182,7 +182,7 @@ var (
 		Social7Type:  "Polar Machine",
 		Social8Type:  "North Storm",
 		Social9Type:  "Snow Fall",
-		Social10Type: "ice Legend",
+		Social10Type: "Ice Legend",
 	}
 	//nolint:gochecknoglobals // .
 	GroupTypeForEachType = map[Type]GroupType{
